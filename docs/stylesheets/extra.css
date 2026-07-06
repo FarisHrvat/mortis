@@ -1,0 +1,126 @@
+:root {
+  --md-primary-fg-color: #4a2f7a;
+}
+
+.md-header {
+  background: linear-gradient(135deg, #2d1b4e 0%, #4a2f7a 60%, #6b3fa0 100%);
+}
+
+.md-tabs {
+  background: linear-gradient(135deg, #2d1b4e 0%, #4a2f7a 100%);
+}
+
+/* Hero section on the landing page */
+.mortis-hero {
+  text-align: center;
+  padding: 2.5rem 1rem 1.5rem 1rem;
+}
+
+.mortis-hero h1 {
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  background: linear-gradient(135deg, #6b3fa0, #a06bd6 60%, #d6a0f0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mortis-hero p.tagline {
+  font-size: 1.15rem;
+  opacity: 0.85;
+  max-width: 46rem;
+  margin: 0.5rem auto 1.5rem auto;
+}
+
+/* Feature card grid */
+.mortis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem 0;
+}
+
+.mortis-card {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--md-code-bg-color);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mortis-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.mortis-card h3 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+/* Image gallery grid used throughout tutorials */
+.mortis-img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.9rem;
+  margin: 1.2rem 0;
+}
+
+.mortis-img-grid figure {
+  margin: 0;
+}
+
+.mortis-img-grid img {
+  border-radius: 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  width: 100%;
+  display: block;
+}
+
+.mortis-img-grid figcaption {
+  font-size: 0.82rem;
+  opacity: 0.75;
+  text-align: center;
+  margin-top: 0.35rem;
+}
+
+/* Full-width single figure */
+.mortis-figure {
+  text-align: center;
+  margin: 1.4rem 0;
+}
+
+.mortis-figure img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.mortis-figure figcaption {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin-top: 0.4rem;
+}
+
+/* Beginner vs developer badges */
+.mortis-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.55rem;
+  border-radius: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.mortis-badge.beginner {
+  background: #2e7d32;
+  color: white;
+}
+
+.mortis-badge.developer {
+  background: #6b3fa0;
+  color: white;
+}

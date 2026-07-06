@@ -1,0 +1,95 @@
+"""
+MORTIS Exceptions
+=================
+All custom exceptions raised by MORTIS, with clear, user-friendly messages
+that explain exactly what went wrong and how to fix it.
+"""
+
+
+class MortisError(Exception):
+    """Base class for all MORTIS errors."""
+    pass
+
+
+class MissingROIError(MortisError):
+    """
+    Raised when an AnnData object is missing 'is_tissue' / 'is_background'
+    columns in .obs, which are required before background filtering.
+
+    Fix: Run ``mortis.draw_ROIs(adata)`` or load paired tissue/background
+    files so ROI labels are assigned automatically.
+    """
+    pass
+
+
+class MissingSpatialError(MortisError):
+    """
+    Raised when an AnnData object has no spatial coordinates.
+
+    Fix: Ensure your file contains 'x' and 'y' columns, or that
+    ``adata.obsm['spatial']`` is populated before calling this function.
+    """
+    pass
+
+
+class NotPreprocessedError(MortisError):
+    """
+    Raised when a downstream analysis step is called on data that has not
+    been preprocessed (normalized / log-transformed).
+
+    Fix: Run ``mortis.preprocess(adata)`` or call ``tic_normalize`` and
+    ``log1p_transform`` before proceeding.
+    """
+    pass
+
+
+class NoClustersError(MortisError):
+    """
+    Raised when cluster labels are required but have not been computed yet.
+
+    Fix: Run ``mortis.cluster(adata)`` before calling this function.
+    """
+    pass
+
+
+class NoEmbeddingError(MortisError):
+    """
+    Raised when a dimensionality-reduction embedding (PCA / UMAP) is required
+    but has not been computed yet.
+
+    Fix: Run ``mortis.run_pca(adata)`` or ``mortis.run_umap(adata)`` before calling this function.
+    """
+    pass
+
+
+class InsufficientSamplesError(MortisError):
+    """
+    Raised when a statistical test requires at least two groups but fewer
+    were found in the data.
+
+    Fix: Ensure your AnnData contains observations from at least two distinct
+    groups (check ``adata.obs['group']``).
+    """
+    pass
+
+
+class InvalidParameterError(MortisError):
+    """
+    Raised when a parameter value is outside the accepted range or is of the
+    wrong type.
+
+    The error message will specify which parameter is invalid and what the
+    accepted values are.
+    """
+    pass
+
+
+class FileFormatError(MortisError):
+    """
+    Raised when a file cannot be parsed because its format is unrecognised
+    or its required columns are missing.
+
+    Fix: Verify that your file contains 'x', 'y', and at least one metabolite
+    column, and that the file extension is .csv, .xlsx, or .h5ad.
+    """
+    pass

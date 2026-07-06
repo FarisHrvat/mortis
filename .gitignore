@@ -1,0 +1,57 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg
+/site/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors / OS
+.vscode/
+.DS_Store
+
+# Local Claude Code dev-preview config (machine-specific absolute paths)
+.claude/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Obsidian vault metadata (personal notes, not part of the package)
+.obsidian/
+
+# Local results / large example data — NOT committed to git.
+# Several of these exceed GitHub's 100MB hard per-file push limit
+# (488IMb_tissue.xlsx / 488IMb_background.xlsx are 165MB each,
+# 1b_P487_Healthy_sez1.h5ad is 97MB, and any merged/processed .h5ad output
+# regularly exceeds 100MB), so committing them would break `git push`
+# outright, not just bloat history. Keep large example data out-of-repo
+# (e.g. Zenodo/cloud storage + a download script) rather than switching to
+# Git LFS unless there's a specific reason to version large binaries.
+/results/
+/results_benchmark/
+*.h5ad
+/488IMb_tissue.xlsx
+/488IMb_background.xlsx
+/20240423_feature_table.xlsx
+/Non Responder/
+/Responder/
+/data/
+
+# Corrupted / unreferenced by any code — see CHANGELOG. Keep out of git
+# until confirmed needed; delete outright if not.
+local_enrichment_db_v2.sqlite
+
+# Personal notes unrelated to this package
+Single Cell Samu.md
+.obsidian/

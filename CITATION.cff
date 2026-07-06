@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use MORTIS in your research, please cite it as below."
+title: "MORTIS: high-performance downstream analysis for spatial metabolomics"
+version: 0.5.0
+date-released: "2026-07-03"
+license: MIT
+type: software
+authors:
+  - given-names: Faris
+    family-names: Hrvat
+    email: farishrvatit@gmail.com
+    # TODO: add your ORCID (https://orcid.org) if you have or create one —
+    # it's what makes this citation properly linkable/trackable in academic
+    # indices: orcid: "https://orcid.org/0000-0000-0000-0000"
+repository-code: "https://github.com/FarisHrvat/mortis"
+keywords:
+  - spatial metabolomics
+  - imaging mass spectrometry
+  - MALDI-MSI
+  - bioinformatics
+  - anndata
+  - scanpy
