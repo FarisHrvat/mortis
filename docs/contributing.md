@@ -68,6 +68,17 @@ edit files under `docs/`.
 
 ## Releasing
 
-See [`pypi_upload_guide.md`](https://github.com/FarisHrvat/mortis/blob/main/pypi_upload_guide.md)
-in the repository root for the full release process (GitHub Actions
-trusted-publishing workflow, or the manual `twine` fallback).
+Releases publish automatically via GitHub Actions when a tag matching
+`v*` is pushed (`.github/workflows/publish.yml`), using PyPI's Trusted
+Publishing (OIDC) — no API tokens involved:
+
+```bash
+# after bumping the version in pyproject.toml
+git tag v0.6.0
+git push origin v0.6.0
+```
+
+This requires registering the repo + workflow once at
+[pypi.org/manage/account/publishing](https://pypi.org/manage/account/publishing/)
+before the first release. See the workflow file for the exact steps, or
+`python -m build && twine upload dist/*` for a one-off manual release.

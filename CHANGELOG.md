@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- Removed from the public repository (kept locally, gitignored):
+  `pypi_upload_guide.md` (personal release-process notes — the
+  essential steps now live in `docs/contributing.md` instead),
+  `benchmark_full_pipeline.py` and `run_benchmark.py` (informal
+  personal benchmarking scripts, not polished examples), `run_test.py`
+  (an interactive CLI wizard that was actually broken — it imported a
+  `plot_QC` function that doesn't exist; the real name is `plot_qc`),
+  and `test.py` (an ad-hoc `.h5ad` inspection scratch tool). None of
+  these were referenced by the test suite or the documentation site.
+- Removed the redundant root-level `drugbank.db` — the package bundles
+  and auto-resolves its own copy at `src/mortis/data/drugbank.db` (see
+  `filter_drugs()`), so a second copy at the repo root served no purpose.
+
 ### Added
 - Full documentation site (MkDocs Material, deployed via GitHub Actions
   to GitHub Pages): zero-Python-experience installation/quickstart,

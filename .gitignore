@@ -55,3 +55,14 @@ local_enrichment_db_v2.sqlite
 # Personal notes unrelated to this package
 Single Cell Samu.md
 .obsidian/
+
+# Personal dev-scratch / benchmarking scripts and internal process notes —
+# useful to keep locally, not appropriate for a public-facing repo (informal
+# tone, personal notebook references, ad-hoc one-off debugging tools).
+# drugbank.db is NOT here: it's intentionally gone for good, since it's a
+# redundant duplicate of src/mortis/data/drugbank.db (the package now
+# bundles and auto-resolves its own copy — see filter_drugs()).
+/pypi_upload_guide.md
+/benchmark_full_pipeline.py
+/run_benchmark.py
+/test.py
