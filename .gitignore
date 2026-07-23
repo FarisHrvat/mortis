@@ -66,3 +66,6 @@ Single Cell Samu.md
 /benchmark_full_pipeline.py
 /run_benchmark.py
 /test.py
+
+# Private patient data — NEVER commit. Local test fixture only.
+/test_data/
