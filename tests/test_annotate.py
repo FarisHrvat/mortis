@@ -259,3 +259,50 @@ class TestPathwayORA:
             "pathway", "direction", "n_in_set", "n_hits", "n_shifted",
             "n_background", "odds_ratio", "pval", "pval_adj", "hits",
         ]
+
+
+class TestReferenceTable:
+    """
+    The database escape hatch. Name rules have a hard ceiling on untargeted
+    panels, so a supplied mapping must take precedence over them.
+    """
+
+    def test_reference_dict_wins_over_rules(self):
+        adata = mt.classify_compounds(
+            _adata(["PC(34:1)", "Erysotrine"]),
+            reference={"PC(34:1)": "Xenobiotic", "erysotrine": "Alkaloid"},
+        )
+        assert adata.var["chemical_class"].astype(str).tolist() == ["Xenobiotic", "Alkaloid"]
+
+    def test_reference_dataframe(self):
+        reference = pd.DataFrame({
+            "compound": ["Slaframine", "Mahanimbine"],
+            "class": ["Alkaloid", "Alkaloid"],
+        })
+        adata = mt.classify_compounds(_adata(["Slaframine", "Mahanimbine"]), reference=reference)
+        assert set(adata.var["chemical_class"].astype(str)) == {"Alkaloid"}
+
+    def test_rules_still_apply_to_uncovered_compounds(self):
+        adata = mt.classify_compounds(
+            _adata(["PC(34:1)", "L-Lysine"]), reference={"PC(34:1)": "Xenobiotic"}
+        )
+        assert adata.var["chemical_class"].astype(str).tolist() == ["Xenobiotic", "Amino acid"]
+
+    def test_overrides_beat_reference(self):
+        adata = mt.classify_compounds(
+            _adata(["PC(34:1)"]),
+            reference={"PC(34:1)": "Xenobiotic"},
+            overrides={"PC(34:1)": "Sterol"},
+        )
+        assert adata.var["chemical_class"].astype(str).iloc[0] == "Sterol"
+
+    def test_rejects_bad_reference(self):
+        with pytest.raises(InvalidParameterError, match="two columns"):
+            mt.classify_compounds(_adata(["PC(34:1)"]), reference=pd.DataFrame({"a": ["x"]}))
+        with pytest.raises(InvalidParameterError, match="DataFrame or dict"):
+            mt.classify_compounds(_adata(["PC(34:1)"]), reference=["PC(34:1)", "Sterol"])
+
+    def test_stereodescriptors_are_stripped(self):
+        """(+)-, (2R,3S)- and friends must not block a match."""
+        adata = mt.classify_compounds(_adata(["(+)-Cholesterol", "(2R,3S)-Glucose"]))
+        assert adata.var["chemical_class"].astype(str).tolist() == ["Sterol", "Carbohydrate"]
