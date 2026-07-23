@@ -343,3 +343,186 @@ def test_end_to_end_figure_set(tmp_path):
         )["pdf"]
         assert out.stat().st_size > 0
         assert b"mortis_hash=" in out.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# Figures for organization, class and pathway results
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def organization_cohort():
+    """Two arms where one metabolite is focal in R and diffuse in NR."""
+    import anndata as ad
+
+    rng = np.random.default_rng(7)
+    side, n_vars, n_sections = 16, 12, 8
+    n = side * side
+    coords = np.array([[i % side, i // side] for i in range(n)], dtype=np.float64)
+    centre = np.array([side / 2, side / 2])
+    d = np.linalg.norm(coords - centre, axis=1)
+
+    blocks, sections, groups = [], [], []
+    for i in range(n_sections):
+        group = "R" if i < n_sections // 2 else "NR"
+        section = rng.random((n, n_vars)) + 0.5
+        focal = np.exp(-(d ** 2) / 8.0) + rng.normal(0, 0.02, n).clip(0)
+        section[:, 0] = focal if group == "R" else rng.random(n) + 0.5
+        section[:, 0] *= 1000.0 / section[:, 0].sum()
+        blocks.append(section)
+        sections += [f"S{i:02d}"] * n
+        groups += [group] * n
+
+    adata = ad.AnnData(X=np.vstack(blocks).astype(np.float32))
+    adata.obsm["spatial"] = np.tile(coords, (n_sections, 1))
+    adata.obs["section"], adata.obs["response"] = sections, groups
+    adata.var_names = [f"m{j:03d}" for j in range(n_vars)]
+    return adata
+
+
+class TestIonImages:
+
+    @staticmethod
+    def _panels(fig):
+        """Panel axes only. Gridded data renders via imshow (ax.images) and
+        non-gridded via scatter (ax.collections); the shared colourbar is also
+        an axes, so a title is what distinguishes a real panel."""
+        return [
+            ax for ax in fig.axes
+            if ax.get_visible() and (ax.images or ax.collections) and ax.get_title()
+        ]
+
+    @staticmethod
+    def _clim(ax):
+        return (ax.images or ax.collections)[0].get_clim()
+
+    def test_one_panel_per_section(self, organization_cohort):
+        fig = mt.plot_ion_images(organization_cohort, "m000", sample_key="section")
+        assert len(self._panels(fig)) == 8
+
+    def test_grouping_orders_panels_into_blocks(self, organization_cohort):
+        fig = mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", group_key="response"
+        )
+        arms = [ax.get_title().split("\n")[1] for ax in self._panels(fig)]
+        assert arms == sorted(arms), "panels are interleaved rather than grouped"
+
+    def test_shared_scale_uses_one_clim(self, organization_cohort):
+        fig = mt.plot_ion_images(organization_cohort, "m000", sample_key="section")
+        clims = {self._clim(ax) for ax in self._panels(fig)}
+        assert len(clims) == 1, "shared_scale=True must give every panel the same limits"
+
+    def test_per_panel_scale_differs(self, organization_cohort):
+        fig = mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", shared_scale=False
+        )
+        clims = {self._clim(ax) for ax in self._panels(fig)}
+        assert len(clims) > 1
+
+    def test_percentile_clipping_excludes_outliers(self, organization_cohort):
+        """A single hot pixel must not flatten the colour scale."""
+        spiked = organization_cohort.copy()
+        X = np.asarray(spiked.X).copy()
+        X[0, 0] = 1e6
+        spiked.X = X
+        fig = mt.plot_ion_images(spiked, "m000", sample_key="section")
+        _, vmax = self._clim(self._panels(fig)[0])
+        assert vmax < 1e5, "colour scale was dominated by one outlier pixel"
+
+    def test_rejects_bad_input(self, organization_cohort):
+        with pytest.raises(InvalidParameterError, match="not found in adata.var_names"):
+            mt.plot_ion_images(organization_cohort, "nope", sample_key="section")
+        with pytest.raises(InvalidParameterError, match="section_missing"):
+            mt.plot_ion_images(organization_cohort, "m000", sample_key="section_missing")
+
+
+class TestOrganizationHeatmap:
+
+    @pytest.fixture(scope="class")
+    def org(self, organization_cohort):
+        return mt.spatial_organization(
+            organization_cohort, sample_key="section", metrics=("morans_i", "entropy")
+        )
+
+    def test_shape_and_labels(self, org):
+        fig = mt.plot_organization_heatmap(org, top_n=6)
+        ax = fig.axes[0]
+        assert ax.images[0].get_array().shape == (org.n_obs, 6)
+
+    def test_group_separator_drawn(self, org):
+        fig = mt.plot_organization_heatmap(org, group_key="response", top_n=5)
+        assert any(line.get_linewidth() > 1.0 for line in fig.axes[0].lines)
+
+    def test_result_selects_the_claimed_metabolites(self, org):
+        result = mt.differential_spatial_organization(org, "response", "R", "NR")
+        fig = mt.plot_organization_heatmap(org, result=result, top_n=3)
+        shown = [t.get_text() for t in fig.axes[0].get_xticklabels()]
+        assert result["metabolite"].iloc[0] in shown
+
+    def test_rejects_missing_metric(self, org):
+        with pytest.raises(InvalidParameterError, match="not in org.layers"):
+            mt.plot_organization_heatmap(org, metric="gini")
+
+
+class TestClassAndPathwayFigures:
+
+    def test_class_enrichment_annotates_counts(self):
+        report = pd.DataFrame({
+            "chemical_class": ["Polyamine", "Amino acid", "Sterol"],
+            "median_delta": [0.9, -0.6, 0.1],
+            "n_compounds": [12, 30, 4],
+            "pval_adj": [0.001, 0.02, 0.6],
+        })
+        ax = mt.plot_class_enrichment(report).axes[0]
+        labels = [t.get_text() for t in ax.texts]
+        assert "n=12" in labels and "n=30" in labels and "n=4" in labels
+
+    def test_class_enrichment_rejects_empty(self):
+        with pytest.raises(InvalidParameterError, match="empty"):
+            mt.plot_class_enrichment(pd.DataFrame(
+                columns=["chemical_class", "median_delta", "n_compounds", "pval_adj"]
+            ))
+
+    def test_pathway_dotplot_splits_directions(self):
+        report = pd.DataFrame({
+            "pathway": ["Arginine metabolism", "Glycolysis"] * 2,
+            "direction": ["up", "up", "down", "down"],
+            "n_hits": [8, 4, 6, 3],
+            "pval_adj": [0.001, 0.04, 0.002, 0.3],
+        })
+        fig = mt.plot_pathway_dotplot(report)
+        # Panel titles are set with loc="left", so get_title() (centre) is empty.
+        titles = [ax.get_title(loc="left") for ax in fig.axes if ax.get_visible()]
+        assert "up" in titles and "down" in titles
+
+    def test_pathway_dotplot_single_direction(self):
+        report = pd.DataFrame({
+            "pathway": ["A", "B"], "direction": ["any", "any"],
+            "n_hits": [5, 2], "pval_adj": [0.01, 0.2],
+        })
+        fig = mt.plot_pathway_dotplot(report, direction="any")
+        # The colourbar is an axes too; count only ones carrying a panel title.
+        panels = [ax for ax in fig.axes if ax.get_visible() and ax.get_title(loc="left")]
+        assert len(panels) == 1
+
+    def test_pathway_dotplot_rejects_empty(self):
+        with pytest.raises(InvalidParameterError, match="empty"):
+            mt.plot_pathway_dotplot(pd.DataFrame(
+                columns=["pathway", "direction", "n_hits", "pval_adj"]
+            ))
+
+
+def test_new_figures_export_as_editable_pdf(tmp_path, organization_cohort):
+    mt.set_publication_style()
+    org = mt.spatial_organization(
+        organization_cohort, sample_key="section", metrics=("morans_i",)
+    )
+    figures = {
+        "ion_images": mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", group_key="response"
+        ),
+        "org_heatmap": mt.plot_organization_heatmap(org, group_key="response", top_n=6),
+    }
+    for name, fig in figures.items():
+        out = mt.save_figure(fig, tmp_path / name, provenance={"figure": name}, close=True)["pdf"]
+        raw = out.read_bytes()
+        assert b"/FontFile2" in raw and b"/Type3" not in raw

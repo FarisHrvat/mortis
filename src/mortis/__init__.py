@@ -185,8 +185,12 @@ from .stats import (
 from .viz import (
     PALETTE,
     plot_abundance_vs_organization,
+    plot_class_enrichment,
     plot_delta_volcano,
     plot_effect_size,
+    plot_ion_images,
+    plot_organization_heatmap,
+    plot_pathway_dotplot,
     plot_signature_comparison,
     reset_style,
     save_figure,
@@ -262,6 +266,10 @@ __all__ = [
     "plot_delta_volcano",
     "plot_abundance_vs_organization",
     "plot_signature_comparison",
+    "plot_ion_images",
+    "plot_organization_heatmap",
+    "plot_class_enrichment",
+    "plot_pathway_dotplot",
     "PALETTE",
 
     # Cross-cohort comparison
