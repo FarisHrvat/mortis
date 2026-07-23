@@ -141,6 +141,14 @@ from .organization import (
     spatial_organization,
 )
 
+# Compound ID mapping & KEGG pathways (network)
+from .pathway import (
+    annotate_pathways,
+    clear_cache,
+    fetch_kegg_pathway_sets,
+    map_compound_ids,
+)
+
 # Plotting
 from .plotting import (
     plot_cluster_composition,
@@ -257,6 +265,12 @@ __all__ = [
     "class_enrichment",
     "pathway_ora",
     "CHEMICAL_CLASSES",
+
+    # Compound ID mapping & KEGG pathways
+    "map_compound_ids",
+    "fetch_kegg_pathway_sets",
+    "annotate_pathways",
+    "clear_cache",
 
     # Publication figures & export
     "set_publication_style",
