@@ -202,3 +202,81 @@ class TestDeterminism:
         np.testing.assert_array_equal(
             first["morans_i"].to_numpy(), second["morans_i"].to_numpy()
         )
+
+
+class TestStorageBackendsAgree:
+    """
+    The streaming kernels read one metabolite tile at a time, which means a
+    sparse matrix never has to be densified and a disk-backed matrix never has
+    to be loaded. Both fall out of the tiling rather than being special-cased,
+    so both need a test that they really do produce the same numbers.
+    """
+
+    @staticmethod
+    def _dataset(n_side=30, n_vars=60, sparsity=0.7, seed=0):
+        rng = np.random.default_rng(seed)
+        n = n_side * n_side
+        X = (rng.random((n, n_vars)) * 100).astype(np.float32)
+        X[X < sparsity * 100] = 0.0
+        coords = np.array([[i % n_side, i // n_side] for i in range(n)], dtype=np.float64)
+        return X, coords
+
+    @staticmethod
+    def _run(X, coords):
+        adata = ad.AnnData(X=X)
+        adata.obsm["spatial"] = coords.copy()
+        adata.obs["sample"] = "s"
+        return mt.spatial_autocorrelation(adata)[1].set_index("metabolite")
+
+    def test_sparse_matches_dense(self):
+        from scipy.sparse import csr_matrix
+
+        X, coords = self._dataset()
+        dense = self._run(X.copy(), coords)
+        sparse = self._run(csr_matrix(X), coords).reindex(dense.index)
+
+        np.testing.assert_allclose(
+            dense["morans_i"].to_numpy(), sparse["morans_i"].to_numpy(), atol=1e-6
+        )
+        np.testing.assert_allclose(
+            dense["geary_c"].to_numpy(), sparse["geary_c"].to_numpy(), atol=1e-6
+        )
+
+    def test_disk_backed_matches_in_memory(self, tmp_path):
+        X, coords = self._dataset(sparsity=0.0)
+        in_memory = self._run(X.copy(), coords)
+
+        adata = ad.AnnData(X=X.copy())
+        adata.obsm["spatial"] = coords.copy()
+        adata.obs["sample"] = "s"
+        path = tmp_path / "backed.h5ad"
+        adata.write_h5ad(path)
+
+        backed = ad.read_h5ad(path, backed="r")
+        assert backed.isbacked
+        result = mt.spatial_autocorrelation(backed)[1].set_index("metabolite").reindex(in_memory.index)
+        np.testing.assert_allclose(
+            in_memory["morans_i"].to_numpy(), result["morans_i"].to_numpy(), atol=1e-6
+        )
+
+    @pytest.mark.parametrize("tile_bytes", [1 << 16, 1 << 20, 1 << 26])
+    def test_tile_size_never_changes_the_answer(self, tile_bytes):
+        """Tiling is a memory/speed dial, not a numerical one."""
+        from mortis import analysis
+
+        X, coords = self._dataset()
+        original = analysis._TILE_BYTES
+        try:
+            analysis._TILE_BYTES = analysis._TILE_BYTES  # reference for clarity
+            reference = self._run(X.copy(), coords)
+            analysis._TILE_BYTES = tile_bytes
+            tiled = self._run(X.copy(), coords).reindex(reference.index)
+        finally:
+            analysis._TILE_BYTES = original
+
+        np.testing.assert_array_equal(
+            reference["morans_i"].to_numpy(), tiled["morans_i"].to_numpy()
+        )
+        np.testing.assert_array_equal(
+            reference["geary_c"].to_numpy(), tiled["geary_c"].to_numpy()
+        )
