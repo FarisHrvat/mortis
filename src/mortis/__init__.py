@@ -172,6 +172,18 @@ from .stats import (
     pseudobulk,
 )
 
+# Publication figures & export
+from .viz import (
+    PALETTE,
+    plot_abundance_vs_organization,
+    plot_delta_volcano,
+    plot_effect_size,
+    plot_signature_comparison,
+    reset_style,
+    save_figure,
+    set_publication_style,
+)
+
 __all__ = [
     # Exceptions
     "MortisError",
@@ -225,6 +237,16 @@ __all__ = [
     "differential_abundance",
     "paired_differential_abundance",
     "cliffs_delta",
+
+    # Publication figures & export
+    "set_publication_style",
+    "reset_style",
+    "save_figure",
+    "plot_effect_size",
+    "plot_delta_volcano",
+    "plot_abundance_vs_organization",
+    "plot_signature_comparison",
+    "PALETTE",
 
     # Cross-cohort comparison
     "cross_cohort_profile",
