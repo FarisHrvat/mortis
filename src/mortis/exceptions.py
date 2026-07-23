@@ -6,6 +6,18 @@ that explain exactly what went wrong and how to fix it.
 """
 
 
+class PseudoreplicationWarning(UserWarning):
+    """
+    Raised when a test is about to treat pixels as independent replicates.
+
+    Its own category (rather than a plain UserWarning) so that a user who has
+    genuinely confirmed a within-sample comparison can filter exactly this and
+    nothing else::
+
+        warnings.filterwarnings("ignore", category=mortis.PseudoreplicationWarning)
+    """
+
+
 class MortisError(Exception):
     """Base class for all MORTIS errors."""
     pass
