@@ -386,3 +386,79 @@ class TestColocalizationCosineMetric:
         adata, _ = spatial_autocorrelation(clustered_grid_adata.copy(), n_neighbors=4)
         with pytest.raises(InvalidParameterError):
             metabolite_colocalization(adata, metric="bad_metric")
+
+
+class TestColocalizationMedianMetric:
+    """
+    Coverage for the ColocML-benchmarked metric (Ovchinnikova et al.,
+    Bioinformatics 2020): 3x3 median filter, threshold at the image median,
+    then cosine.
+    """
+
+    @staticmethod
+    def _gridded(seed=0):
+        rng = np.random.default_rng(seed)
+        side = 20
+        n = side * side
+        coords = np.array([[i % side, i // side] for i in range(n)], dtype=np.float64)
+        centre = np.array([side / 2, side / 2])
+        d = np.linalg.norm(coords - centre, axis=1)
+        blob = np.exp(-(d ** 2) / 18.0)
+
+        X = np.column_stack([
+            blob,                                    # m000
+            blob + rng.normal(0, 0.02, n),           # m001 - same location
+            blob[::-1],                              # m002 - mirrored, different location
+            rng.random(n) * 0.1,                     # m003 - background only
+        ]).astype(np.float32)
+        adata = ad.AnnData(X=np.clip(X, 0, None))
+        adata.obsm["spatial"] = coords
+        adata.obs["sample"] = "s"
+        adata.var_names = ["m000", "m001", "m002", "m003"]
+        adata.var["morans_i"] = [0.9, 0.9, 0.9, 0.1]
+        return adata
+
+    def test_colocalized_pair_scores_above_non_colocalized(self):
+        adata = self._gridded()
+        edges = metabolite_colocalization(
+            adata, top_n=4, corr_threshold=-1.0, metric="cosine_median",
+            use_spatial_smooth=False,
+        ).set_index(["source", "target"])["weight"]
+        same = edges.get(("m000", "m001"), edges.get(("m001", "m000")))
+        mirrored = edges.get(("m000", "m002"), edges.get(("m002", "m000")))
+        assert same > 0.9
+        assert same > mirrored
+
+    def test_thresholding_suppresses_shared_background(self):
+        """
+        The point of median thresholding: plain cosine calls two images similar
+        just for sharing a dim background. Thresholding should not.
+        """
+        adata = self._gridded()
+        kwargs = dict(top_n=4, corr_threshold=-1.0, use_spatial_smooth=False)
+
+        def weight(metric):
+            e = metabolite_colocalization(adata, metric=metric, **kwargs)
+            e = e.set_index(["source", "target"])["weight"]
+            return e.get(("m000", "m003"), e.get(("m003", "m000")))
+
+        assert weight("cosine_median") < weight("cosine")
+
+    def test_rejects_unknown_metric(self):
+        adata = self._gridded()
+        with pytest.raises(InvalidParameterError):
+            metabolite_colocalization(adata, metric="jaccard")
+
+    def test_refuses_non_gridded_coordinates(self):
+        """
+        Regression: cosine_median rasterises by coordinate *span*, so scattered
+        or physical-unit coordinates would allocate a huge empty grid. Caught
+        when this metric was briefly made the default and hung the suite.
+        """
+        adata = self._gridded()
+        rng = np.random.default_rng(0)
+        adata.obsm["spatial"] = rng.random((adata.n_obs, 2)) * 50_000
+        with pytest.raises(InvalidParameterError, match="gridded pixel coordinates"):
+            metabolite_colocalization(
+                adata, top_n=4, metric="cosine_median", use_spatial_smooth=False
+            )

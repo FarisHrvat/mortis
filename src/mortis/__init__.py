@@ -74,6 +74,13 @@ from .analysis import (
     unmix_pixels,
 )
 
+# Cross-cohort / longitudinal comparison
+from .compare import (
+    compare_signatures,
+    cross_cohort_profile,
+    track_flow,
+)
+
 # Exceptions
 from .exceptions import (
     FileFormatError,
@@ -85,6 +92,7 @@ from .exceptions import (
     NoClustersError,
     NoEmbeddingError,
     NotPreprocessedError,
+    PseudoreplicationWarning,
 )
 
 # Filtering
@@ -115,6 +123,13 @@ from .io import (
     load_from_folder,
     read_metabolomics_data,
     save_spatial_data,
+)
+
+# Spatial organization (differential spatial pattern)
+from .organization import (
+    compare_abundance_and_organization,
+    differential_spatial_organization,
+    spatial_organization,
 )
 
 # Plotting
@@ -149,6 +164,14 @@ from .preprocessing import (
     tic_normalize,
 )
 
+# Statistics (sample-level / patient-level)
+from .stats import (
+    cliffs_delta,
+    differential_abundance,
+    paired_differential_abundance,
+    pseudobulk,
+)
+
 __all__ = [
     # Exceptions
     "MortisError",
@@ -160,6 +183,7 @@ __all__ = [
     "InsufficientSamplesError",
     "InvalidParameterError",
     "FileFormatError",
+    "PseudoreplicationWarning",
 
     # I/O
     "read_metabolomics_data",
@@ -195,6 +219,22 @@ __all__ = [
     "align_image",
     "extract_image_features",
     "plot_image_overlay",
+
+    # Statistics (sample-level)
+    "pseudobulk",
+    "differential_abundance",
+    "paired_differential_abundance",
+    "cliffs_delta",
+
+    # Cross-cohort comparison
+    "cross_cohort_profile",
+    "track_flow",
+    "compare_signatures",
+
+    # Spatial organization
+    "spatial_organization",
+    "differential_spatial_organization",
+    "compare_abundance_and_organization",
 
     # Analysis
     "cluster",
