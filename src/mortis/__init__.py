@@ -74,6 +74,15 @@ from .analysis import (
     unmix_pixels,
 )
 
+# Annotation & enrichment
+from .annotate import (
+    CHEMICAL_CLASSES,
+    class_enrichment,
+    classification_report,
+    classify_compounds,
+    pathway_ora,
+)
+
 # Cross-cohort / longitudinal comparison
 from .compare import (
     compare_signatures,
@@ -237,6 +246,13 @@ __all__ = [
     "differential_abundance",
     "paired_differential_abundance",
     "cliffs_delta",
+
+    # Annotation & enrichment
+    "classify_compounds",
+    "classification_report",
+    "class_enrichment",
+    "pathway_ora",
+    "CHEMICAL_CLASSES",
 
     # Publication figures & export
     "set_publication_style",
