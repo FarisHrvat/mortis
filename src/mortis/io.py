@@ -112,6 +112,15 @@ def _read_h5ad(file_path: Path) -> ad.AnnData:
                 "in adata.obs."
             )
 
+    # Files written by MORTIS <=0.5.0 can carry a '_perf_cache' in .uns holding
+    # gigabytes of stale dense copies of .X (see analysis._get_X). Drop it on
+    # read so it doesn't get dragged along into everything saved afterwards.
+    if adata.uns.pop("_perf_cache", None) is not None:
+        print(
+            f"[MORTIS] Dropped a stale '_perf_cache' from '{file_path.name}' "
+            "(written by an older MORTIS version; it held redundant copies of .X)."
+        )
+
     if "source_file" not in adata.uns:
         adata.uns["source_file"] = file_path.name
     return adata

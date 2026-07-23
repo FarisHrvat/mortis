@@ -13,6 +13,7 @@ Performance design
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -33,6 +34,7 @@ from .exceptions import (
     NoClustersError,
     NoEmbeddingError,
     NotPreprocessedError,
+    PseudoreplicationWarning,
 )
 from .preprocessing import _N_JOBS
 
@@ -45,19 +47,42 @@ def _to_dense(X) -> np.ndarray:
         return X.toarray().astype(np.float32, copy=False)
     return np.asarray(X, dtype=np.float32)
 
-def _get_X(adata: ad.AnnData, cache_key: Optional[str] = None) -> np.ndarray:
-    if cache_key:
-        cache = adata.uns.setdefault("_perf_cache", {})
-        cached = cache.get(cache_key)
-        if isinstance(cached, np.ndarray):
-            return cached
+def _get_X(adata: ad.AnnData) -> np.ndarray:
+    """Return the analysis matrix: the ``log1p`` layer if present, else ``.X``.
+
+    This used to memoise the dense result into ``adata.uns['_perf_cache']``.
+    That was removed, deliberately, because it was wrong in three ways:
+
+    1. **It went stale.** Nothing invalidated the entry, so any step that
+       *replaced* ``.X`` (``scale()``, ``correct_batches()``, the sparse path
+       of ``tic_normalize()``) left every later call reading pre-correction
+       data. A test run after wiping ``.X`` to all-zeros still returned the
+       original statistics.
+    2. **It was expensive.** Four call sites used four different keys, so a
+       dataset could accumulate four independent full dense copies — about
+       2.4 GB for 100k pixels x 2000 metabolites.
+    3. **It leaked to disk.** ``.uns`` is serialised, so every
+       ``write_h5ad()`` baked those copies into the file.
+
+    Rebuilding the dense view costs ~0.5 s on a 95k x 2231 dataset, which is
+    under 0.3% of a typical pipeline run. Not a trade worth making.
+
+    Note the returned array may *alias* ``adata.X`` when the data is already
+    dense float32 — treat it as read-only and copy before mutating.
+    """
     if "log1p" in adata.layers:
-        X = _to_dense(adata.layers["log1p"])
-    else:
-        X = _to_dense(adata.X)
-    if cache_key:
-        adata.uns.setdefault("_perf_cache", {})[cache_key] = X
-    return X
+        return _to_dense(adata.layers["log1p"])
+    return _to_dense(adata.X)
+
+
+def _purge_legacy_cache(adata: ad.AnnData) -> None:
+    """Drop a ``_perf_cache`` left in ``.uns`` by an older MORTIS version.
+
+    Objects written by <=0.5.0 can carry gigabytes of stale dense copies.
+    Without this, loading such a file and re-saving it would keep dragging
+    them along forever.
+    """
+    adata.uns.pop("_perf_cache", None)
 
 def _check_preprocessed(adata: ad.AnnData) -> None:
     if not adata.uns.get("preprocessed_steps"):
@@ -147,7 +172,7 @@ def cluster_nmf(
     if n_components < 2: raise InvalidParameterError("n_components must be ≥ 2.")
     if copy: adata = adata.copy()
 
-    X = _get_X(adata, cache_key="_x_for_compare_groups")
+    X = _get_X(adata)
     X = np.clip(X, 0, None)
 
     H, W = None, None
@@ -442,8 +467,61 @@ def find_markers(
 
 def compare_groups(
     adata: ad.AnnData, groupby: str, group1: str, group2: str,
-    method: str = "wilcoxon", copy: bool = False,
+    method: str = "wilcoxon", copy: bool = False, acknowledge_pixel_level: bool = False,
 ) -> Tuple[ad.AnnData, pd.DataFrame]:
+    """
+    Compare two groups of **pixels** within a single sample.
+
+    .. warning::
+       This treats every pixel as an independent observation. That is only
+       valid when the two groups being compared come from the *same* tissue
+       section — comparing regions, clusters, or niches within one sample.
+
+       It is **not** valid for comparing patients, conditions, treatments, or
+       timepoints. Pixels from one patient are not independent replicates, and
+       testing them as if they were inflates n by orders of magnitude. On
+       simulated null data with six patients this function called 183 of 200
+       metabolites significant when the true answer was zero.
+
+       For anything that compares groups of samples, use::
+
+           pb = mortis.pseudobulk(adata, sample_key="patient")
+           res = mortis.differential_abundance(pb, "response", "R", "NR")
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Pixel-level data.
+    groupby : str
+        Column in ``adata.obs`` holding the labels.
+    group1, group2 : str
+        The two groups to compare. Note the direction: ``log2fc`` and
+        ``cohen_d`` are computed as group2 relative to group1, so a **positive
+        value means higher in group2**.
+    method : {"wilcoxon", "mannwhitney", "t-test"}
+        Rank test (default) or Welch's t-test.
+    copy : bool
+        Return a copy instead of annotating in place.
+    acknowledge_pixel_level : bool
+        Set ``True`` to silence the pseudoreplication warning once you have
+        confirmed the comparison really is within-sample.
+
+    Returns
+    -------
+    (AnnData, DataFrame)
+        Results with columns ``metabolite``, ``mean_group1``, ``mean_group2``,
+        ``log2fc``, ``cohen_d``, ``statistic``, ``pval``, ``pval_adj``,
+        ``significant``.
+    """
+    if not acknowledge_pixel_level:
+        warnings.warn(
+            "compare_groups() tests pixels as independent replicates. This is valid only "
+            "for comparing regions within one sample. For patient/condition/timepoint "
+            "comparisons use mortis.pseudobulk() + mortis.differential_abundance(), which "
+            "test at the sample level. Pass acknowledge_pixel_level=True to silence this.",
+            PseudoreplicationWarning,
+            stacklevel=2,
+        )
     if groupby not in adata.obs.columns: raise InvalidParameterError(f"'{groupby}' not found in adata.obs.")
     available = adata.obs[groupby].unique().tolist()
     for g in (group1, group2):
@@ -491,7 +569,7 @@ def multi_group_test(
     if len(groups) < 2: raise InvalidParameterError("Need ≥ 2 groups.")
     if copy: adata = adata.copy()
 
-    X = _get_X(adata, cache_key="_x_for_multi_group")
+    X = _get_X(adata)
     group_masks = [adata.obs[groupby].values == g for g in groups]
     group_data = [X[m] for m in group_masks]
 
@@ -522,12 +600,43 @@ def multi_group_test(
 def _offset_coords_by_batch(adata: ad.AnnData, batch_key: str) -> np.ndarray:
     """Copy spatial coords, shifting each batch far apart so cross-batch
     neighbours are never found by a KDTree query (shared by every spatial
-    function that must not bridge independent samples)."""
-    coords = adata.obsm["spatial"].copy().astype(np.float32)
-    if batch_key in adata.obs.columns:
-        for i, batch in enumerate(adata.obs[batch_key].unique()):
-            mask = adata.obs[batch_key].values == batch
-            coords[mask, 0] += i * 1e6
+    function that must not bridge independent samples).
+
+    Two things here are load-bearing and were both wrong before:
+
+    **float64, not float32.** float32 carries ~7 significant digits, so once
+    the shifted x-coordinate passes ~8.4e6 the gap between representable
+    values exceeds one pixel and neighbouring pixels round onto each other.
+    With the old fixed ``i * 1e6`` shift that started biting at batch ~9 and
+    was catastrophic by batch ~29. Measured on a real 52-section cohort:
+    35 of 52 sections lost ~49% of their distinct pixel coordinates, which
+    silently corrupted every downstream spatial statistic for those sections.
+    float64 has ~15 significant digits and has no such problem at any batch
+    count we could plausibly see.
+
+    **The shift is derived from the data, not hard-coded.** A fixed 1e6 shift
+    assumes coordinates never span 1e6 units. Instruments reporting stage
+    position in nanometres blow straight through that and batches start
+    overlapping. Deriving the stride from the actual x-extent means the
+    separation guarantee holds whatever units the coordinates are in.
+    """
+    coords = np.asarray(adata.obsm["spatial"], dtype=np.float64).copy()
+    if batch_key not in adata.obs.columns:
+        return coords
+
+    batches = adata.obs[batch_key].unique()
+    if len(batches) < 2:
+        return coords
+
+    # One stride wider than the full x-extent guarantees no two batches can
+    # overlap, so a KDTree can never return a cross-batch neighbour.
+    x = coords[:, 0]
+    span = float(np.ptp(x)) if x.size else 0.0
+    stride = (span + 1.0) * 10.0
+
+    batch_values = adata.obs[batch_key].values
+    for i, batch in enumerate(batches):
+        coords[batch_values == batch, 0] += i * stride
     return coords
 
 def _build_spatial_weights(
@@ -549,6 +658,139 @@ def _build_spatial_weights(
     data = np.full(n * n_cols, 1.0 / n_cols, dtype=np.float32)
     W = csr_matrix((data, (rows, cols)), shape=(n, n), dtype=np.float32)
     return W, idx
+
+#: Bounds on the target size of one working array inside the streaming spatial
+#: kernels, in bytes. The actual target is chosen from free RAM at import time
+#: (see below) and clamped to this range.
+_TILE_BYTES_MIN = 64 * 1024 * 1024
+_TILE_BYTES_MAX = 256 * 1024 * 1024
+
+#: Fraction of currently-available RAM to aim at for one tile.
+_TILE_RAM_FRACTION = 0.02
+
+
+def _default_tile_bytes() -> int:
+    """
+    Pick the tile target from free RAM, clamped to a measured-useful range.
+
+    Sizing this to the CPU cache is the intuitive move and it is **wrong here**
+    — measured, not assumed. Sweeping tile width on a 95,751 x 2,231 dataset
+    (Apple M3 Max, 64 KB L1d, 4 MB L2) gave:
+
+    =========  ==========  =============
+    tile       time        working set
+    =========  ==========  =============
+     1 MB      1.166 s     0.25 GB
+     4 MB      1.181 s     0.28 GB
+     64 MB     0.859 s     0.28 GB
+     128 MB    0.718 s     0.66 GB
+     256 MB    0.614 s     1.04 GB
+     512 MB    0.581 s     1.68 GB
+     1024 MB   0.602 s     2.64 GB
+    =========  ==========  =============
+
+    Cache-sized tiles are the *slowest*. The reason is that the dominant cost
+    is the sparse product ``W @ block``, and scipy walks the whole sparse
+    structure of ``W`` once per tile regardless of how many dense columns come
+    with it. Sixteen columns per tile means walking that structure 140 times;
+    700 columns means walking it 4 times. Amortising the sparse traversal beats
+    cache locality by a wide margin, until the tile stops fitting comfortably
+    in RAM and the curve turns back up past ~512 MB.
+
+    Every configuration produced a bit-identical checksum, so this is purely a
+    time/memory dial and never changes results.
+    """
+    target = _TILE_BYTES_MAX
+    try:
+        import psutil
+
+        target = int(psutil.virtual_memory().available * _TILE_RAM_FRACTION)
+    except Exception:  # pragma: no cover - psutil unavailable or unreadable
+        pass
+    return int(np.clip(target, _TILE_BYTES_MIN, _TILE_BYTES_MAX))
+
+
+#: Resolved once at import. Override for benchmarking by assigning to
+#: ``mortis.analysis._TILE_BYTES``.
+_TILE_BYTES = _default_tile_bytes()
+
+
+def _tile_width(n_obs: int, itemsize: int = 4) -> int:
+    """Metabolites per tile such that one working array is about _TILE_BYTES."""
+    return int(np.clip(_TILE_BYTES // max(n_obs * itemsize, 1), 16, 8192))
+
+
+def _feature_tiles(adata: ad.AnnData, tile: Optional[int] = None):
+    """Yield ``(start, stop, dense_block)`` over metabolites, one tile at a time.
+
+    Reads straight from ``.X`` (or the ``log1p`` layer) per tile, so a sparse or
+    disk-backed matrix is only ever densified one tile wide. Blocks come back
+    as float32 — matching what the non-streaming code path used, so results are
+    unchanged — while the accumulators the caller keeps are float64.
+    """
+    source = adata.layers["log1p"] if "log1p" in adata.layers else adata.X
+    if tile is None:
+        tile = _tile_width(adata.n_obs)
+    for start in range(0, adata.n_vars, tile):
+        stop = min(start + tile, adata.n_vars)
+        block = source[:, start:stop]
+        if issparse(block):
+            block = block.toarray()
+        yield start, stop, np.ascontiguousarray(block, dtype=np.float32)
+
+
+def _moran_geary_sums(adata, W, row_sums, col_sums, tile: Optional[int] = None):
+    """Accumulate the Moran's I and Geary's C column sums in one streaming pass.
+
+    The straightforward way to write this allocates several full
+    pixels-x-metabolites matrices at once — ``X``, ``X - mean``, ``W @ X_dev``
+    and ``X**2`` are four of them, and on a 583k-pixel cohort with 2231
+    metabolites that is roughly 5 GB *each*. The peak, not the result, is what
+    puts cohort-scale data out of reach on an ordinary machine.
+
+    Tiling over metabolites fixes it the same way tiled attention kernels do:
+    the reduction is over pixels, and every output is a per-metabolite scalar,
+    so metabolites can be processed in blocks and only the small results kept.
+    Peak memory becomes a function of the tile width rather than the metabolite
+    count. This is **exact** — identical arithmetic, just reassociated — not an
+    approximation, so results match the previous implementation bit for bit at
+    float64 and are unchanged after the float32 cast.
+
+    One arithmetic saving comes free. Both statistics need a sparse product,
+    naively ``W @ X_dev`` for Moran and ``W @ X`` for Geary. Since
+    ``W @ (X - m) = W @ X - rowsums * m``, computing ``W @ X`` once and
+    subtracting recovers the centred product, halving the sparse matmul —
+    which is the dominant cost of the whole routine.
+    """
+    n_vars = adata.n_vars
+    moran_num = np.empty(n_vars, dtype=np.float64)
+    denom = np.empty(n_vars, dtype=np.float64)
+    geary_num = np.empty(n_vars, dtype=np.float64)
+
+    row_plus_col = (row_sums + col_sums).astype(np.float32)
+
+    for start, stop, block in _feature_tiles(adata, tile):
+        mean = block.mean(axis=0)
+        WX = W @ block                                   # the one sparse product
+
+        # Geary's numerator, while `block` is still the raw values:
+        #   sum_ij w_ij (x_i - x_j)^2
+        #     = sum_i x_i^2 rowsum_i + sum_j x_j^2 colsum_j - 2 x^T W x
+        # einsum keeps this to one pass with no x**2 temporary, which matters
+        # because that temporary is the same size as the tile itself.
+        geary_num[start:stop] = np.einsum("i,ij,ij->j", row_plus_col, block, block)
+        geary_num[start:stop] -= 2.0 * np.einsum("ij,ij->j", block, WX)
+
+        # Now centre in place. `block` becomes the deviations and `WX` becomes
+        # W @ deviations, so no third full-size array is ever allocated.
+        block -= mean
+        WX -= row_sums[:, None].astype(np.float32) * mean
+
+        moran_num[start:stop] = np.einsum("ij,ij->j", block, WX)
+        denom[start:stop] = np.einsum("ij,ij->j", block, block)
+
+    return moran_num, denom, geary_num
+
 
 def spatial_autocorrelation(
     adata: ad.AnnData, n_neighbors: int = 6, batch_key: str = "sample",
@@ -573,25 +815,20 @@ def spatial_autocorrelation(
     n = adata.n_obs
     W, _ = _build_spatial_weights(adata, n_neighbors, batch_key=batch_key)
 
-    X = _get_X(adata, cache_key="_x_for_spatial_moran")
-    X_mean = X.mean(axis=0)
-    X_dev = X - X_mean
-
-    WX = W @ X_dev
-
-    numerator = n * (X_dev * WX).sum(axis=0)
-    denom = (X_dev**2).sum(axis=0)
     S0 = W.sum()
+    row_sums = np.asarray(W.sum(axis=1)).ravel()
+    col_sums = np.asarray(W.sum(axis=0)).ravel()
+
+    numerator, denom, geary_num = _moran_geary_sums(adata, W, row_sums, col_sums)
 
     safe_denom = np.where(denom < 1e-12, 1.0, denom)
+    numerator = n * numerator
     morans_i = (numerator / (S0 * safe_denom)).astype(np.float32)
     morans_i[denom < 1e-12] = 0.0
 
     E_I = -1.0 / (n - 1)
     W_sym = W + W.T
     S1 = 0.5 * W_sym.multiply(W_sym).sum()
-    row_sums = np.asarray(W.sum(axis=1)).ravel()
-    col_sums = np.asarray(W.sum(axis=0)).ravel()
     S2 = ((row_sums + col_sums)**2).sum()
 
     var_I = (n**2 * S1 - n * S2 + 3 * S0**2) / ((n**2 - 1) * S0**2) - E_I**2
@@ -601,13 +838,8 @@ def spatial_autocorrelation(
     pvals = stats.norm.sf(z)
     _, pvals_adj, _, _ = multipletests(pvals, method="fdr_bh")
 
-    # --- Geary's C (shares W, S0, S1, S2 with Moran's I above) ---
-    # sum_ij w_ij (x_i - x_j)^2 = sum_i x_i^2*rowsum_i + sum_j x_j^2*colsum_j - 2*x^T W x
-    term_a = (row_sums[:, None] * X**2).sum(axis=0)
-    term_b = (col_sums[:, None] * X**2).sum(axis=0)
-    term_c = (X * (W @ X)).sum(axis=0)
-    geary_num = term_a + term_b - 2 * term_c
-
+    # Geary's C shares W, S0, S1 and S2 with Moran's I above; its numerator was
+    # accumulated in the same pass by _moran_geary_sums.
     geary_c = (((n - 1) / (2 * S0)) * (geary_num / safe_denom)).astype(np.float32)
     geary_c[denom < 1e-12] = 1.0  # E[C] under no autocorrelation
 
@@ -644,7 +876,7 @@ def local_moran(adata: ad.AnnData, metabolite: str, n_neighbors: int = 6, batch_
     if metabolite not in adata.var_names: raise InvalidParameterError(f"Metabolite '{metabolite}' not found.")
     if copy: adata = adata.copy()
 
-    coords, n = adata.obsm["spatial"].astype(np.float32), len(adata.obsm["spatial"])
+    coords, n = np.asarray(adata.obsm["spatial"], dtype=np.float64), adata.n_obs
     W, _ = _build_spatial_weights(adata, n_neighbors, batch_key=batch_key)
 
     X = _get_X(adata)
@@ -708,7 +940,7 @@ def getis_ord_gi(
         raise InvalidParameterError(f"Metabolite '{metabolite}' not found.")
     if copy: adata = adata.copy()
 
-    coords = adata.obsm["spatial"].astype(np.float32)
+    coords = np.asarray(adata.obsm["spatial"], dtype=np.float64)
     n = adata.n_obs
     # Gi* includes the pixel itself as one of its own neighbours.
     W_star, _ = _build_spatial_weights(adata, n_neighbors, batch_key=batch_key, include_self=True)
@@ -755,14 +987,36 @@ def spatial_neighbors(adata: ad.AnnData, n_neighbors: int = 6, batch_key: str = 
     adata.uns["spatial_neighbors"] = {"n_neighbors": n_neighbors, "params": {"n_neighbors": n_neighbors}}
     return adata
 
-@nb.njit(parallel=True, fastmath=True)
-def _numba_permute_and_count(er, ec, label_int, nc, n_permutations, seed):
-    np.random.seed(seed)
+@nb.njit(parallel=True)
+def _numba_permute_and_count(er, ec, label_int, nc, perm_seeds):
+    """Permute cluster labels and count label-pair adjacencies, once per seed.
+
+    Reproducibility note — this is the whole reason the signature takes a
+    *array* of seeds rather than a single one. Numba gives every worker
+    thread its own RNG state, so calling ``np.random.seed(seed)`` once before
+    the ``prange`` only seeds whichever thread happened to run that line. The
+    remaining threads started from arbitrary state, which made the output
+    depend on how many cores the machine had: the same ``random_state`` gave
+    materially different z-scores at 1 vs 4 threads (max |dz| ~0.79).
+
+    Seeding *inside* the loop from a precomputed per-permutation seed fixes
+    it. Permutation ``p`` draws the same shuffle no matter which thread picks
+    it up or how many threads exist, so results are identical across machines.
+    The seeds come from ``numpy.random.SeedSequence``, which is built to
+    produce well-separated independent streams (naive ``seed + p`` gives
+    correlated Mersenne Twister streams).
+
+    ``fastmath`` is deliberately off: it buys nothing here (the inner loop is
+    integer indexing and ``+= 1``) and only adds a reproducibility risk.
+    """
     n_edges = len(er)
     n_nodes = len(label_int)
+    n_permutations = len(perm_seeds)
     null_counts = np.zeros((n_permutations, nc, nc), dtype=np.float32)
 
     for p in nb.prange(n_permutations):
+        np.random.seed(perm_seeds[p])
+
         perm_labels = label_int.copy()
         for i in range(n_nodes - 1, 0, -1):
             j = np.random.randint(0, i + 1)
@@ -812,8 +1066,13 @@ def neighborhood_enrichment(
     np.add.at(observed, (a_obs, b_obs), 1)
     np.add.at(observed, (b_obs, a_obs), 1)
 
+    # One independent, well-separated seed per permutation, so the result is
+    # identical regardless of how many threads run the loop. See
+    # _numba_permute_and_count for why a single seed was not enough.
+    perm_seeds = np.random.SeedSequence(random_state).generate_state(n_permutations)
+
     try:
-        null_counts = _numba_permute_and_count(er, ec, label_int, nc, n_permutations, random_state)
+        null_counts = _numba_permute_and_count(er, ec, label_int, nc, perm_seeds)
     finally:
         nb.set_num_threads(prior_n_threads)  # don't leak the thread-count change process-wide
     null_mean = null_counts.mean(axis=0)
@@ -863,7 +1122,7 @@ def co_occurrence(
     _check_clusters(adata, cluster_key)
     if copy: adata = adata.copy()
 
-    coords = _offset_coords_by_batch(adata, batch_key).astype(np.float64)
+    coords = _offset_coords_by_batch(adata, batch_key)
     labels = adata.obs[cluster_key].astype(str).values
     clusters = sorted(np.unique(labels))
     nc = len(clusters)
@@ -920,7 +1179,7 @@ def score_metabolite_set(adata: ad.AnnData, metabolites: List[str], score_name: 
         print(f"[MORTIS] Warning: {len(missing)} metabolite(s) not found and skipped: {missing[:5]}{'...' if len(missing) > 5 else ''}")
     if not found:
         raise InvalidParameterError("None of the provided metabolites were found in adata.var_names.")
-    X = _get_X(adata, cache_key="_x_for_set_scoring")
+    X = _get_X(adata)
     idx = [adata.var_names.get_loc(m) for m in found]
     adata.obs[score_name] = X[:, idx].mean(axis=1)
     return adata
@@ -1271,6 +1530,57 @@ def spatial_gradient(
     return pd.DataFrame(res)
 
 
+def _median_filter_and_threshold(X: np.ndarray, coords: np.ndarray, size: int = 3) -> np.ndarray:
+    """
+    ColocML's preprocessing: median-filter each ion image, then zero everything
+    below that image's own median.
+
+    Both steps target the same problem. Ion images carry salt-and-pepper noise
+    from single-pixel ionisation spikes, and cosine similarity is uncentred, so
+    two images that share only a dim, noisy background score as similar when
+    they have nothing in common. The median filter removes isolated spikes
+    without blurring genuine edges; the threshold discards the background half
+    of the image so the score is driven by where the signal actually is.
+
+    Coordinates must be on (or close to) an integer pixel grid, which is what
+    MSI acquisition produces. Pixels with no measurement stay zero.
+
+    The grid is sized by the coordinate *span*, not the pixel count, so
+    scattered or wide-span coordinates would allocate an enormous mostly-empty
+    raster — 500 pixels spread over a 50,000-unit range asks for a 49,808 x
+    49,677 grid, about 10 GB per ion image. That is checked for and refused
+    rather than attempted.
+    """
+    from scipy.ndimage import median_filter
+
+    xs = np.rint(coords[:, 0]).astype(np.int64)
+    ys = np.rint(coords[:, 1]).astype(np.int64)
+    xs -= xs.min()
+    ys -= ys.min()
+    height, width = int(ys.max()) + 1, int(xs.max()) + 1
+
+    n_pixels = coords.shape[0]
+    if height * width > max(64 * n_pixels, 10_000):
+        raise InvalidParameterError(
+            f"metric='cosine_median' needs gridded pixel coordinates, but these span a "
+            f"{height} x {width} grid ({height * width:,} cells) for only {n_pixels:,} "
+            "pixels, which would allocate a mostly-empty raster. Use metric='cosine' "
+            "(no grid required) or check that adata.obsm['spatial'] holds integer pixel "
+            "indices rather than physical stage coordinates."
+        )
+
+    out = np.empty_like(X, dtype=np.float32)
+    grid = np.zeros((height, width), dtype=np.float32)
+    for j in range(X.shape[1]):
+        grid[:] = 0.0
+        grid[ys, xs] = X[:, j]
+        smoothed = median_filter(grid, size=size, mode="nearest")[ys, xs]
+        # "median thresholding at the 0.5 quantile" — keep the brighter half.
+        smoothed[smoothed < np.median(smoothed)] = 0.0
+        out[:, j] = smoothed
+    return out
+
+
 def metabolite_colocalization(
     adata: ad.AnnData, top_n: int = 50, corr_threshold: float = 0.4, use_spatial_smooth: bool = True,
     metric: str = "pearson",
@@ -1279,22 +1589,37 @@ def metabolite_colocalization(
     Pairwise ion-image similarity network among the top-``top_n`` spatially
     variable metabolites (run :func:`spatial_autocorrelation` first).
 
-    metric : {"pearson", "cosine"}
-        "pearson" (default) — Pearson correlation between (optionally
-        spatially-smoothed) ion image vectors.
-        "cosine" — cosine similarity between raw (non-mean-centred) ion
-        images, matching METASPACE's own colocalization metric and the
-        approach benchmarked in ColocML (Ryabchykov et al., *Bioinformatics*
-        2020) as agreeing better with expert-annotated colocalization
-        rankings than raw Pearson correlation in that comparison. Cosine
-        similarity is not centred, so it is more sensitive to shared
-        baseline/background signal than Pearson — prefer it when ion
-        images are sparse (mostly zero) with a clear "on/off" spatial
-        pattern; prefer Pearson when comparing continuously-varying
-        intensity gradients.
+    metric : {"pearson", "cosine", "cosine_median"}
+        ``"pearson"`` (default) — Pearson correlation between (optionally
+        spatially-smoothed) ion image vectors. Mean-centred, so unlike the
+        cosine variants it is insensitive to shared background; prefer it for
+        continuously-varying intensity gradients rather than sparse "on/off"
+        patterns. It stays the default only for backward compatibility —
+        ``"cosine_median"`` is the better-validated choice on gridded data.
+
+        ``"cosine_median"`` — the measure that won the ColocML
+        benchmark: a 3x3 median filter, then zeroing everything below the
+        image's own median, then cosine similarity. Ovchinnikova et al. had 42
+        imaging-MS experts from nine laboratories rank 2,210 ion-image pairs,
+        and this scored Spearman 0.794 against that consensus — statistically
+        indistinguishable from their deep-learning model (0.797) and from the
+        experts' agreement with each other (0.791), while staying a handful of
+        lines of arithmetic. Requires gridded pixel coordinates.
+
+        ``"cosine"`` — plain cosine similarity on raw ion images, without the
+        filtering and thresholding. Cheaper, needs no grid, and it is what
+        METASPACE's own colocalization uses, but it scored materially worse in
+        the same benchmark. Use it when coordinates are not on a regular grid.
+
+    References
+    ----------
+    Ovchinnikova K, Stuart L, Rakhlin A, Nikolenko S, Alexandrov T. ColocML:
+    machine learning quantifies co-localization between mass spectrometry
+    images. *Bioinformatics* 2020;36(10):3215-3224.
+    https://doi.org/10.1093/bioinformatics/btaa085
     """
     if "morans_i" not in adata.var: raise InvalidParameterError("Run MORTIS.spatial_autocorrelation first.")
-    valid_metrics = {"pearson", "cosine"}
+    valid_metrics = {"pearson", "cosine", "cosine_median"}
     if metric not in valid_metrics:
         raise InvalidParameterError(f"metric must be one of {valid_metrics}, got '{metric}'.")
 
@@ -1305,7 +1630,10 @@ def metabolite_colocalization(
     if use_spatial_smooth and "spatial_connectivities" in adata.obsp:
         X = adata.obsp["spatial_connectivities"] @ X
 
-    if metric == "cosine":
+    if metric == "cosine_median":
+        X = _median_filter_and_threshold(np.asarray(X), adata.obsm["spatial"])
+
+    if metric in ("cosine", "cosine_median"):
         norms = np.linalg.norm(X, axis=0, keepdims=True)
         norms[norms == 0] = 1.0
         X_norm = X / norms
