@@ -526,3 +526,42 @@ def test_new_figures_export_as_editable_pdf(tmp_path, organization_cohort):
         out = mt.save_figure(fig, tmp_path / name, provenance={"figure": name}, close=True)["pdf"]
         raw = out.read_bytes()
         assert b"/FontFile2" in raw and b"/Type3" not in raw
+
+
+class TestLabelCollisions:
+    """
+    Cliff's delta from a handful of samples per group is quantised, so the
+    strongest findings routinely land on the exact same coordinate. Four
+    organization-only compounds all at (0, 1) stacked into unreadable overlap
+    before labels were spread.
+    """
+
+    def test_coincident_labels_do_not_overlap(self):
+        merged = pd.DataFrame({
+            "metabolite": ["Spermidine", "Putrescine", "Spermine", "Agmatine"],
+            "delta_abundance": [0.0, 0.0, 0.0, 0.0],
+            "delta_organization": [1.0, 1.0, 1.0, 1.0],
+            "pval_adj_abundance": [0.9] * 4,
+            "pval_adj_organization": [0.001] * 4,
+            "classification": ["organization only"] * 4,
+        })
+        ax = mt.plot_abundance_vs_organization(merged, label_top=4).axes[0]
+        annotations = [t for t in ax.texts if t.get_text() in set(merged["metabolite"])]
+        assert len(annotations) == 4
+
+        offsets = [t.get_position() for t in annotations]
+        vertical = sorted(o[1] for o in offsets)
+        assert len(set(vertical)) == 4, "labels share a vertical offset and will overlap"
+
+    def test_distinct_points_keep_the_default_offset(self):
+        merged = pd.DataFrame({
+            "metabolite": ["A", "B"],
+            "delta_abundance": [0.0, 0.8],
+            "delta_organization": [1.0, -0.9],
+            "pval_adj_abundance": [0.9, 0.001],
+            "pval_adj_organization": [0.001, 0.001],
+            "classification": ["organization only", "organization only"],
+        })
+        ax = mt.plot_abundance_vs_organization(merged, label_top=2).axes[0]
+        labelled = [t for t in ax.texts if t.get_text() in {"A", "B"}]
+        assert len({t.get_position()[1] for t in labelled}) == 1

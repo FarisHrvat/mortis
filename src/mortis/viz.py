@@ -417,14 +417,12 @@ def plot_delta_volcano(
         ax.axvline(x, color="black", linewidth=0.6, linestyle="--")
 
     if label_top > 0:
-        ranked = result.assign(_score=np.abs(delta) * y)
-        for _, row in ranked.nlargest(label_top, "_score").iterrows():
-            ax.annotate(
-                str(row["metabolite"])[:24],
-                (row["delta"], -np.log10(max(row["pval_adj"], 1e-300))),
-                fontsize=mpl.rcParams["font.size"] - 2.5,
-                xytext=(3, 3), textcoords="offset points",
-            )
+        ranked = result.assign(_score=np.abs(delta) * y).nlargest(label_top, "_score")
+        _annotate_spread(
+            ax,
+            [(r["delta"], -np.log10(max(r["pval_adj"], 1e-300))) for _, r in ranked.iterrows()],
+            [str(r["metabolite"])[:24] for _, r in ranked.iterrows()],
+        )
 
     ax.set_xlim(-1.08, 1.08)
     ax.set_xlabel("Cliff's $\\delta$")
@@ -495,14 +493,12 @@ def plot_abundance_vs_organization(
     ax.axhline(0.0, color="black", linewidth=0.7)
 
     if label_top > 0:
-        focus = merged[merged["classification"] == "organization only"]
-        for _, row in focus.head(label_top).iterrows():
-            ax.annotate(
-                str(row["metabolite"])[:22],
-                (row["delta_abundance"], row["delta_organization"]),
-                fontsize=mpl.rcParams["font.size"] - 2.5,
-                xytext=(4, 3), textcoords="offset points",
-            )
+        focus = merged[merged["classification"] == "organization only"].head(label_top)
+        _annotate_spread(
+            ax,
+            list(zip(focus["delta_abundance"], focus["delta_organization"])),
+            [str(m)[:22] for m in focus["metabolite"]],
+        )
 
     ax.set_xlim(-1.08, 1.08)
     ax.set_ylim(-1.08, 1.08)
@@ -596,6 +592,37 @@ def plot_signature_comparison(
     ax.set_aspect("equal")
     fig.tight_layout()
     return fig
+
+
+def _annotate_spread(ax, points, labels, fontsize=None):
+    """
+    Annotate points, nudging labels apart when the points sit on top of each other.
+
+    Effect sizes are bounded and quantised — Cliff's delta from six samples per
+    group can only take a few dozen values — so the strongest findings routinely
+    land on the *exact* same coordinate. Placing every label at a fixed offset
+    stacks them into unreadable overlap, which is what happened to four
+    organization-only compounds all sitting at (0, 1).
+
+    Labels are placed in the order given (callers pass their most important
+    first) and each one is pushed down past whatever is already occupying that
+    column. Deterministic, and no extra dependency.
+    """
+    fontsize = fontsize if fontsize is not None else mpl.rcParams["font.size"] - 2.5
+    line_height = fontsize * 1.35
+    occupied: Dict[Tuple[int, int], int] = {}
+
+    for (x, y), label in zip(points, labels):
+        # Bucket by rounded position: anything within ~2% of the axis range
+        # counts as the same spot for stacking purposes.
+        key = (round(float(x), 2), round(float(y), 2))
+        level = occupied.get(key, 0)
+        occupied[key] = level + 1
+        ax.annotate(
+            str(label), (x, y),
+            xytext=(4, 3 - level * line_height), textcoords="offset points",
+            fontsize=fontsize, va="top" if level else "bottom",
+        )
 
 
 def _draw_ion_panel(ax, xy: np.ndarray, values: np.ndarray, vmin, vmax, cmap):
