@@ -6,10 +6,10 @@ filtering through normalization, scaling, and dimensionality reduction.
 
 Performance notes
 -----------------
-* Seamless integration with NVIDIA CUDA (cuml) for transparent hardware
-  acceleration of PCA and embedding pipelines.
-* All matrix operations use float32 and operate in-place where possible.
-* ``filter_background`` avoids materialising the full dense matrix.
+* PCA and UMAP run on the GPU through cuML when it is installed, and on the
+  CPU otherwise. Nothing to configure.
+* Matrices are float32 and modified in place where that is safe.
+* ``filter_background`` works off column sums rather than densifying.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def _numba_thread_limit():
         nb.set_num_threads(prior)
 
 def _get_hardware_backend(use_hardware: bool) -> str:
-    """Intelligently detects available hardware accelerators."""
+    """Return "cuda" if cuML is importable, otherwise "cpu"."""
     if not use_hardware:
         return "cpu"
     if importlib.util.find_spec("cuml") is not None:
@@ -304,12 +304,13 @@ def run_pca(
     if backend == "cuda":
         import cuml
         import cupy as cp
-        print("[MORTIS] Hardware Accelerated PCA: NVIDIA CUDA")
+        print("[MORTIS] Running PCA on GPU (cuML).")
         X_gpu = cp.asarray(_to_dense(adata.X))
         pca = cuml.PCA(n_components=n_comps, random_state=random_state, **kwargs)
         adata.obsm['X_pca'] = pca.fit_transform(X_gpu).get()
     else:
-        # CPU. Scanpy's SVD is instantaneous and mathematically stable.
+        # arpack is exact and fine below ~10k pixels; randomized is much
+        # faster above that and accurate enough for a 50-component PCA.
         print("[MORTIS] Running PCA on CPU.")
         kwargs.setdefault("svd_solver", "arpack" if adata.n_obs < 10_000 else "randomized")
         with _configure_runtime_threads():
@@ -327,14 +328,16 @@ def correct_batches(
     **kwargs
 ) -> ad.AnnData:
     """
-    Batch correction using ComBat.
-    Smartly falls back to standard ComBat if protected covariates lack variance.
+    Batch correction with ComBat.
+
+    Covariates you ask to protect are dropped if they only take one value in
+    the data -- ComBat's design matrix would be singular and it would crash.
     """
     if batch_key not in adata.obs:
         raise InvalidParameterError(f"'{batch_key}' not found in adata.obs")
     if copy: adata = adata.copy()
 
-    # --- SMART COVARIATE CHECKER ---
+    # Drop covariates that can't actually be protected.
     valid_covariates = []
     if covariates:
         for cov in covariates:
@@ -486,7 +489,7 @@ def run_umap(
     backend = _get_hardware_backend(use_hardware)
     if backend == "cuda":
         import cuml
-        print("[MORTIS] Hardware Accelerated UMAP: NVIDIA CUDA")
+        print("[MORTIS] Running UMAP on GPU (cuML).")
         umap_model = cuml.UMAP(min_dist=min_dist, spread=spread, random_state=random_state, **kwargs)
         # Use harmony basis if available, otherwise standard PCA
         basis = "X_pca_harmony" if "X_pca_harmony" in adata.obsm else "X_pca"

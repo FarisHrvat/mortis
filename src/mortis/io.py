@@ -1,9 +1,9 @@
 """
 MORTIS I/O Module
 =================
-Fast, robust loading of spatial metabolomics data from .h5ad, .csv, and .xlsx
-files.  Handles single files, paired tissue/background files, and entire
-folders with automatic pairing.
+Loading spatial metabolomics data from .h5ad, .csv, and .xlsx files. Handles
+single files, paired tissue/background exports, and whole folders (which get
+paired up by filename).
 
 Public API
 ----------
@@ -78,7 +78,8 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
 
     obs_df = df[["x", "y"]].copy()
 
-    # Ultra-fast index creation utilizing Python List Comprehensions
+    # Build pixel IDs as "x_y". A comprehension beats df.apply here by a wide
+    # margin on the 100k+ row exports these files usually are.
     x_vals = obs_df["x"].astype(int).values
     y_vals = obs_df["y"].astype(int).values
     obs_df.index = [f"{x}_{y}" for x, y in zip(x_vals, y_vals)]

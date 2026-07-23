@@ -54,7 +54,8 @@ def _save_or_show(fig: plt.Figure, save: Union[bool, str, None], show: bool = Tr
     return fig
 
 def _get_spot_size(adata: ad.AnnData, user_s: Optional[float] = None) -> float:
-    """Calculate the mathematically optimal dot size, or obey user explicitly."""
+    """Pick a dot size that roughly fills the tissue without overlapping, unless
+    the user passed one, in which case use theirs."""
     if user_s is not None:
         return float(user_s)
     return max(0.1, 50000.0 / max(1, adata.n_obs))
@@ -690,7 +691,7 @@ def plot_cluster_composition(
 
 
 # ---------------------------------------------------------------------------
-# KILLER FEATURE PLOTTING
+# Gradient and co-localization plots
 # ---------------------------------------------------------------------------
 
 def plot_morans(

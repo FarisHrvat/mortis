@@ -4,11 +4,14 @@ MORTIS Analysis Module
 Clustering, differential expression, spatial statistics, multi-group tests,
 NMF, pathway enrichment, and data management for spatial metabolomics.
 
-Performance design
-------------------
-* Moran's I is fully vectorised.
-* NMF and clustering feature automatic NVIDIA GPU hardware dispatch.
-* neighborhood_enrichment uses JIT-compiled Numba C-speed permutations with strict seeding.
+A few notes on how things are computed
+--------------------------------------
+* Moran's I and Geary's C are done for all metabolites at once, streamed over
+  metabolite tiles so the peak memory doesn't scale with panel size.
+* NMF and PCA use cuML on an NVIDIA GPU if it happens to be installed, and
+  fall back to scikit-learn otherwise. No configuration either way.
+* neighborhood_enrichment permutes in Numba. Each permutation gets its own
+  seed, so the answer doesn't change with the number of cores.
 """
 
 from __future__ import annotations
@@ -182,7 +185,7 @@ def cluster_nmf(
         try:
             import cuml
             import cupy as cp
-            print("[MORTIS] Hardware Accelerated NMF: NVIDIA CUDA")
+            print("[MORTIS] Running NMF on GPU (cuML).")
             model = cuml.NMF(
                 n_components=n_components,
                 init=kwargs.pop("init", "nndsvda" if X.min() == 0 else "random"),
@@ -872,6 +875,55 @@ def spatial_de(adata: ad.AnnData, n_top: int = 50, n_neighbors: int = 6, use_fdr
     return adata, top
 
 def local_moran(adata: ad.AnnData, metabolite: str, n_neighbors: int = 6, batch_key: str = "sample", copy: bool = False) -> Tuple[ad.AnnData, pd.DataFrame]:
+    """
+    Local Moran's I (LISA, Anselin 1995) for one metabolite: a per-pixel score
+    saying whether a pixel sits inside a patch of similar values, or stands out
+    against its neighbours.
+
+    Each pixel is labelled by the classic four-quadrant scheme:
+
+    ====  ====================================================================
+    HH    high value among high neighbours - the core of a hot patch
+    LL    low among low - the core of a cold patch
+    HL    high surrounded by low - a spatial outlier
+    LH    low surrounded by high - a spatial outlier
+    NS    not significant
+    ====  ====================================================================
+
+    Compare with :func:`getis_ord_gi`, which only flags concordant hot and cold
+    clusters and never outliers. If you want "where are the foci", use Gi*; if
+    you also want "which pixels break the local pattern", use this.
+
+    .. note::
+       **The p-values here are approximate.** They come from standardising the
+       local statistics against their own empirical mean and spread, not from
+       Anselin's conditional permutation, which holds each pixel fixed and
+       reshuffles the rest. The approximation is fast enough to run on every
+       pixel of a large section and is fine for ranking pixels or drawing a
+       LISA map. It is not calibrated inference: do not report these p-values
+       as if they were exact, and do not FDR-correct them and quote a count.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Pixel-level data with ``adata.obsm['spatial']``.
+    metabolite : str
+        Which metabolite to map. Must be in ``adata.var_names``.
+    n_neighbors : int
+        Neighbours per pixel in the spatial graph. Default 6.
+    batch_key : str
+        Column in ``adata.obs`` separating sections, so neighbourhoods never
+        bridge two samples.
+    copy : bool
+        Return a copy instead of annotating in place.
+
+    Returns
+    -------
+    (AnnData, DataFrame)
+        Adds ``adata.obs[f'{metabolite}_lisa']`` and ``_lisa_type``, and
+        returns a DataFrame with ``x, y, value, local_i, z_score, pval,
+        lisa_type``.
+    """
     _check_spatial(adata)
     if metabolite not in adata.var_names: raise InvalidParameterError(f"Metabolite '{metabolite}' not found.")
     if copy: adata = adata.copy()
@@ -883,12 +935,15 @@ def local_moran(adata: ad.AnnData, metabolite: str, n_neighbors: int = 6, batch_
     idx = adata.var_names.get_loc(metabolite)
     x = X[:, idx].astype(np.float64)
 
-    # Analytical Z-score calculation for massive N
+    # Standardise, then take the spatial lag. Doing it this way avoids a
+    # per-pixel loop, which matters at 100k+ pixels.
     z = (x - x.mean()) / (x.std() + 1e-12)
     Wz = np.asarray(W @ z).ravel()
     local_i = z * Wz
 
-    # Fast analytical p-values
+    # p-values from the empirical spread of local_i rather than Anselin's
+    # conditional permutation. Cheap, but only approximate -- see the note in
+    # the docstring before quoting these.
     z_i = (local_i - local_i.mean()) / (local_i.std() + 1e-12)
     pvals = stats.norm.sf(np.abs(z_i)) * 2
 
@@ -1444,7 +1499,7 @@ def run_paga(adata: ad.AnnData, cluster_key: str = "cluster", copy: bool = False
     return adata
 
 # ---------------------------------------------------------------------------
-# KILLER FEATURES
+# Spatially-aware decomposition, gradients and co-localization
 # ---------------------------------------------------------------------------
 
 def spatially_weighted_nmf(
@@ -1466,7 +1521,7 @@ def spatially_weighted_nmf(
         try:
             import cuml
             import cupy as cp
-            print("[MORTIS] Hardware Accelerated Spatially-Weighted NMF: NVIDIA CUDA")
+            print("[MORTIS] Running spatially-weighted NMF on GPU (cuML).")
             model = cuml.NMF(
                 n_components=n_components, max_iter=kwargs.pop("max_iter", 500),
                 random_state=random_state, **kwargs
