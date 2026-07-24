@@ -107,11 +107,13 @@ img { max-width: 100%; height: auto; display: block; }
 .section--plain { border-top: none; }
 .section--tint { background: var(--ground-alt); }
 .prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1.1rem; }
-/* Justified with hyphenation on: justification without it opens rivers of
-   whitespace at this measure. */
-.prose p, .step p, figcaption { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
+/* Justified, but never hyphenated — a word broken across lines with a dash
+   reads as a typo. text-wrap:pretty keeps the rag sane without one. */
+.prose p, .step p, figcaption { text-align: justify; hyphens: none; -webkit-hyphens: none;
+  text-wrap: pretty; overflow-wrap: break-word; }
 .prose .eyebrow { text-align: left; }
-@media (max-width: 620px) { .prose p, .step p, figcaption { text-align: left; hyphens: manual; } }
+/* Justification needs room. Below this the gaps between words get ugly. */
+@media (max-width: 760px) { .prose p, .step p, figcaption { text-align: left; } }
 .eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
   color: var(--muted); display: flex; align-items: center; gap: .95rem; }
 /* 2px, not 1px: a hairline rule and small caps alias into each other on
@@ -182,14 +184,19 @@ figcaption b { color: var(--ink); font-weight: 500; }
 
 /* ── Pipeline ─────────────────────────────────────────────── */
 .stages { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 2.4rem; border-radius: 2px; overflow: hidden; }
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 2.4rem; border-radius: 2px; overflow: hidden; }
 /* Every gallery tile reserves the same figure area, so a two-panel dot plot
    and a single-panel bar chart line up instead of setting their own heights. */
-.gallery { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.gallery { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1180px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width:  860px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width:  560px) { .gallery { grid-template-columns: 1fr; } }
 .gallery .stage { gap: .55rem; }
-.gallery .figure__frame { height: 9.5rem; width: 100%; display: grid; place-items: center;
-  margin-bottom: .2rem; overflow: hidden; }
-.gallery .figure__frame img { max-height: 100%; width: auto; max-width: 100%; }
+/* Figures scale to fit their tile. The previous fixed height plus
+   overflow:hidden cropped axis labels off the edges. */
+.gallery .figure__frame { width: 100%; aspect-ratio: 4 / 3; display: grid; place-items: center;
+  margin-bottom: .2rem; }
+.gallery .figure__frame img { width: 100%; height: 100%; object-fit: contain; }
 .stage { background: var(--ground); padding: 1.25rem 1.15rem; display: flex; flex-direction: column; gap: .4rem;
   transition: background .25s; }
 .stage:hover { background: var(--ground-alt); }
@@ -294,7 +301,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 .stepdots { display: flex; gap: .45rem; margin-top: .4rem; }
 .stepdots i { width: 1.6rem; height: 2px; background: var(--rule); display: block; transition: background .4s; }
 .stepdots i.on { background: var(--signal); }
-.pin__visual { position: relative; height: min(66svh, 34rem); }
+.pin__visual { position: relative; height: min(58svh, 32rem); min-height: 15rem; }
 .pin__layer { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0;
   transition: opacity .55s ease, transform .55s ease; transform: scale(.985); }
 .pin__layer.is-live { opacity: 1; transform: none; }

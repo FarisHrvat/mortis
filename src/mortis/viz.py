@@ -42,7 +42,7 @@ import shutil
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -452,10 +452,15 @@ def plot_effect_size(
     ax.set_yticklabels(_wrap(top["metabolite"].astype(str).tolist()))
     ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.05, 1.05)
-    ax.set_xlabel(
-        f"Cliff's $\\delta$   ($\\leftarrow$ higher in {group_labels[1]}"
-        f"    |    higher in {group_labels[0]} $\\rightarrow$)"
-    )
+    # Direction goes under the axis ends rather than into one long label,
+    # which ran off the figure at small widths.
+    ax.set_xlabel("Cliff's $\\delta$")
+    ax.annotate(f"$\\leftarrow$ {group_labels[1]}", xy=(0.0, -0.115),
+                xycoords="axes fraction", ha="left", va="top",
+                fontsize=mpl.rcParams["font.size"] - 2, color=PALETTE["down"])
+    ax.annotate(f"{group_labels[0]} $\\rightarrow$", xy=(1.0, -0.115),
+                xycoords="axes fraction", ha="right", va="top",
+                fontsize=mpl.rcParams["font.size"] - 2, color=PALETTE["up"])
 
     n1 = int(result["n_group1"].iloc[0]) if "n_group1" in result.columns else None
     n2 = int(result["n_group2"].iloc[0]) if "n_group2" in result.columns else None
@@ -468,7 +473,12 @@ def plot_effect_size(
         mpl.patches.Patch(facecolor="none", edgecolor=PALETTE["up"],
                           label=f"FDR $\\geq$ {fdr_threshold}"),
     ]
-    ax.legend(handles=handles, loc="lower right", frameon=False)
+    # Below the axes, not inside it: at ten-plus bars the legend always landed
+    # on data wherever it was placed within the frame.
+    ax.legend(
+        handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.16),
+        ncol=2, frameon=False, fontsize=mpl.rcParams["font.size"] - 1,
+    )
     fig.tight_layout()
     return fig
 
@@ -710,18 +720,26 @@ def _annotate_spread(ax, points, labels, fontsize=None):
     column. Deterministic, and no extra dependency.
     """
     fontsize = fontsize if fontsize is not None else mpl.rcParams["font.size"] - 2.5
-    line_height = fontsize * 1.35
-    occupied: Dict[Tuple[int, int], int] = {}
+    line_height = fontsize * 1.45
 
+    # Work in display space so "too close" means what it looks like on the
+    # page. Bucketing on data coordinates only caught exact ties, which left
+    # labels on merely-nearby points still overlapping.
+    placed: List[Tuple[float, float]] = []
     for (x, y), label in zip(points, labels):
-        # Bucket by rounded position: anything within ~2% of the axis range
-        # counts as the same spot for stacking purposes.
-        key = (round(float(x), 2), round(float(y), 2))
-        level = occupied.get(key, 0)
-        occupied[key] = level + 1
+        px, py = ax.transData.transform((float(x), float(y)))
+        level = 0
+        while any(
+            abs(px - qx) < 90 and abs((py - level * line_height) - qy) < line_height
+            for qx, qy in placed
+        ):
+            level += 1
+            if level > 12:
+                break
+        placed.append((px, py - level * line_height))
         ax.annotate(
             str(label), (x, y),
-            xytext=(4, 3 - level * line_height), textcoords="offset points",
+            xytext=(5, 3 - level * line_height), textcoords="offset points",
             fontsize=fontsize, va="top" if level else "bottom",
         )
 
@@ -890,10 +908,13 @@ def plot_ion_images(
     for ax in axes.ravel()[len(order):]:
         ax.set_visible(False)
 
-    fig.suptitle(metabolite, fontsize=mpl.rcParams["font.size"] + 1)
+    # Leave real headroom: with few rows the suptitle otherwise lands on the
+    # first row of panel labels.
+    fig.suptitle(metabolite, fontsize=mpl.rcParams["font.size"] + 1, y=0.995)
+    fig.subplots_adjust(top=1 - 0.42 / (panel_size * n_rows + 0.6))
     if shared_scale and handle is not None:
         bar = fig.colorbar(
-            handle, ax=axes.ravel().tolist(), fraction=0.02, pad=0.02, aspect=40
+            handle, ax=axes.ravel().tolist(), fraction=0.025, pad=0.025, aspect=28
         )
         bar.set_label("intensity", fontsize=mpl.rcParams["font.size"] - 1)
         bar.outline.set_visible(False)
