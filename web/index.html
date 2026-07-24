@@ -177,7 +177,7 @@ figcaption b { color: var(--ink); font-weight: 500; }
    and a single-panel bar chart line up instead of setting their own heights. */
 .gallery { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .gallery .stage { gap: .55rem; }
-.gallery .figure__frame { height: 9.5rem; display: grid; place-items: center;
+.gallery .figure__frame { height: 9.5rem; width: 100%; display: grid; place-items: center;
   margin-bottom: .2rem; overflow: hidden; }
 .gallery .figure__frame img { max-height: 100%; width: auto; max-width: 100%; }
 .stage { background: var(--ground); padding: 1.25rem 1.15rem; display: flex; flex-direction: column; gap: .4rem;
@@ -491,7 +491,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
         every seeded step gives the same answer on a different machine.
       </p>
     </div>
-    <div class="stages reveal" id="stages"></div>
+    <div class="stages reveal" id="stages" data-fill></div>
 
     <div class="prose reveal" id="quickstart" style="margin-top:var(--section-y)">
       <p class="eyebrow">Quickstart</p>
@@ -534,7 +534,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
         run opened up — what goes in, what comes out, and what you do with it next.
       </p>
     </div>
-    <div class="cells reveal" id="walk"></div>
+    <div class="cells reveal" id="walk" data-fill></div>
   </div>
 </section>
 
@@ -592,7 +592,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
         <code>pdfinfo figure.pdf</code> identifies the run that made it months later.
       </p>
     </div>
-    <div class="stages gallery reveal" id="gallery"></div>
+    <div class="stages gallery reveal" id="gallery" data-fill></div>
   </div>
 </section>
 
@@ -627,7 +627,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
         code as it stood before the fix.
       </p>
     </div>
-    <div class="numbers reveal" id="numbers"></div>
+    <div class="numbers reveal" id="numbers" data-fill></div>
     <div class="prose reveal" style="margin-top:2.4rem">
       <p>
         Spatial statistics stream over metabolite tiles, so a cohort that used to need 4.3 GB of
@@ -903,6 +903,23 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
        <img class="fig-dark" src="assets/${f}.dark.svg" alt="" aria-hidden="true" loading="lazy" />
      </div><span class="stage__k">${n}</span><span class="stage__d">${d}</span></div>`).join("");
 
+  /* ── No ragged holes in any tile grid ──────────────────── */
+  /* auto-fit changes the column count with the viewport, so no fixed number
+     of tiles divides evenly at every width. Rather than pick a count that
+     happens to work on one screen, the last tile stretches across whatever
+     remains of its row. */
+  function fillRows() {
+    for (const grid of document.querySelectorAll("[data-fill]")) {
+      const kids = [...grid.children];
+      if (!kids.length) continue;
+      kids.forEach((k) => (k.style.gridColumn = ""));
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length;
+      const remainder = kids.length % cols;
+      if (remainder) kids[kids.length - 1].style.gridColumn = `span ${cols - remainder + 1}`;
+    }
+  }
+  addEventListener("resize", fillRows);
+
   /* ── Walkthrough: what each call returns ───────────────── */
   const WALK = [
     ["mt.load_from_folder('./sections')",
@@ -1033,6 +1050,9 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
     search.placeholder = `Search ${total} functions — try “pseudobulk” or “spatial”`;
     render();
   }).catch(() => { out.innerHTML = `<p class="lede">The API index could not be loaded.</p>`; });
+
+  // after every grid above has been populated
+  fillRows();
 
   search.addEventListener("input", render);
 })();
