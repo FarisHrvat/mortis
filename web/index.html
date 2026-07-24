@@ -22,7 +22,7 @@
   --muted:      #6a7078;
   --responder:  #b2182b;
   --nonresp:    #2166ac;
-  --signal:     #762a83;
+  --signal:     #01665e;
   --accent:     var(--signal);
   --code-bg:    #f4f1ec;
   --shadow:     0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
@@ -44,19 +44,19 @@
     --muted:      #8a939d;
     --responder:  #e2665c;
     --nonresp:    #6ba3d6;
-    --signal:     #b57edc;
+    --signal:     #5fb3a8;
     --code-bg:    #121a21;
     --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
   }
 }
 :root[data-theme="dark"] {
   --ink:#eceae5; --ground:#0c1116; --ground-alt:#121a21; --rule:#24303a; --muted:#8a939d;
-  --responder:#e2665c; --nonresp:#6ba3d6; --signal:#b57edc; --code-bg:#121a21;
+  --responder:#e2665c; --nonresp:#6ba3d6; --signal:#5fb3a8; --code-bg:#121a21;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
 }
 :root[data-theme="light"] {
   --ink:#10161c; --ground:#fbfaf7; --ground-alt:#f2efe9; --rule:#ddd8cf; --muted:#6a7078;
-  --responder:#b2182b; --nonresp:#2166ac; --signal:#762a83; --code-bg:#f4f1ec;
+  --responder:#b2182b; --nonresp:#2166ac; --signal:#01665e; --code-bg:#f4f1ec;
   --shadow: 0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
 }
 
@@ -103,8 +103,11 @@ img { max-width: 100%; height: auto; display: block; }
 .section--tint { background: var(--ground-alt); }
 .prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1.1rem; }
 .eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--muted); display: flex; align-items: center; gap: .6rem; }
-.eyebrow::before { content: ""; width: 1.6rem; height: 1px; background: currentColor; }
+  color: var(--muted); display: flex; align-items: center; gap: .95rem; }
+/* 2px, not 1px: a hairline rule and small caps alias into each other on
+   fractional device-pixel ratios and read as a strikethrough. */
+.eyebrow::before { content: ""; width: 1.5rem; height: 2px; background: var(--signal);
+  flex: none; border-radius: 1px; }
 h2 { font-size: clamp(1.9rem, 4vw, 2.9rem); line-height: 1.14; margin-block: .5rem .35rem; }
 h3 { font-size: 1.16rem; font-family: var(--sans); font-weight: 500; letter-spacing: 0; }
 .lede { font-size: clamp(1.02rem, 1.5vw, 1.16rem); color: var(--muted); }
@@ -169,13 +172,45 @@ figcaption b { color: var(--ink); font-weight: 500; }
 
 /* ── Pipeline ─────────────────────────────────────────────── */
 .stages { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 2.4rem; border-radius: 2px; overflow: hidden; }
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 2.4rem; border-radius: 2px; overflow: hidden; }
+/* Every gallery tile reserves the same figure area, so a two-panel dot plot
+   and a single-panel bar chart line up instead of setting their own heights. */
+.gallery { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.gallery .stage { gap: .55rem; }
+.gallery .figure__frame { height: 9.5rem; display: grid; place-items: center;
+  margin-bottom: .2rem; overflow: hidden; }
+.gallery .figure__frame img { max-height: 100%; width: auto; max-width: 100%; }
 .stage { background: var(--ground); padding: 1.25rem 1.15rem; display: flex; flex-direction: column; gap: .4rem;
   transition: background .25s; }
 .stage:hover { background: var(--ground-alt); }
 .stage__k { font-family: var(--mono); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--signal); }
 .stage__t { font-family: var(--sans); font-weight: 500; font-size: .98rem; }
 .stage__d { font-size: .84rem; color: var(--muted); }
+
+/* ── Walkthrough cells ────────────────────────────────────── */
+.cells { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-radius: 2px;
+  overflow: hidden; margin-top: 2.4rem; }
+.cell { background: var(--ground); padding: 1.35rem 1.3rem; display: flex; flex-direction: column; gap: .7rem; }
+.cell__call { font-family: var(--mono); font-size: .82rem; color: var(--signal); font-weight: 500; }
+.cell__what { font-size: .9rem; }
+.cell__out { font-family: var(--mono); font-size: .74rem; color: var(--muted); background: var(--code-bg);
+  border: 1px solid var(--rule); border-radius: 2px; padding: .6rem .7rem; white-space: pre-wrap;
+  overflow-x: auto; line-height: 1.6; }
+.cell__next { font-size: .82rem; color: var(--muted); margin-top: auto; }
+.cell__next b { color: var(--ink); font-weight: 500; }
+
+/* ── Verification report ──────────────────────────────────── */
+.verify { margin-top: 1rem; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.vrow { display: flex; gap: .8rem; align-items: baseline; padding: .5rem .85rem; font-size: .8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent); }
+.vrow:last-child { border-bottom: none; }
+.vrow__s { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: .12rem .45rem; border-radius: 2px; flex: none; }
+.vrow__s.pass { background: color-mix(in srgb, var(--signal) 20%, transparent); color: var(--signal); }
+.vrow__s.fail { background: color-mix(in srgb, var(--responder) 20%, transparent); color: var(--responder); }
+.vrow__c { font-family: var(--mono); font-size: .78rem; flex: 1; }
+.vrow__d { color: var(--muted); font-size: .76rem; }
 
 /* ── Code ─────────────────────────────────────────────────── */
 pre { margin: 0; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 2px;
@@ -220,7 +255,7 @@ td:nth-child(2), td:nth-child(3) { font-family: var(--mono); color: var(--muted)
 
 /* ── Numbers strip ────────────────────────────────────────── */
 .numbers { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border-radius: 2px; overflow: hidden; margin-top: 2.4rem; }
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); border-radius: 2px; overflow: hidden; margin-top: 2.4rem; }
 .num { background: var(--ground); padding: 1.4rem 1.2rem; display: flex; flex-direction: column; gap: .25rem; }
 .num__v { font-family: var(--serif); font-size: 1.95rem; line-height: 1; font-variant-numeric: tabular-nums; }
 .num__l { font-size: .8rem; color: var(--muted); }
@@ -280,6 +315,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
     <a href="#problem">Problem</a>
     <a href="#organization">Organization</a>
     <a href="#pipeline" data-optional>Pipeline</a>
+    <a href="#verify" data-optional>Verify</a>
     <a href="#api">API</a>
     <a href="https://github.com/FarisHrvat/mortis" data-optional>GitHub</a>
     <button class="themetoggle" id="themeToggle" type="button" aria-label="Switch colour theme">Theme</button>
@@ -292,7 +328,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 <section class="section section--plain hero">
   <div class="wrap hero__grid">
     <div>
-      <p class="eyebrow">Spatial metabolomics · Python</p>
+      <p class="eyebrow">Mortis · Python</p>
       <h1>The same amount,<br /><em>arranged differently.</em></h1>
       <p class="hero__sub">
         Imaging mass spectrometry tells you where a metabolite is, then most analyses throw
@@ -487,6 +523,59 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
   </div>
 </section>
 
+<!-- ══ WALKTHROUGH ══ -->
+<section class="section" id="walkthrough">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">Command by command</p>
+      <h2>What each call gives you back.</h2>
+      <p class="lede">
+        The quickstart above is the whole analysis in twenty lines. This is the same
+        run opened up — what goes in, what comes out, and what you do with it next.
+      </p>
+    </div>
+    <div class="cells reveal" id="walk"></div>
+  </div>
+</section>
+
+<!-- ══ MANIFEST ══ -->
+<section class="section section--tint" id="verify">
+  <div class="wrap">
+    <div class="split">
+      <div class="prose reveal">
+        <p class="eyebrow">For the reviewer</p>
+        <h2>Prove it reproduces, without sending the data.</h2>
+        <p>
+          "Available on reasonable request" verifies nothing. A reviewer who doubts a
+          result can take it on trust, ask for data the ethics approval forbids sharing,
+          or reimplement your methods paragraph. None of those is checking.
+        </p>
+        <p>
+          <code>export_manifest()</code> writes a sealed JSON recording the environment,
+          every step and its seeds, and a <strong>checksum</strong> of the inputs and of
+          every result table. <code>verify_manifest()</code> re-runs the comparison and
+          names precisely what diverged.
+        </p>
+        <p>
+          Checksums are one-way. Nothing in the file can be turned back into an intensity,
+          so it is safe to attach to a submission for a cohort that can never leave the
+          institution — which is the situation clinical imaging data is always in.
+        </p>
+      </div>
+      <div class="reveal" data-delay="1">
+        <pre><code><span class="tok-c"># after the analysis</span>
+mt.<span class="tok-f">export_manifest</span>(<span class="tok-s">"manifest.json"</span>, adata=pb,
+                   results={<span class="tok-s">"abundance"</span>: ab, <span class="tok-s">"organization"</span>: do},
+                   analysis=<span class="tok-s">"vedolizumab week 14"</span>)
+
+<span class="tok-c"># anyone re-running it, months later</span>
+report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"manifest.json"</span>, adata=pb, results=...)</code></pre>
+        <div class="verify" id="verifyOut"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══ FIGURES ══ -->
 <section class="section" id="figures">
   <div class="wrap">
@@ -503,7 +592,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
         <code>pdfinfo figure.pdf</code> identifies the run that made it months later.
       </p>
     </div>
-    <div class="stages reveal" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));background:var(--rule)" id="gallery"></div>
+    <div class="stages gallery reveal" id="gallery"></div>
   </div>
 </section>
 
@@ -554,7 +643,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
 
 <footer>
   <div class="wrap foot">
-    <span>MORTIS · MIT licence · built on AnnData and scanpy</span>
+    <span>MORTIS · MIT licence · Faris Hrvat</span>
     <span><a href="https://github.com/FarisHrvat/mortis">github.com/FarisHrvat/mortis</a></span>
   </div>
 </footer>
@@ -790,16 +879,21 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
     ["Compare", "across cohorts", "Does the signature persist, reorganise, or flip?"],
     ["Annotate", "KEGG", "Names → HMDB/KEGG → pathways, cached, in one call."],
     ["Figure", "vector PDF", "Editable text, embedded provenance, LaTeX optional."],
+    ["Verify", "manifest", "A sealed file a reviewer can check your re-run against."],
   ];
   document.getElementById("stages").innerHTML = STAGES.map(([t, k, d]) =>
     `<div class="stage"><span class="stage__k">${k}</span><span class="stage__t">${t}</span><span class="stage__d">${d}</span></div>`).join("");
 
   /* ── Gallery ───────────────────────────────────────────── */
   const GALLERY = [
+    ["ion_images", "plot_ion_images", "One metabolite across every section, shared scale."],
+    ["spatial_clusters", "plot_spatial", "Clusters painted back onto the tissue."],
     ["effect_size", "plot_effect_size", "Cliff's δ ranked, filled by FDR."],
     ["volcano", "plot_delta_volcano", "Bounded x-axis, unlike log fold change."],
     ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
+    ["two_axis", "plot_abundance_vs_organization", "Which axis moved, for every compound."],
     ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
+    ["heatmap", "plot_heatmap", "Mean intensity per group, class ordered."],
     ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
     ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
   ];
@@ -809,9 +903,64 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
        <img class="fig-dark" src="assets/${f}.dark.svg" alt="" aria-hidden="true" loading="lazy" />
      </div><span class="stage__k">${n}</span><span class="stage__d">${d}</span></div>`).join("");
 
+  /* ── Walkthrough: what each call returns ───────────────── */
+  const WALK = [
+    ["mt.load_from_folder('./sections')",
+     "Reads every export in a folder, pairing tissue with background by filename.",
+     "[MORTIS] Auto-Paired: 7525b_tissue.xlsx + 7525b_background.xlsx\n[MORTIS] Loaded H5AD: 1p3_Sano-1.h5ad\n-> list of 12 AnnData, pixels x metabolites",
+     "Feed straight into <b>filter_background()</b>."],
+    ["mt.filter_background(adatas, cutoff=1.5)",
+     "Drops metabolites that are not enriched in tissue over background.",
+     "[MORTIS] kept 1,904 / 2,231 metabolites (327 removed)\n-> (cleaned list, per-sample QC stats)",
+     "The stats object is your first supplementary figure."],
+    ["mt.pseudobulk(adata, sample_key='patient')",
+     "Collapses pixels to one profile per patient, carrying sample-level metadata across and dropping anything that varies within a sample.",
+     "[MORTIS] Pseudobulk (mean) over 'patient':\n  95,751 pixels -> 12 sample profiles",
+     "Everything downstream now tests at <b>n = patients</b>."],
+    ["mt.differential_abundance(pb, 'response', 'R', 'NR')",
+     "Cliff's δ per metabolite, with Mann-Whitney and BH-FDR alongside, sorted by effect size.",
+     "metabolite   delta  magnitude  pval_adj  n_group1\nSpermidine    1.00      large     0.002         6\nPutrescine    0.94      large     0.004         6",
+     "Plot it with <b>plot_effect_size()</b> or <b>plot_delta_volcano()</b>."],
+    ["mt.spatial_organization(adata, sample_key='section')",
+     "Summarises each metabolite's arrangement per section: Moran's I, normalised entropy, Gi* hotspot fraction, Gini.",
+     "[MORTIS] Spatial organization over 'section':\n  12 section(s) x 2,231 metabolites\n-> AnnData, one layer per metric",
+     "Same shape as pseudobulk, so the <b>same test</b> runs on it."],
+    ["mt.compare_abundance_and_organization(ab, do)",
+     "Joins both axes and labels every metabolite by which one actually moved.",
+     "[MORTIS] |delta| >= 0.474, FDR < 0.05:\n  4 organization-only, 3 both,\n  4 abundance-only, 29 neither",
+     "The organization-only rows are the ones <b>bulk cannot find</b>."],
+    ["mt.annotate_pathways(adata, ab)",
+     "Names to HMDB and KEGG identifiers, then to pathways, then over-representation against the measured panel. Cached on disk.",
+     "[MORTIS] Compound mapping: 1,780 / 2,231 resolved\n[MORTIS] KEGG: 71 pathway(s) assembled\n[MORTIS] 6 enriched at FDR < 0.05",
+     "Returns the ID table too, so the <b>match rate stays visible</b>."],
+    ["mt.save_figure(fig, 'fig3', provenance={...})",
+     "Vector PDF with editable text, plus the analysis parameters and a hash written into the file's own metadata.",
+     "[MORTIS] Wrote fig3.pdf [hash 8f2c1ad04b3e]\n$ pdfinfo fig3.pdf | grep Keywords\nKeywords: mortis_hash=8f2c1ad04b3e",
+     "Months later the figure still <b>says which run made it</b>."],
+  ];
+  document.getElementById("walk").innerHTML = WALK.map(([call, what, out, next]) =>
+    `<div class="cell"><span class="cell__call">${call}</span>
+     <span class="cell__what">${what}</span>
+     <div class="cell__out">${out}</div>
+     <span class="cell__next">${next}</span></div>`).join("");
+
+  /* ── A real verification report ─────────────────────────── */
+  const VERIFY = [
+    ["pass", "seal", "intact (c1dd08c78325)"],
+    ["pass", "package versions", "identical"],
+    ["pass", "input row count", "matches"],
+    ["pass", "input feature names", "matches"],
+    ["pass", "input matrix contents", "matches"],
+    ["pass", "result 'abundance'", "identical (2,231 rows)"],
+    ["pass", "result 'organization'", "identical (2,231 rows)"],
+  ];
+  document.getElementById("verifyOut").innerHTML = VERIFY.map(([st, c, d]) =>
+    `<div class="vrow"><span class="vrow__s ${st}">${st}</span>
+     <span class="vrow__c">${c}</span><span class="vrow__d">${d}</span></div>`).join("");
+
   /* ── Measured numbers ──────────────────────────────────── */
   const NUMBERS = [
-    ["495", "tests, all passing"],
+    ["517", "tests, all passing"],
     ["0/200", "false positives on null data"],
     ["0/52", "sections losing spatial resolution"],
     ["4.3×", "less working memory"],
@@ -819,6 +968,8 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
     ["bit-identical", "across 1, 2 and 4 threads"],
     ["0.02 s", "cached pathway lookup"],
     ["6", "sections per arm, the measured floor"],
+    ["sealed", "manifest a reviewer can check"],
+    ["0", "raw values in that manifest"],
   ];
   document.getElementById("numbers").innerHTML = NUMBERS.map(([v, l]) =>
     `<div class="num"><span class="num__v">${v}</span><span class="num__l">${l}</span></div>`).join("");

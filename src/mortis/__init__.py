@@ -181,6 +181,16 @@ from .preprocessing import (
     tic_normalize,
 )
 
+# Reproducibility manifests
+from .reproducibility import (
+    MANIFEST_VERSION,
+    data_fingerprint,
+    export_manifest,
+    record_step,
+    result_fingerprint,
+    verify_manifest,
+)
+
 # Statistics (sample-level / patient-level)
 from .stats import (
     cliffs_delta,
@@ -193,6 +203,7 @@ from .stats import (
 from .viz import (
     PALETTE,
     diverging_cmap,
+    ion_cmap,
     plot_abundance_vs_organization,
     plot_class_enrichment,
     plot_delta_volcano,
@@ -267,6 +278,14 @@ __all__ = [
     "pathway_ora",
     "CHEMICAL_CLASSES",
 
+    # Reproducibility
+    "export_manifest",
+    "verify_manifest",
+    "record_step",
+    "data_fingerprint",
+    "result_fingerprint",
+    "MANIFEST_VERSION",
+
     # Compound ID mapping & KEGG pathways
     "map_compound_ids",
     "fetch_kegg_pathway_sets",
@@ -287,6 +306,7 @@ __all__ = [
     "plot_pathway_dotplot",
     "PALETTE",
     "diverging_cmap",
+    "ion_cmap",
 
     # Cross-cohort comparison
     "cross_cohort_profile",

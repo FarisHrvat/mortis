@@ -47,6 +47,7 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
 from .exceptions import InsufficientSamplesError, InvalidParameterError
+from .reproducibility import record_step
 
 __all__ = [
     "pseudobulk",
@@ -222,6 +223,10 @@ def pseudobulk(
         "n_samples_dropped": len(dropped),
         "n_pixels_total": int(sum(pixel_counts)),
     }
+    record_step(result, "pseudobulk", {
+        "sample_key": sample_key, "method": method, "layer": layer,
+        "min_pixels": min_pixels, "n_pixels_in": adata.n_obs, "n_samples_out": len(kept),
+    })
     print(
         f"[MORTIS] Pseudobulk ({method}) over '{sample_key}': "
         f"{adata.n_obs:,} pixels -> {len(kept)} sample profiles."

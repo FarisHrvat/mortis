@@ -64,17 +64,18 @@ __all__ = [
     "plot_class_enrichment",
     "plot_pathway_dotplot",
     "diverging_cmap",
+    "ion_cmap",
 ]
 
 #: Colours are chosen to stay distinguishable in greyscale and under the common
 #: forms of colour-vision deficiency: they differ in lightness, not only in hue.
 PALETTE = {
-    "up": "#B2182B",            # higher in group 1
-    "down": "#2166AC",          # higher in group 2
-    "neutral": "#BABABA",
-    "organization": "#762A83",  # the organization-only finding class
-    "both": "#1B7837",
-    "abundance": "#E08214",
+    "up": "#B2182B",            # higher in group 1   (RdBu-11)
+    "down": "#2166AC",          # higher in group 2   (RdBu-11)
+    "neutral": "#B8B4AE",
+    "organization": "#01665E",  # the organization-only finding class (BrBG-11)
+    "both": "#35978F",          # both axes moved                     (BrBG-11)
+    "abundance": "#8C510A",     # abundance only                      (BrBG-11)
 }
 
 _LATEX_PREAMBLE = r"""
@@ -89,6 +90,39 @@ _ORIGINAL_RCPARAMS: Dict[str, Any] = {}
 #: Theme chosen by the last set_publication_style() call. Plot functions read it
 #: so a diverging colormap can centre on the actual page ground.
 _ACTIVE_THEME = "print"
+
+
+def _ink(theme: Optional[str] = None) -> str:
+    """Foreground colour for rules, axes and reference lines under the active theme.
+
+    Every reference line used to be hardcoded ``"black"``, which is correct on
+    paper and invisible on a dark ground — the zero line of a volcano plot
+    simply disappeared.
+    """
+    return {"print": "black", "light": "#10161c", "dark": "#d8d5cf"}[theme or _ACTIVE_THEME]
+
+
+def ion_cmap(theme: Optional[str] = None):
+    """
+    Sequential colormap for ion images.
+
+    Viridis is the safe scientific default and it reads as software rather than
+    as a figure — the purple-to-yellow ramp is instantly recognisable as "a
+    plotting library made this". This is a quieter ramp in the same
+    perceptually-ordered spirit: near-black through petrol and teal to a warm
+    pale, so intensity still maps monotonically to lightness but the result sits
+    closer to how imaging is presented in the literature.
+
+    Pass any matplotlib colormap name to ``plot_ion_images(cmap=...)`` if you
+    would rather have viridis, magma or a house style back.
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+
+    dark_ground = (theme or _ACTIVE_THEME) == "dark"
+    stops = (["#080c10", "#123044", "#1c5a6b", "#3f9088", "#8bc0a8", "#eae3d2"]
+             if dark_ground else
+             ["#0d1b26", "#17415a", "#226b7c", "#4a9c92", "#9ccbb2", "#f4efe2"])
+    return LinearSegmentedColormap.from_list("mortis_ion", stops)
 
 
 def diverging_cmap(theme: Optional[str] = None):
@@ -416,7 +450,7 @@ def plot_effect_size(
 
     ax.set_yticks(y)
     ax.set_yticklabels(_wrap(top["metabolite"].astype(str).tolist()))
-    ax.axvline(0.0, color="black", linewidth=0.8)
+    ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.05, 1.05)
     ax.set_xlabel(
         f"Cliff's $\\delta$   ($\\leftarrow$ higher in {group_labels[1]}"
@@ -477,9 +511,9 @@ def plot_delta_volcano(
         rasterized=len(delta) > 5000,
     )
 
-    ax.axhline(-np.log10(fdr_threshold), color="black", linewidth=0.6, linestyle="--")
+    ax.axhline(-np.log10(fdr_threshold), color=_ink(), linewidth=0.6, linestyle="--")
     for x in (-delta_threshold, delta_threshold):
-        ax.axvline(x, color="black", linewidth=0.6, linestyle="--")
+        ax.axvline(x, color=_ink(), linewidth=0.6, linestyle="--")
 
     if label_top > 0:
         ranked = result.assign(_score=np.abs(delta) * y).nlargest(label_top, "_score")
@@ -552,10 +586,10 @@ def plot_abundance_vs_organization(
         )
 
     for value in (-delta_threshold, delta_threshold):
-        ax.axvline(value, color="black", linewidth=0.5, linestyle=":")
-        ax.axhline(value, color="black", linewidth=0.5, linestyle=":")
-    ax.axvline(0.0, color="black", linewidth=0.7)
-    ax.axhline(0.0, color="black", linewidth=0.7)
+        ax.axvline(value, color=_ink(), linewidth=0.5, linestyle=":")
+        ax.axhline(value, color=_ink(), linewidth=0.5, linestyle=":")
+    ax.axvline(0.0, color=_ink(), linewidth=0.7)
+    ax.axhline(0.0, color=_ink(), linewidth=0.7)
 
     if label_top > 0:
         focus = merged[merged["classification"] == "organization only"].head(label_top)
@@ -630,9 +664,9 @@ def plot_signature_comparison(
         )
 
     limit = 1.08
-    ax.plot([-limit, limit], [-limit, limit], color="black", linewidth=0.5, linestyle="--", zorder=0)
-    ax.axvline(0.0, color="black", linewidth=0.7)
-    ax.axhline(0.0, color="black", linewidth=0.7)
+    ax.plot([-limit, limit], [-limit, limit], color=_ink(), linewidth=0.5, linestyle="--", zorder=0)
+    ax.axvline(0.0, color=_ink(), linewidth=0.7)
+    ax.axhline(0.0, color=_ink(), linewidth=0.7)
 
     if rho is None:
         rho = table.attrs.get("rho")
@@ -720,7 +754,7 @@ def _draw_ion_panel(ax, xy: np.ndarray, values: np.ndarray, vmin, vmax, cmap):
         if height * width <= max(64 * len(x), 10_000):
             grid = np.full((height, width), np.nan, dtype=float)
             grid[rows, cols] = values
-            palette = mpl.colormaps[cmap].copy()
+            palette = (mpl.colormaps[cmap] if isinstance(cmap, str) else cmap).copy()
             palette.set_bad(alpha=0.0)          # unmeasured positions stay clear
             return ax.imshow(
                 np.ma.masked_invalid(grid), cmap=palette, vmin=vmin, vmax=vmax,
@@ -743,7 +777,7 @@ def plot_ion_images(
     n_cols: Optional[int] = None,
     percentile: Tuple[float, float] = (1.0, 99.0),
     shared_scale: bool = True,
-    cmap: str = "viridis",
+    cmap: Optional[str] = None,
     panel_size: float = 1.5,
 ) -> plt.Figure:
     """
@@ -778,8 +812,11 @@ def plot_ion_images(
         comparative** — per-panel scaling makes a faint diffuse section look
         exactly as intense as a bright focal one, which is precisely the
         difference the figure exists to show.
-    cmap : str
-        Matplotlib colormap. ``viridis`` is perceptually uniform; avoid ``jet``.
+    cmap : str, optional
+        Default ``None`` uses :func:`ion_cmap`, a quieter perceptually-ordered
+        ramp than viridis. Any matplotlib colormap name works; avoid ``jet``,
+        which is not perceptually uniform and invents structure that is not
+        in the data.
     panel_size : float
         Side length of each panel in inches.
 
@@ -839,7 +876,7 @@ def plot_ion_images(
             vmin, vmax = np.percentile(finite, percentile) if finite.size else (0.0, 1.0)
             if vmin == vmax:
                 vmax = vmin + 1e-9
-        handle = _draw_ion_panel(ax, xy, v, vmin, vmax, cmap)
+        handle = _draw_ion_panel(ax, xy, v, vmin, vmax, cmap or ion_cmap())
         label = f"{sample}\n{group_of[sample]}" if group_of[sample] else str(sample)
         ax.set_title(label, fontsize=mpl.rcParams["font.size"] - 2)
         ax.set_aspect("equal")
@@ -946,7 +983,7 @@ def plot_organization_heatmap(
         ordered = groups[row_order]
         boundaries = np.where(ordered[1:] != ordered[:-1])[0]
         for b in boundaries:
-            ax.axhline(b + 0.5, color="black", linewidth=1.2)
+            ax.axhline(b + 0.5, color=_ink(), linewidth=1.2)
         # Group labels sit outside the section tick labels. Both data
         # coordinates and axes fractions put them on top of the tick text,
         # because neither knows how wide that text renders. Offsetting in
@@ -1033,7 +1070,7 @@ def plot_class_enrichment(
 
     ax.set_yticks(y)
     ax.set_yticklabels(ordered["chemical_class"].astype(str).tolist())
-    ax.axvline(0.0, color="black", linewidth=0.8)
+    ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.15, 1.15)
     ax.set_xlabel("median Cliff's $\\delta$ within class")
     fig.tight_layout()
@@ -1144,7 +1181,7 @@ def plot_pathway_dotplot(
 
         scatter = ax.scatter(
             x, y, s=_size(subset["n_hits"]), c=colour, cmap="viridis",
-            norm=norm, linewidths=0.4, edgecolors="white",
+            norm=norm, linewidths=0.4, edgecolors=mpl.rcParams["figure.facecolor"] if _ACTIVE_THEME == "print" else "none",
         )
         ax.set_yticks(y)
         ax.set_yticklabels(_wrap(subset["pathway"].astype(str).tolist(), 34))
@@ -1152,19 +1189,18 @@ def plot_pathway_dotplot(
         ax.set_xlabel("enrichment (odds ratio)" if has_odds else "$-\\log_{10}$ FDR")
         ax.set_title(panel, loc="left", fontweight="bold")
         if has_odds:
-            ax.axvline(1.0, color="black", linewidth=0.6, linestyle="--")
+            ax.axvline(1.0, color=_ink(), linewidth=0.6, linestyle="--")
 
     if scatter is not None:
         bar = fig.colorbar(scatter, ax=axes.ravel().tolist(), fraction=0.03, pad=0.02)
         bar.set_label("$-\\log_{10}$ FDR", fontsize=mpl.rcParams["font.size"] - 1)
-        bar.ax.axhline(-np.log10(fdr_threshold), color="white", linewidth=1.2)
+        bar.ax.axhline(-np.log10(fdr_threshold), color=_ink(), linewidth=1.0)
         bar.outline.set_visible(False)
 
         # Size legend below the panels, where it cannot sit on top of a dot.
         ticks = sorted({int(size_lo), int(round((size_lo + size_hi) / 2)), int(size_hi)})
         handles = [
-            plt.scatter([], [], s=_size([t])[0], c="0.55", linewidths=0.4,
-                        edgecolors="white", label=str(t))
+            plt.scatter([], [], s=_size([t])[0], c=PALETTE["neutral"], linewidths=0, label=str(t))
             for t in ticks
         ]
         axes.ravel()[0].legend(

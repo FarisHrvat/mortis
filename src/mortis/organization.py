@@ -58,6 +58,7 @@ from .exceptions import (
     InvalidParameterError,
     MissingSpatialError,
 )
+from .reproducibility import record_step
 from .stats import differential_abundance
 
 __all__ = [
@@ -306,6 +307,10 @@ def spatial_organization(
         "n_samples": len(kept),
         "n_samples_skipped": len(skipped),
     }
+    record_step(result, "spatial_organization", {
+        "sample_key": sample_key, "metrics": list(metrics),
+        "n_neighbors": n_neighbors, "layer": layer, "min_pixels": min_pixels,
+    })
     print(
         f"[MORTIS] Spatial organization over '{sample_key}': {len(kept)} section(s) x "
         f"{adata.n_vars} metabolites, metrics={list(metrics)}."
