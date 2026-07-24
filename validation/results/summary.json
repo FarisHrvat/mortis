@@ -1,0 +1,84 @@
+{
+  "study": "2026_Frank_solanum_recal",
+  "sections_used": 24,
+  "sections_total_in_study": 39,
+  "metadata_disagreements": 5,
+  "pixels": 250514,
+  "ions": 36,
+  "contrast": "tomato vs pepper tissue (positive control)",
+  "abundance_fdr_hits": 4,
+  "organization_fdr_hits": 0,
+  "position_within_homografts": {
+    "abundance_fdr_hits": 0,
+    "organization_fdr_hits": 0,
+    "n_sections": 6
+  },
+  "classification": {
+    "neither": 32,
+    "abundance only": 4
+  },
+  "top_abundance": [
+    {
+      "metabolite": "N1,N12-Diacetylspermine",
+      "delta": 0.8888888888888888,
+      "pval_adj": 0.008863424381619809
+    },
+    {
+      "metabolite": "L-Proline",
+      "delta": 0.8333333333333334,
+      "pval_adj": 0.010656758626099676
+    },
+    {
+      "metabolite": "3,3-Dimethyl-1,2-dithiolane",
+      "delta": 0.6805555555555556,
+      "pval_adj": 0.045971148824959444
+    },
+    {
+      "metabolite": "(S)-Malate",
+      "delta": 0.6805555555555556,
+      "pval_adj": 0.045971148824959444
+    },
+    {
+      "metabolite": "N-Feruloylglycine",
+      "delta": 0.6527777777777778,
+      "pval_adj": 0.05227167591497214
+    },
+    {
+      "metabolite": "L-Aspartate",
+      "delta": 0.5138888888888888,
+      "pval_adj": 0.19115264622810033
+    }
+  ],
+  "top_organization": [
+    {
+      "metabolite": "L-Proline",
+      "delta": 0.7638888888888888,
+      "pval_adj": 0.05947342042442993
+    },
+    {
+      "metabolite": "H2O",
+      "delta": 0.625,
+      "pval_adj": 0.18347588983994853
+    },
+    {
+      "metabolite": "3-Bromo-4,5-dihydroxybenzoate",
+      "delta": -0.375,
+      "pval_adj": 0.8077298769729737
+    },
+    {
+      "metabolite": "Glycerone",
+      "delta": 0.3333333333333333,
+      "pval_adj": 0.8077298769729737
+    },
+    {
+      "metabolite": "5-(1,2-DIHYDROXYETHYL)-2,3,4(5H)-FURANTRIONE",
+      "delta": -0.3194444444444444,
+      "pval_adj": 0.8077298769729737
+    },
+    {
+      "metabolite": "L-Lysine 1,6-lactam",
+      "delta": -0.3194444444444444,
+      "pval_adj": 0.8077298769729737
+    }
+  ]
+}

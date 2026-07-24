@@ -69,3 +69,6 @@ Single Cell Samu.md
 
 # Private patient data — NEVER commit. Local test fixture only.
 /test_data/
+
+# Downloaded METASPACE images — public data, but large and re-fetchable.
+/validation/cache/

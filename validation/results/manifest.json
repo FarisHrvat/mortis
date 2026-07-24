@@ -1,0 +1,109 @@
+{
+  "manifest_version": 1,
+  "analysis": "MORTIS validation on 2026_Frank_solanum_recal",
+  "created": "2026-07-24T11:47:49+00:00",
+  "environment": {
+    "python": "3.11.15",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "packages": {
+      "mortis-spatial": "0.5.0",
+      "numpy": "2.4.3",
+      "scipy": "1.17.1",
+      "pandas": "2.3.3",
+      "anndata": "0.12.10",
+      "scanpy": "1.11.5",
+      "scikit-learn": "1.8.0",
+      "statsmodels": "0.14.6",
+      "numba": "0.65.0",
+      "leidenalg": "0.11.0",
+      "igraph": "1.0.0",
+      "harmonypy": "0.2.0"
+    },
+    "git_commit": "fb57e84c1aebf53d51a3fcb5958df57c68d7a8b3"
+  },
+  "data": {
+    "n_obs": 24,
+    "n_vars": 36,
+    "layer": null,
+    "obs_columns": [
+      "graft",
+      "n_pixels",
+      "position",
+      "section",
+      "tissue_species"
+    ],
+    "var_names_sha256": "f48cb816f714363448d256ff193be9f063b462fd66f2f00353ba4e3c738430b1",
+    "matrix_sha256": "6f27e07ef161c02cdb76824c648618c9a43675f0afef5c5541cdbc78b50daec6",
+    "has_spatial": false
+  },
+  "provenance": [
+    {
+      "step": "pseudobulk",
+      "params": {
+        "sample_key": "section",
+        "method": "mean",
+        "layer": "None",
+        "min_pixels": "10",
+        "n_pixels_in": "250514",
+        "n_samples_out": "24"
+      },
+      "at": "2026-07-24T11:47:47+00:00"
+    }
+  ],
+  "results": {
+    "abundance": {
+      "n_rows": 36,
+      "columns": [
+        "ci_excludes_zero",
+        "delta",
+        "delta_ci_high",
+        "delta_ci_low",
+        "log2fc",
+        "magnitude",
+        "median_group1",
+        "median_group2",
+        "metabolite",
+        "n_group1",
+        "n_group2",
+        "pval",
+        "pval_adj"
+      ],
+      "sha256": "e1c8dd0807da8ecfb1e6f4e28d0ca844d74ad378be8a271b2e4be1c7b98ae41d"
+    },
+    "organization": {
+      "n_rows": 36,
+      "columns": [
+        "delta",
+        "log2fc_metric",
+        "magnitude",
+        "median_group1",
+        "median_group2",
+        "metabolite",
+        "n_group1",
+        "n_group2",
+        "pval",
+        "pval_adj"
+      ],
+      "sha256": "a3be6fbccb7198c12e3764c8640ab63011c21f6810f38b873a927ae7d7c9e77c"
+    },
+    "two_axis": {
+      "n_rows": 36,
+      "columns": [
+        "classification",
+        "delta_abundance",
+        "delta_organization",
+        "metabolite",
+        "pval_adj_abundance",
+        "pval_adj_organization"
+      ],
+      "sha256": "0abb3f3c9c235e63db7426a69c50ec3895b92616827199303e25fbe0520b0376"
+    }
+  },
+  "notes": "Public METASPACE study, top vs bottom stem sections. Grouping taken from dataset names; see sections.csv for the metadata disagreement.",
+  "extra": {
+    "n_sections": "24",
+    "n_ions": "36",
+    "fdr": "0.1"
+  },
+  "seal_sha256": "a6c47d9fcebcfa1bf47a52d1f7f7b8a7f7200beccb737e3fd6fa320183b32fff"
+}
