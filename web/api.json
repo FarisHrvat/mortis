@@ -1,0 +1,3517 @@
+[
+ {
+  "title": "Load",
+  "blurb": "Reading instrument exports and ROIs into AnnData.",
+  "items": [
+   {
+    "name": "read_metabolomics_data",
+    "doc": "Load a single spatial metabolomics file into an AnnData object.",
+    "sig": "read_metabolomics_data(file_path: 'str') -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "file_path",
+      "type": "str",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "load_from_folder",
+    "doc": "Scan a folder for spatial metabolomics files, auto-pair tissue and background files by name, and return a list of AnnData objects.",
+    "sig": "load_from_folder(folder_path: 'str') -> 'List[ad.AnnData]'",
+    "params": [
+     {
+      "name": "folder_path",
+      "type": "str",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "load_annotation_scores",
+    "doc": "Merge per-compound annotation confidence scores from a separate feature table into ``adata.var[target_col]``.",
+    "sig": "load_annotation_scores(adata: 'ad.AnnData', feature_table_path: 'str', compound_col: 'str' = 'Compound', score_col: 'str' = 'Identification Score', target_col: 'str' = 'score') -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "feature_table_path",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "compound_col",
+      "type": "str",
+      "default": "'Compound'"
+     },
+     {
+      "name": "score_col",
+      "type": "str",
+      "default": "'Identification Score'"
+     },
+     {
+      "name": "target_col",
+      "type": "str",
+      "default": "'score'"
+     }
+    ]
+   },
+   {
+    "name": "check_rois",
+    "doc": "Verify that every AnnData in the list has ROI labels assigned.",
+    "sig": "check_rois(adatas: 'List[ad.AnnData]') -> 'None'",
+    "params": [
+     {
+      "name": "adatas",
+      "type": "List[ad.AnnData",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "save_spatial_data",
+    "doc": "Save a list of processed AnnData objects to disk as ``.h5ad`` files.",
+    "sig": "save_spatial_data(adatas: 'List[ad.AnnData]', output_dir: 'str' = '.', prefix: 'str' = 'mortis_sample') -> 'List[Path]'",
+    "params": [
+     {
+      "name": "adatas",
+      "type": "List[ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "output_dir",
+      "type": "str",
+      "default": "'.'"
+     },
+     {
+      "name": "prefix",
+      "type": "str",
+      "default": "'mortis_sample'"
+     }
+    ]
+   },
+   {
+    "name": "draw_ROIs",
+    "doc": "Single-window interactive ROI selector. User draws Tissue (Green) -> Clicks Confirm -> Draws Background (White) -> Clicks Confirm.",
+    "sig": "draw_ROIs(adata: anndata._core.anndata.AnnData) -> anndata._core.anndata.AnnData",
+    "params": [
+     {
+      "name": "adata",
+      "type": "AnnData",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "draw_ROIs_for_folder",
+    "doc": "",
+    "sig": "draw_ROIs_for_folder(adatas: List[anndata._core.anndata.AnnData]) -> List[anndata._core.anndata.AnnData]",
+    "params": [
+     {
+      "name": "adatas",
+      "type": "List",
+      "default": ""
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Clean",
+  "blurb": "Removing background, low-confidence annotations and drug compounds.",
+  "items": [
+   {
+    "name": "filter_background",
+    "doc": "",
+    "sig": "filter_background(adatas: 'List[ad.AnnData]', cutoff: 'float' = 1.5, mode: 'str' = 'sample') -> 'Tuple[List[ad.AnnData], List[dict]]'",
+    "params": [
+     {
+      "name": "adatas",
+      "type": "List[ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cutoff",
+      "type": "float",
+      "default": "1.5"
+     },
+     {
+      "name": "mode",
+      "type": "str",
+      "default": "'sample'"
+     }
+    ]
+   },
+   {
+    "name": "filter_by_score",
+    "doc": "Keep only metabolites whose annotation confidence score meets a minimum threshold.",
+    "sig": "filter_by_score(adata: 'ad.AnnData', min_score: 'float' = 0.3, score_col: 'str' = 'score', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "min_score",
+      "type": "float",
+      "default": "0.3"
+     },
+     {
+      "name": "score_col",
+      "type": "str",
+      "default": "'score'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "filter_drugs",
+    "doc": "Remove drug metabolites using the DrugBank database.",
+    "sig": "filter_drugs(adata: 'ad.AnnData', db_path: 'Optional[str]' = None, remove_all: 'bool' = True, drug_names: 'Optional[List[str]]' = None, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "db_path",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "remove_all",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "drug_names",
+      "type": "List[str",
+      "default": "None"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "list_drug_matches",
+    "doc": "Return a DataFrame of metabolites found in DrugBank, without removing them.",
+    "sig": "list_drug_matches(adata: 'ad.AnnData', db_path: 'Optional[str]' = None) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "db_path",
+      "type": "str",
+      "default": "None"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Normalise",
+  "blurb": "Per-pixel normalisation, transformation and embedding.",
+  "items": [
+   {
+    "name": "tic_normalize",
+    "doc": "Total Ion Current (TIC) normalization. Scales row sums to the median TIC (or a target_sum) to preserve log1p effectiveness.",
+    "sig": "tic_normalize(adata: 'ad.AnnData', target_sum: 'Optional[float]' = None, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "target_sum",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "median_normalize",
+    "doc": "Median-intensity normalization.",
+    "sig": "median_normalize(adata: 'ad.AnnData', target_value: 'Optional[float]' = None, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "target_value",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "log1p_transform",
+    "doc": "",
+    "sig": "log1p_transform(adata: 'ad.AnnData', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "scale",
+    "doc": "",
+    "sig": "scale(adata: 'ad.AnnData', max_value: 'Optional[float]' = 10.0, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "max_value",
+      "type": "float",
+      "default": "10.0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "run_pca",
+    "doc": "Principal Component Analysis with automatic GPU hardware acceleration.",
+    "sig": "run_pca(adata: 'ad.AnnData', n_comps: 'int' = 50, random_state: 'int' = 0, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_comps",
+      "type": "int",
+      "default": "50"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "run_neighbors",
+    "doc": "Compute nearest-neighbor graph, default to cosine metric for MSI.",
+    "sig": "run_neighbors(adata: 'ad.AnnData', n_neighbors: 'int' = 30, n_pcs: 'int' = 30, metric: 'str' = 'cosine', random_state: 'int' = 0, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "30"
+     },
+     {
+      "name": "n_pcs",
+      "type": "int",
+      "default": "30"
+     },
+     {
+      "name": "metric",
+      "type": "str",
+      "default": "'cosine'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "run_umap",
+    "doc": "",
+    "sig": "run_umap(adata: 'ad.AnnData', min_dist: 'float' = 0.3, spread: 'float' = 1.0, random_state: 'int' = 0, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "min_dist",
+      "type": "float",
+      "default": "0.3"
+     },
+     {
+      "name": "spread",
+      "type": "float",
+      "default": "1.0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "preprocess",
+    "doc": "Full preprocessing pipeline with toggles for already-processed data: row normalization \u2192 log1p \u2192 (optional) scale \u2192 PCA \u2192 kNN graph.",
+    "sig": "preprocess(adata: 'ad.AnnData', n_pcs: 'int' = 50, n_pcs_neighbors: 'int' = 10, n_neighbors: 'int' = 15, metric: 'str' = 'euclidean', do_tic: 'bool' = True, normalize_method: 'str' = 'tic', do_log1p: 'bool' = True, target_sum: 'Optional[float]' = None, scale_data: 'bool' = False, max_value: 'float' = 10.0, random_state: 'int' = 0, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_pcs",
+      "type": "int",
+      "default": "50"
+     },
+     {
+      "name": "n_pcs_neighbors",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "15"
+     },
+     {
+      "name": "metric",
+      "type": "str",
+      "default": "'euclidean'"
+     },
+     {
+      "name": "do_tic",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "normalize_method",
+      "type": "str",
+      "default": "'tic'"
+     },
+     {
+      "name": "do_log1p",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "target_sum",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "scale_data",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "max_value",
+      "type": "float",
+      "default": "10.0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "correct_batches",
+    "doc": "Batch correction with ComBat.",
+    "sig": "correct_batches(adata: 'ad.AnnData', batch_key: 'str' = 'sample', covariates: 'Optional[List[str]]' = None, recompute_pca: 'bool' = True, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "covariates",
+      "type": "List[str",
+      "default": "None"
+     },
+     {
+      "name": "recompute_pca",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "run_harmony",
+    "doc": "Batch-correct the PCA embedding using Harmony (Korsunsky et al. 2019, Nat Methods).",
+    "sig": "run_harmony(adata: 'ad.AnnData', batch_key: 'str' = 'sample', adjusted_basis: 'str' = 'X_pca_harmony', copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "adjusted_basis",
+      "type": "str",
+      "default": "'X_pca_harmony'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "batch_mixing_score",
+    "doc": "Local Inverse Simpson's Index (LISI; Korsunsky et al. 2019, the Harmony paper) \u2014 verifies whether batch correction (:func:`run_harmony`, :func:`correct_batches`) actually worked, rather than assuming it did.",
+    "sig": "batch_mixing_score(adata: 'ad.AnnData', batch_key: 'str' = 'sample', use_rep: 'str' = 'X_pca', n_neighbors: 'int' = 30, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "use_rep",
+      "type": "str",
+      "default": "'X_pca'"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "30"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Segment",
+  "blurb": "Clustering pixels into chemical clusters and spatial domains.",
+  "items": [
+   {
+    "name": "cluster",
+    "doc": "Leiden clustering supporting single or multiple resolutions for exploration.",
+    "sig": "cluster(adata: 'ad.AnnData', resolution: 'Union[float, List[float]]' = 0.5, key_added: 'str' = 'cluster', random_state: 'int' = 0, copy: 'bool' = False, **kwargs) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "resolution",
+      "type": "Union[float, List[float",
+      "default": "0.5"
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "cluster_nmf",
+    "doc": "Non-negative Matrix Factorisation (NMF) clustering with NVIDIA GPU Dispatch.",
+    "sig": "cluster_nmf(adata: 'ad.AnnData', n_components: 'int' = 10, key_added: 'str' = 'nmf_cluster', basis_key: 'str' = 'X_nmf', random_state: 'int' = 0, max_iter: 'int' = 500, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_components",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'nmf_cluster'"
+     },
+     {
+      "name": "basis_key",
+      "type": "str",
+      "default": "'X_nmf'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "max_iter",
+      "type": "int",
+      "default": "500"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "spatial_domains",
+    "doc": "Spatially-aware clustering into contiguous tissue domains (\"niches\").",
+    "sig": "spatial_domains(adata: 'ad.AnnData', resolution: 'float' = 0.5, alpha: 'float' = 0.5, n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', key_added: 'str' = 'domain', random_state: 'int' = 0, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "resolution",
+      "type": "float",
+      "default": "0.5"
+     },
+     {
+      "name": "alpha",
+      "type": "float",
+      "default": "0.5"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'domain'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "spatial_domains_kmeans",
+    "doc": "Fast, fixed-k alternative to :func:`spatial_domains`.",
+    "sig": "spatial_domains_kmeans(adata: 'ad.AnnData', n_domains: 'int' = 8, alpha: 'float' = 0.5, n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', key_added: 'str' = 'domain_kmeans', random_state: 'int' = 0, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_domains",
+      "type": "int",
+      "default": "8"
+     },
+     {
+      "name": "alpha",
+      "type": "float",
+      "default": "0.5"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'domain_kmeans'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "rename_clusters",
+    "doc": "",
+    "sig": "rename_clusters(adata: 'ad.AnnData', mapping: 'Dict[str, str]', cluster_key: 'str' = 'cluster') -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "mapping",
+      "type": "Dict[str, str",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     }
+    ]
+   },
+   {
+    "name": "cluster_validation",
+    "doc": "Silhouette score (scikit-learn) for an existing clustering: how well separated the clusters are in ``use_rep`` space, in [-1, 1] (higher = better separated). Standard scanpy-adjacent QC for choosing/reporting a Leiden resolution or comparing clustering methods.",
+    "sig": "cluster_validation(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', use_rep: 'str' = 'X_pca', sample_size: 'Optional[int]' = 10000, random_state: 'int' = 0) -> 'float'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "use_rep",
+      "type": "str",
+      "default": "'X_pca'"
+     },
+     {
+      "name": "sample_size",
+      "type": "int",
+      "default": "10000"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "compare_clusterings",
+    "doc": "Adjusted Rand Index (ARI) and Adjusted Mutual Information (AMI) between two cluster label assignments of the same pixels \u2014 e.g. comparing a Leiden resolution sweep for stability (``adata.obs['cluster_0.3']`` vs. ``adata.obs['cluster_0.5']``), or two independent runs/samples. Both scores are 1.0 for identical labelings and ~0 for random/independent labelings; unlike raw accuracy, both are invariant to how cluster IDs are permuted/renamed.",
+    "sig": "compare_clusterings(labels_a: 'Union[List, np.ndarray, pd.Series]', labels_b: 'Union[List, np.ndarray, pd.Series]') -> 'Dict[str, float]'",
+    "params": [
+     {
+      "name": "labels_a",
+      "type": "Union[List, np.ndarray, pd.Series",
+      "default": ""
+     },
+     {
+      "name": "labels_b",
+      "type": "Union[List, np.ndarray, pd.Series",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "spatially_weighted_nmf",
+    "doc": "Smooths data across physical neighbors before NMF with GPU hardware dispatch.",
+    "sig": "spatially_weighted_nmf(adata: 'ad.AnnData', n_components: 'int' = 10, alpha: 'float' = 0.5, n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', random_state: 'int' = 0, use_hardware: 'bool' = True, copy: 'bool' = False, **kwargs) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_components",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "alpha",
+      "type": "float",
+      "default": "0.5"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "use_hardware",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "unmix_pixels",
+    "doc": "Non-negative least squares (NNLS) unmixing of mixed pixels against a library of known reference spectra \u2014 recovers, per pixel, the non-negative mixing fractions that best reconstruct its intensities as a combination of the references. MSI pixels routinely contain mixed signal from more than one underlying tissue/cell population (unlike single-cell data), so this is a standard MSI-specific analysis category (related to multivariate curve resolution) when reference spectra are known a priori.",
+    "sig": "unmix_pixels(adata: 'ad.AnnData', reference_spectra: 'Dict[str, Dict[str, float]]', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "reference_spectra",
+      "type": "Dict[str, Dict[str, float",
+      "default": ""
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "run_paga",
+    "doc": "",
+    "sig": "run_paga(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Test",
+  "blurb": "Sample-level statistics. Pixels are not replicates.",
+  "items": [
+   {
+    "name": "pseudobulk",
+    "doc": "Collapse pixels to one profile per sample \u2014 the required first step before any comparison between groups of samples.",
+    "sig": "pseudobulk(adata: 'ad.AnnData', sample_key: 'str', method: 'str' = 'mean', layer: 'Optional[str]' = None, min_pixels: 'int' = 10, carry_obs: 'Optional[Sequence[str]]' = None) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "sample_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'mean'"
+     },
+     {
+      "name": "layer",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "min_pixels",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "carry_obs",
+      "type": "Sequence[str",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "differential_abundance",
+    "doc": "Compare two groups of samples, one metabolite at a time, at the sample level.",
+    "sig": "differential_abundance(adata: 'ad.AnnData', group_key: 'str', group1: 'str', group2: 'str', layer: 'Optional[str]' = None, min_samples: 'int' = 3, bootstrap: 'int' = 0, alpha: 'float' = 0.05, random_state: 'int' = 0) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "group_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group1",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group2",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "layer",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "min_samples",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "bootstrap",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "alpha",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "paired_differential_abundance",
+    "doc": "Within-subject change between two timepoints, on matched samples.",
+    "sig": "paired_differential_abundance(adata: 'ad.AnnData', pair_key: 'str', time_key: 'str', time1: 'str', time2: 'str', layer: 'Optional[str]' = None, min_pairs: 'int' = 3, random_state: 'int' = 0) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "pair_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "time_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "time1",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "time2",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "layer",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "min_pairs",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "cliffs_delta",
+    "doc": "Cliff's delta between two groups, computed per column.",
+    "sig": "cliffs_delta(group1: 'np.ndarray', group2: 'np.ndarray') -> 'np.ndarray'",
+    "params": [
+     {
+      "name": "group1",
+      "type": "np.ndarray",
+      "default": ""
+     },
+     {
+      "name": "group2",
+      "type": "np.ndarray",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "find_markers",
+    "doc": "",
+    "sig": "find_markers(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', method: 'str' = 'wilcoxon', n_top: 'int' = 20, copy: 'bool' = False, **kwargs) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'wilcoxon'"
+     },
+     {
+      "name": "n_top",
+      "type": "int",
+      "default": "20"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "compare_groups",
+    "doc": "Compare two groups of **pixels** within a single sample.",
+    "sig": "compare_groups(adata: 'ad.AnnData', groupby: 'str', group1: 'str', group2: 'str', method: 'str' = 'wilcoxon', copy: 'bool' = False, acknowledge_pixel_level: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group1",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group2",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'wilcoxon'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "acknowledge_pixel_level",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "multi_group_test",
+    "doc": "",
+    "sig": "multi_group_test(adata: 'ad.AnnData', groupby: 'str', method: 'str' = 'kruskal', copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'kruskal'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Space",
+  "blurb": "Where things are, not just how much.",
+  "items": [
+   {
+    "name": "spatial_autocorrelation",
+    "doc": "Global spatial autocorrelation for every metabolite: Moran's I and Geary's C (analogous to squidpy's ``spatial_autocorr(mode=...)``, computed together here since both reuse the same spatial weights).",
+    "sig": "spatial_autocorrelation(adata: 'ad.AnnData', n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', use_fdr: 'bool' = False, copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "use_fdr",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "spatial_de",
+    "doc": "",
+    "sig": "spatial_de(adata: 'ad.AnnData', n_top: 'int' = 50, n_neighbors: 'int' = 6, use_fdr: 'bool' = False, copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_top",
+      "type": "int",
+      "default": "50"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "use_fdr",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "local_moran",
+    "doc": "Local Moran's I (LISA, Anselin 1995) for one metabolite: a per-pixel score saying whether a pixel sits inside a patch of similar values, or stands out against its neighbours.",
+    "sig": "local_moran(adata: 'ad.AnnData', metabolite: 'str', n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolite",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "getis_ord_gi",
+    "doc": "Getis-Ord Gi* hotspot statistic (Getis & Ord 1992, 1995) for one metabolite: a per-pixel z-score testing whether a pixel *and its neighbours* (self included, unlike LISA) form a statistically significant high-value (\"hot spot\") or low-value (\"cold spot\") cluster.",
+    "sig": "getis_ord_gi(adata: 'ad.AnnData', metabolite: 'str', n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolite",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "spatial_neighbors",
+    "doc": "",
+    "sig": "spatial_neighbors(adata: 'ad.AnnData', n_neighbors: 'int' = 6, batch_key: 'str' = 'sample', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "neighborhood_enrichment",
+    "doc": "n_jobs : int or None, optional Threads used by the Numba-JIT permutation loop. Default: ``None``, which uses the ``MORTIS_N_JOBS`` environment variable (or all CPU cores if unset). Unlike ``os.environ['OMP_NUM_THREADS']``-style settings, ``numba.set_num_threads()`` genuinely takes effect at call time, so this parameter is not just cosmetic.",
+    "sig": "neighborhood_enrichment(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', n_permutations: 'int' = 1000, n_jobs: 'Optional[int]' = None, random_state: 'int' = 0, copy: 'bool' = False) -> 'Tuple[ad.AnnData, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "n_permutations",
+      "type": "int",
+      "default": "1000"
+     },
+     {
+      "name": "n_jobs",
+      "type": "int",
+      "default": "None"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "co_occurrence",
+    "doc": "Distance-binned co-occurrence probability between cluster/domain labels (analogous to squidpy's ``gr.co_occurrence``), distinct from :func:`neighborhood_enrichment`: this uses continuous physical distance bins rather than a fixed-degree graph, so it reveals *at what distance scale* two regions tend to co-occur, not just whether they're adjacent.",
+    "sig": "co_occurrence(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', n_bins: 'int' = 25, max_dist: 'Optional[float]' = None, batch_key: 'str' = 'sample', copy: 'bool' = False) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "n_bins",
+      "type": "int",
+      "default": "25"
+     },
+     {
+      "name": "max_dist",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "spatial_gradient",
+    "doc": "",
+    "sig": "spatial_gradient(adata: 'ad.AnnData', target_col: 'str', target_val: 'str', batch_key: 'str' = 'sample', bins: 'int' = 15, max_dist: 'float' = 1000.0) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "target_col",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "target_val",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "batch_key",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "bins",
+      "type": "int",
+      "default": "15"
+     },
+     {
+      "name": "max_dist",
+      "type": "float",
+      "default": "1000.0"
+     }
+    ]
+   },
+   {
+    "name": "metabolite_colocalization",
+    "doc": "Pairwise ion-image similarity network among the top-``top_n`` spatially variable metabolites (run :func:`spatial_autocorrelation` first).",
+    "sig": "metabolite_colocalization(adata: 'ad.AnnData', top_n: 'int' = 50, corr_threshold: 'float' = 0.4, use_spatial_smooth: 'bool' = True, metric: 'str' = 'pearson') -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "top_n",
+      "type": "int",
+      "default": "50"
+     },
+     {
+      "name": "corr_threshold",
+      "type": "float",
+      "default": "0.4"
+     },
+     {
+      "name": "use_spatial_smooth",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "metric",
+      "type": "str",
+      "default": "'pearson'"
+     }
+    ]
+   },
+   {
+    "name": "diversity_index",
+    "doc": "Per-pixel metabolomic diversity/heterogeneity score, treating each pixel's (non-negative) intensities as a compositional distribution over metabolites \u2014 an ecology-style diversity index applied to chemistry instead of species counts.",
+    "sig": "diversity_index(adata: 'ad.AnnData', method: 'str' = 'shannon', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'shannon'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "cluster_diversity",
+    "doc": "Region-level heterogeneity: diversity of cluster/domain *composition* within each group (e.g. sample or condition) \u2014 how mixed vs. homogeneous each sample's tissue-domain makeup is, complementing the per-pixel :func:`diversity_index`.",
+    "sig": "cluster_diversity(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', groupby: 'str' = 'sample', method: 'str' = 'shannon') -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "method",
+      "type": "str",
+      "default": "'shannon'"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Organise",
+  "blurb": "Differential spatial organization: same amount, different arrangement.",
+  "items": [
+   {
+    "name": "spatial_organization",
+    "doc": "Summarise each metabolite's spatial pattern, once per sample.",
+    "sig": "spatial_organization(adata: 'ad.AnnData', sample_key: 'str', metrics: 'Sequence[str]' = ('morans_i', 'entropy', 'hotspot_fraction', 'gini'), n_neighbors: 'int' = 6, layer: 'Optional[str]' = None, min_pixels: 'int' = 50, carry_obs: 'Optional[Sequence[str]]' = None) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "sample_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "metrics",
+      "type": "Sequence[str",
+      "default": "('morans_i', 'entropy', 'hotspot_fraction', 'gini')"
+     },
+     {
+      "name": "n_neighbors",
+      "type": "int",
+      "default": "6"
+     },
+     {
+      "name": "layer",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "min_pixels",
+      "type": "int",
+      "default": "50"
+     },
+     {
+      "name": "carry_obs",
+      "type": "Sequence[str",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "differential_spatial_organization",
+    "doc": "Test whether metabolites are arranged differently between two groups.",
+    "sig": "differential_spatial_organization(org: 'ad.AnnData', group_key: 'str', group1: 'str', group2: 'str', metric: 'str' = 'morans_i', min_samples: 'int' = 3, bootstrap: 'int' = 0, random_state: 'int' = 0) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "org",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "group_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group1",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group2",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "metric",
+      "type": "str",
+      "default": "'morans_i'"
+     },
+     {
+      "name": "min_samples",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "bootstrap",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "compare_abundance_and_organization",
+    "doc": "Join the two axes and label what actually moved for each metabolite.",
+    "sig": "compare_abundance_and_organization(abundance: 'pd.DataFrame', organization: 'pd.DataFrame', delta_threshold: 'float' = 0.474, fdr_threshold: 'Optional[float]' = 0.05) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "abundance",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "organization",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "delta_threshold",
+      "type": "float",
+      "default": "0.474"
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "0.05"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Compare",
+  "blurb": "Across cohorts and across time.",
+  "items": [
+   {
+    "name": "cross_cohort_profile",
+    "doc": "Do two cohorts show the *same* signature? Typically: two drugs.",
+    "sig": "cross_cohort_profile(result_a: 'pd.DataFrame', result_b: 'pd.DataFrame', labels: 'Tuple[str, str]' = ('cohort_a', 'cohort_b'), effect_col: 'str' = 'delta', min_shared: 'int' = 10, n_boot: 'int' = 0, random_state: 'int' = 0) -> 'Tuple[float, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "result_a",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "result_b",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "labels",
+      "type": "Tuple[str, str",
+      "default": "('cohort_a', 'cohort_b')"
+     },
+     {
+      "name": "effect_col",
+      "type": "str",
+      "default": "'delta'"
+     },
+     {
+      "name": "min_shared",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "n_boot",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "track_flow",
+    "doc": "Does a signature *persist* over treatment, flip, or reorganise?",
+    "sig": "track_flow(baseline: 'pd.DataFrame', on_treatment: 'pd.DataFrame', labels: 'Tuple[str, str]' = ('baseline', 'on_treatment'), effect_col: 'str' = 'delta', min_shared: 'int' = 10, n_boot: 'int' = 0, random_state: 'int' = 0) -> 'Tuple[float, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "baseline",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "on_treatment",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "labels",
+      "type": "Tuple[str, str",
+      "default": "('baseline', 'on_treatment')"
+     },
+     {
+      "name": "effect_col",
+      "type": "str",
+      "default": "'delta'"
+     },
+     {
+      "name": "min_shared",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "n_boot",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "compare_signatures",
+    "doc": "Correlate the per-metabolite effect sizes of two independent analyses.",
+    "sig": "compare_signatures(result_a: 'pd.DataFrame', result_b: 'pd.DataFrame', effect_col: 'str' = 'delta', labels: 'Tuple[str, str]' = ('a', 'b'), min_shared: 'int' = 10, n_boot: 'int' = 0, random_state: 'int' = 0) -> 'Tuple[float, float, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "result_a",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "result_b",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "effect_col",
+      "type": "str",
+      "default": "'delta'"
+     },
+     {
+      "name": "labels",
+      "type": "Tuple[str, str",
+      "default": "('a', 'b')"
+     },
+     {
+      "name": "min_shared",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "n_boot",
+      "type": "int",
+      "default": "0"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Annotate",
+  "blurb": "Chemical class, enrichment and KEGG pathways.",
+  "items": [
+   {
+    "name": "classify_compounds",
+    "doc": "Assign a chemical class to every compound from its name.",
+    "sig": "classify_compounds(adata: 'ad.AnnData', key_added: 'str' = 'chemical_class', reference: 'Optional[Union[pd.DataFrame, Dict[str, str]]]' = None, overrides: 'Optional[Dict[str, str]]' = None, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'chemical_class'"
+     },
+     {
+      "name": "reference",
+      "type": "Union[pd.DataFrame, Dict[str, str",
+      "default": "None"
+     },
+     {
+      "name": "overrides",
+      "type": "Dict[str, str",
+      "default": "None"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "classification_report",
+    "doc": "Per-class counts, with the unclassified compounds listed by name.",
+    "sig": "classification_report(adata: 'ad.AnnData', key: 'str' = 'chemical_class', show_unclassified: 'int' = 20) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "key",
+      "type": "str",
+      "default": "'chemical_class'"
+     },
+     {
+      "name": "show_unclassified",
+      "type": "int",
+      "default": "20"
+     }
+    ]
+   },
+   {
+    "name": "class_enrichment",
+    "doc": "Which chemical classes shift, rather than which individual compounds.",
+    "sig": "class_enrichment(result: 'pd.DataFrame', adata: 'ad.AnnData', key: 'str' = 'chemical_class', effect_col: 'str' = 'delta', min_size: 'int' = 3) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "key",
+      "type": "str",
+      "default": "'chemical_class'"
+     },
+     {
+      "name": "effect_col",
+      "type": "str",
+      "default": "'delta'"
+     },
+     {
+      "name": "min_size",
+      "type": "int",
+      "default": "3"
+     }
+    ]
+   },
+   {
+    "name": "pathway_ora",
+    "doc": "Over-representation of metabolite sets among the shifted compounds.",
+    "sig": "pathway_ora(result: 'pd.DataFrame', metabolite_sets: 'Dict[str, List[str]]', effect_col: 'str' = 'delta', delta_threshold: 'float' = 0.474, fdr_threshold: 'Optional[float]' = None, direction: 'bool' = True, min_size: 'int' = 3) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "metabolite_sets",
+      "type": "Dict[str, List[str",
+      "default": ""
+     },
+     {
+      "name": "effect_col",
+      "type": "str",
+      "default": "'delta'"
+     },
+     {
+      "name": "delta_threshold",
+      "type": "float",
+      "default": "0.474"
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "direction",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "min_size",
+      "type": "int",
+      "default": "3"
+     }
+    ]
+   },
+   {
+    "name": "map_compound_ids",
+    "doc": "Resolve compound names to database identifiers via MetaboAnalyst.",
+    "sig": "map_compound_ids(names: 'Sequence[str]', cache: 'Optional[str]' = None, timeout: 'float' = 60.0, retries: 'int' = 2) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "names",
+      "type": "Sequence[str",
+      "default": ""
+     },
+     {
+      "name": "cache",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "timeout",
+      "type": "float",
+      "default": "60.0"
+     },
+     {
+      "name": "retries",
+      "type": "int",
+      "default": "2"
+     }
+    ]
+   },
+   {
+    "name": "fetch_kegg_pathway_sets",
+    "doc": "Build ``{pathway_name: [KEGG compound ids]}`` from the KEGG REST API.",
+    "sig": "fetch_kegg_pathway_sets(kegg_ids: 'Optional[Sequence[str]]' = None, cache: 'Optional[str]' = None, timeout: 'float' = 60.0, retries: 'int' = 2, metabolic_only: 'bool' = True) -> 'Dict[str, List[str]]'",
+    "params": [
+     {
+      "name": "kegg_ids",
+      "type": "Sequence[str",
+      "default": "None"
+     },
+     {
+      "name": "cache",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "timeout",
+      "type": "float",
+      "default": "60.0"
+     },
+     {
+      "name": "retries",
+      "type": "int",
+      "default": "2"
+     },
+     {
+      "name": "metabolic_only",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "annotate_pathways",
+    "doc": "Name to identifier to pathway enrichment, in one call.",
+    "sig": "annotate_pathways(adata: 'ad.AnnData', result: 'pd.DataFrame', cache: 'Optional[str]' = None, delta_threshold: 'float' = 0.474, fdr_threshold: 'Optional[float]' = None, direction: 'bool' = True, min_size: 'int' = 3, key_added: 'str' = 'compound_ids', timeout: 'float' = 60.0, retries: 'int' = 2) -> 'Tuple[pd.DataFrame, pd.DataFrame]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "cache",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "delta_threshold",
+      "type": "float",
+      "default": "0.474"
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "direction",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "min_size",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "key_added",
+      "type": "str",
+      "default": "'compound_ids'"
+     },
+     {
+      "name": "timeout",
+      "type": "float",
+      "default": "60.0"
+     },
+     {
+      "name": "retries",
+      "type": "int",
+      "default": "2"
+     }
+    ]
+   },
+   {
+    "name": "clear_cache",
+    "doc": "Delete cached API responses. Returns how many files were removed.",
+    "sig": "clear_cache(cache: 'Optional[str]' = None) -> 'int'",
+    "params": [
+     {
+      "name": "cache",
+      "type": "str",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "score_metabolite_set",
+    "doc": "",
+    "sig": "score_metabolite_set(adata: 'ad.AnnData', metabolites: 'List[str]', score_name: 'str' = 'metabolite_set_score', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolites",
+      "type": "List[str",
+      "default": ""
+     },
+     {
+      "name": "score_name",
+      "type": "str",
+      "default": "'metabolite_set_score'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "metabolite_set_enrichment",
+    "doc": "",
+    "sig": "metabolite_set_enrichment(results_df: 'pd.DataFrame', metabolite_sets: 'Dict[str, List[str]]', score_col: 'str' = 'log2fc', min_set_size: 'int' = 3, n_permutations: 'int' = 1000, random_state: 'int' = 0) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "results_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "metabolite_sets",
+      "type": "Dict[str, List[str",
+      "default": ""
+     },
+     {
+      "name": "score_col",
+      "type": "str",
+      "default": "'log2fc'"
+     },
+     {
+      "name": "min_set_size",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "n_permutations",
+      "type": "int",
+      "default": "1000"
+     },
+     {
+      "name": "random_state",
+      "type": "int",
+      "default": "0"
+     }
+    ]
+   },
+   {
+    "name": "lipid_class_summary",
+    "doc": "",
+    "sig": "lipid_class_summary(adata: 'ad.AnnData', groupby: 'Optional[str]' = None) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": "None"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Plot",
+  "blurb": "Publication figures with editable-vector PDF export.",
+  "items": [
+   {
+    "name": "set_publication_style",
+    "doc": "Apply the house style to every subsequent figure.",
+    "sig": "set_publication_style(latex: 'bool' = False, font_family: 'str' = 'sans-serif', base_size: 'float' = 8.0, linewidth: 'float' = 0.8, dpi: 'int' = 300) -> 'None'",
+    "params": [
+     {
+      "name": "latex",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "font_family",
+      "type": "str",
+      "default": "'sans-serif'"
+     },
+     {
+      "name": "base_size",
+      "type": "float",
+      "default": "8.0"
+     },
+     {
+      "name": "linewidth",
+      "type": "float",
+      "default": "0.8"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     }
+    ]
+   },
+   {
+    "name": "reset_style",
+    "doc": "Restore matplotlib's settings from before the first style call.",
+    "sig": "reset_style() -> 'None'",
+    "params": []
+   },
+   {
+    "name": "save_figure",
+    "doc": "Write a figure in one or more formats, with provenance in the PDF metadata.",
+    "sig": "save_figure(fig: 'plt.Figure', path: 'Union[str, Path]', formats: 'Sequence[str]' = ('pdf',), provenance: 'Optional[Dict[str, Any]]' = None, close: 'bool' = False) -> 'Dict[str, Path]'",
+    "params": [
+     {
+      "name": "fig",
+      "type": "plt.Figure",
+      "default": ""
+     },
+     {
+      "name": "path",
+      "type": "Union[str, Path",
+      "default": ""
+     },
+     {
+      "name": "formats",
+      "type": "Sequence[str",
+      "default": "('pdf',)"
+     },
+     {
+      "name": "provenance",
+      "type": "Dict[str, Any",
+      "default": "None"
+     },
+     {
+      "name": "close",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "plot_ion_images",
+    "doc": "One metabolite's ion image in every section, laid out for comparison.",
+    "sig": "plot_ion_images(adata, metabolite: 'str', sample_key: 'str', group_key: 'Optional[str]' = None, n_cols: 'Optional[int]' = None, percentile: 'Tuple[float, float]' = (1.0, 99.0), shared_scale: 'bool' = True, cmap: 'str' = 'viridis', panel_size: 'float' = 1.5) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "",
+      "default": ""
+     },
+     {
+      "name": "metabolite",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "sample_key",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "group_key",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "n_cols",
+      "type": "int",
+      "default": "None"
+     },
+     {
+      "name": "percentile",
+      "type": "Tuple[float, float",
+      "default": "(1.0, 99.0)"
+     },
+     {
+      "name": "shared_scale",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'viridis'"
+     },
+     {
+      "name": "panel_size",
+      "type": "float",
+      "default": "1.5"
+     }
+    ]
+   },
+   {
+    "name": "plot_effect_size",
+    "doc": "Horizontal bars of Cliff's delta for the strongest effects.",
+    "sig": "plot_effect_size(result: 'pd.DataFrame', top_n: 'int' = 25, group_labels: 'Tuple[str, str]' = ('group 1', 'group 2'), fdr_threshold: 'float' = 0.05, figsize: 'Optional[Tuple[float, float]]' = None, ax: 'Optional[plt.Axes]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "top_n",
+      "type": "int",
+      "default": "25"
+     },
+     {
+      "name": "group_labels",
+      "type": "Tuple[str, str",
+      "default": "('group 1', 'group 2')"
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "ax",
+      "type": "plt.Axes",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_delta_volcano",
+    "doc": "Effect size against significance, with Cliff's delta on the x-axis.",
+    "sig": "plot_delta_volcano(result: 'pd.DataFrame', fdr_threshold: 'float' = 0.05, delta_threshold: 'float' = 0.474, label_top: 'int' = 8, figsize: 'Tuple[float, float]' = (4.2, 3.6), ax: 'Optional[plt.Axes]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "delta_threshold",
+      "type": "float",
+      "default": "0.474"
+     },
+     {
+      "name": "label_top",
+      "type": "int",
+      "default": "8"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "(4.2, 3.6)"
+     },
+     {
+      "name": "ax",
+      "type": "plt.Axes",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_abundance_vs_organization",
+    "doc": "The two-axis figure: how much moved, against how it was arranged.",
+    "sig": "plot_abundance_vs_organization(merged: 'pd.DataFrame', delta_threshold: 'float' = 0.474, label_top: 'int' = 8, figsize: 'Tuple[float, float]' = (4.4, 4.0), ax: 'Optional[plt.Axes]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "merged",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "delta_threshold",
+      "type": "float",
+      "default": "0.474"
+     },
+     {
+      "name": "label_top",
+      "type": "int",
+      "default": "8"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "(4.4, 4.0)"
+     },
+     {
+      "name": "ax",
+      "type": "plt.Axes",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_signature_comparison",
+    "doc": "Effect sizes from two cohorts against each other, with the correlation.",
+    "sig": "plot_signature_comparison(table: 'pd.DataFrame', rho: 'Optional[float]' = None, labels: 'Tuple[str, str]' = ('cohort A', 'cohort B'), figsize: 'Tuple[float, float]' = (4.0, 3.8), ax: 'Optional[plt.Axes]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "table",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "rho",
+      "type": "float",
+      "default": "None"
+     },
+     {
+      "name": "labels",
+      "type": "Tuple[str, str",
+      "default": "('cohort A', 'cohort B')"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "(4.0, 3.8)"
+     },
+     {
+      "name": "ax",
+      "type": "plt.Axes",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_organization_heatmap",
+    "doc": "Sections against metabolites, coloured by an organization metric.",
+    "sig": "plot_organization_heatmap(org, metric: 'str' = 'morans_i', group_key: 'Optional[str]' = None, top_n: 'int' = 30, result: 'Optional[pd.DataFrame]' = None, cmap: 'str' = 'RdBu_r', figsize: 'Optional[Tuple[float, float]]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "org",
+      "type": "",
+      "default": ""
+     },
+     {
+      "name": "metric",
+      "type": "str",
+      "default": "'morans_i'"
+     },
+     {
+      "name": "group_key",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "top_n",
+      "type": "int",
+      "default": "30"
+     },
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": "None"
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'RdBu_r'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_class_enrichment",
+    "doc": "Class-level effects, with the number of compounds behind each one.",
+    "sig": "plot_class_enrichment(report: 'pd.DataFrame', fdr_threshold: 'float' = 0.05, figsize: 'Optional[Tuple[float, float]]' = None, ax: 'Optional[plt.Axes]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "report",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "ax",
+      "type": "plt.Axes",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_pathway_dotplot",
+    "doc": "Enriched pathways as a dot plot, one panel per direction.",
+    "sig": "plot_pathway_dotplot(report: 'pd.DataFrame', top_n: 'int' = 15, direction: 'Optional[str]' = None, fdr_threshold: 'float' = 0.05, figsize: 'Optional[Tuple[float, float]]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "report",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "top_n",
+      "type": "int",
+      "default": "15"
+     },
+     {
+      "name": "direction",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "fdr_threshold",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "plot_spatial",
+    "doc": "Spatial scatter plot coloured by any observation column or metabolite.",
+    "sig": "plot_spatial(adata: 'ad.AnnData', color: 'str', cmap: 'str' = 'viridis', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, title: 'Optional[str]' = None, show_grid: 'bool' = False, show_axes_border: 'bool' = True, palette: 'str' = 'tab20', save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "color",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'viridis'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "title",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "palette",
+      "type": "str",
+      "default": "'tab20'"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_spatial_metabolite",
+    "doc": "Single-metabolite spatial intensity map.",
+    "sig": "plot_spatial_metabolite(adata: 'ad.AnnData', metabolite: 'str', cmap: 'str' = 'hot', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolite",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'hot'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_embedding_grid",
+    "doc": "Grid of spatial intensity maps for a list of metabolites.",
+    "sig": "plot_embedding_grid(adata: 'ad.AnnData', metabolites: 'List[str]', ncols: 'int' = 4, cmap: 'str' = 'viridis', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 9, show_grid: 'bool' = False, show_axes_border: 'bool' = False, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolites",
+      "type": "List[str",
+      "default": ""
+     },
+     {
+      "name": "ncols",
+      "type": "int",
+      "default": "4"
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'viridis'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "9"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_umap",
+    "doc": "UMAP embedding coloured by cluster, condition, or metabolite intensity.",
+    "sig": "plot_umap(adata: 'ad.AnnData', color: 'str' = 'cluster', palette: 'str' = 'tab20', cmap: 'str' = 'viridis', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, title: 'Optional[str]' = None, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "color",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "palette",
+      "type": "str",
+      "default": "'tab20'"
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'viridis'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "title",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_markers",
+    "doc": "Dot plot of top marker metabolites per cluster.",
+    "sig": "plot_markers(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', n_top: 'int' = 5, figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "n_top",
+      "type": "int",
+      "default": "5"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_volcano",
+    "doc": "Volcano plot with visual capping for extreme spatial P-values.",
+    "sig": "plot_volcano(results_df: 'pd.DataFrame', group1: 'str' = 'Group 1', group2: 'str' = 'Group 2', fc_cutoff: 'float' = 1.0, pval_cutoff: 'float' = 0.05, max_log10_pval: 'float' = 50.0, n_label: 'int' = 10, label_top: 'bool' = False, show_table: 'bool' = False, n_table: 'int' = 5, figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "results_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "group1",
+      "type": "str",
+      "default": "'Group 1'"
+     },
+     {
+      "name": "group2",
+      "type": "str",
+      "default": "'Group 2'"
+     },
+     {
+      "name": "fc_cutoff",
+      "type": "float",
+      "default": "1.0"
+     },
+     {
+      "name": "pval_cutoff",
+      "type": "float",
+      "default": "0.05"
+     },
+     {
+      "name": "max_log10_pval",
+      "type": "float",
+      "default": "50.0"
+     },
+     {
+      "name": "n_label",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "label_top",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_table",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "n_table",
+      "type": "int",
+      "default": "5"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_heatmap",
+    "doc": "Heatmap of mean metabolite intensities across groups.",
+    "sig": "plot_heatmap(adata: 'ad.AnnData', metabolites: 'List[str]', groupby: 'str' = 'cluster', cmap: 'str' = 'RdBu_r', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 10, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolites",
+      "type": "List[str",
+      "default": ""
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "cmap",
+      "type": "str",
+      "default": "'RdBu_r'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_violin",
+    "doc": "Violin plots of metabolite intensity distributions per group.",
+    "sig": "plot_violin(adata: 'ad.AnnData', metabolites: 'Union[str, List[str]]', groupby: 'str' = 'cluster', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 10, show_grid: 'bool' = False, show_axes_border: 'bool' = True, palette: 'str' = 'tab20', save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "metabolites",
+      "type": "Union[str, List[str",
+      "default": ""
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "10"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "palette",
+      "type": "str",
+      "default": "'tab20'"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_cluster_composition",
+    "doc": "Stacked bar chart showing cluster composition per condition or sample.",
+    "sig": "plot_cluster_composition(adata: 'ad.AnnData', cluster_key: 'str' = 'cluster', groupby: 'str' = 'condition', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, show_grid: 'bool' = False, show_axes_border: 'bool' = True, palette: 'str' = 'tab20', normalize: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "cluster_key",
+      "type": "str",
+      "default": "'cluster'"
+     },
+     {
+      "name": "groupby",
+      "type": "str",
+      "default": "'condition'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "palette",
+      "type": "str",
+      "default": "'tab20'"
+     },
+     {
+      "name": "normalize",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_morans",
+    "doc": "Horizontal bar chart of top spatially variable metabolites by Moran's I.",
+    "sig": "plot_morans(morans_df: 'pd.DataFrame', n_top: 'int' = 20, dpi: 'int' = 300, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "morans_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "n_top",
+      "type": "int",
+      "default": "20"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_qc",
+    "doc": "Four-panel Quality Control report after background filtering.",
+    "sig": "plot_qc(stats: 'dict', clean_adata: 'ad.AnnData', sample_name: 'str' = 'Sample', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, fontsize: 'int' = 11, show_grid: 'bool' = False, show_axes_border: 'bool' = True, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "stats",
+      "type": "dict",
+      "default": ""
+     },
+     {
+      "name": "clean_adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "sample_name",
+      "type": "str",
+      "default": "'Sample'"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "fontsize",
+      "type": "int",
+      "default": "11"
+     },
+     {
+      "name": "show_grid",
+      "type": "bool",
+      "default": "False"
+     },
+     {
+      "name": "show_axes_border",
+      "type": "bool",
+      "default": "True"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_spatial_gradient",
+    "doc": "Produces a continuous, shaded line-plot representation of spatial gradients.",
+    "sig": "plot_spatial_gradient(gradient_df: 'pd.DataFrame', top_n: 'int' = 5, dpi: 'int' = 300, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "gradient_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "top_n",
+      "type": "int",
+      "default": "5"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "plot_colocalization_network",
+    "doc": "Draws a physical interactome graph of spatially co-localized metabolites.",
+    "sig": "plot_colocalization_network(edges_df: 'pd.DataFrame', figsize: 'Optional[Tuple[float, float]]' = None, dpi: 'int' = 300, save: 'Union[bool, str, None]' = None, show: 'bool' = True, **kwargs) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "edges_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[float, float",
+      "default": "None"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "300"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     },
+     {
+      "name": "show",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "load_image",
+    "doc": "Load a TIFF image and store it in ``adata.uns[image_key]``.",
+    "sig": "load_image(adata: 'ad.AnnData', image_path: 'str', image_key: 'str' = 'histology', copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "image_path",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "image_key",
+      "type": "str",
+      "default": "'histology'"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "align_image",
+    "doc": "Register the image to MSI coordinates via affine (scale + translate).",
+    "sig": "align_image(adata: 'ad.AnnData', image_key: 'str' = 'histology', scale_x: 'float' = 1.0, scale_y: 'float' = 1.0, offset_x: 'float' = 0.0, offset_y: 'float' = 0.0, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "image_key",
+      "type": "str",
+      "default": "'histology'"
+     },
+     {
+      "name": "scale_x",
+      "type": "float",
+      "default": "1.0"
+     },
+     {
+      "name": "scale_y",
+      "type": "float",
+      "default": "1.0"
+     },
+     {
+      "name": "offset_x",
+      "type": "float",
+      "default": "0.0"
+     },
+     {
+      "name": "offset_y",
+      "type": "float",
+      "default": "0.0"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "extract_image_features",
+    "doc": "Extract mean image intensity in a circular neighbourhood around each MSI pixel and store as ``adata.obs`` columns.",
+    "sig": "extract_image_features(adata: 'ad.AnnData', image_key: 'str' = 'histology', radius: 'int' = 3, copy: 'bool' = False) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "image_key",
+      "type": "str",
+      "default": "'histology'"
+     },
+     {
+      "name": "radius",
+      "type": "int",
+      "default": "3"
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "plot_image_overlay",
+    "doc": "Overlay MSI spots on the histology image.",
+    "sig": "plot_image_overlay(adata: 'ad.AnnData', image_key: 'str' = 'histology', color: 'Optional[str]' = None, alpha_spots: 'float' = 0.7, spot_size: 'float' = 4.0, figsize: 'Tuple[int, int]' = (10, 8), dpi: 'int' = 150, save: 'Union[bool, str, None]' = None) -> 'plt.Figure'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "image_key",
+      "type": "str",
+      "default": "'histology'"
+     },
+     {
+      "name": "color",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "alpha_spots",
+      "type": "float",
+      "default": "0.7"
+     },
+     {
+      "name": "spot_size",
+      "type": "float",
+      "default": "4.0"
+     },
+     {
+      "name": "figsize",
+      "type": "Tuple[int, int",
+      "default": "(10, 8)"
+     },
+     {
+      "name": "dpi",
+      "type": "int",
+      "default": "150"
+     },
+     {
+      "name": "save",
+      "type": "Union[bool, str, None",
+      "default": "None"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Manage",
+  "blurb": "Subsetting, merging and saving.",
+  "items": [
+   {
+    "name": "subset_obs",
+    "doc": "",
+    "sig": "subset_obs(adata: 'ad.AnnData', obs_col: 'str', value: 'Union[str, List[str]]', copy: 'bool' = True) -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "obs_col",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "value",
+      "type": "Union[str, List[str",
+      "default": ""
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "merge_samples",
+    "doc": "",
+    "sig": "merge_samples(adatas: 'List[ad.AnnData]', sample_labels: 'Optional[List[str]]' = None, sample_col: 'str' = 'sample', join: 'str' = 'inner') -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adatas",
+      "type": "List[ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "sample_labels",
+      "type": "List[str",
+      "default": "None"
+     },
+     {
+      "name": "sample_col",
+      "type": "str",
+      "default": "'sample'"
+     },
+     {
+      "name": "join",
+      "type": "str",
+      "default": "'inner'"
+     }
+    ]
+   },
+   {
+    "name": "split_by_obs",
+    "doc": "",
+    "sig": "split_by_obs(adata: 'ad.AnnData', obs_col: 'str', copy: 'bool' = True) -> 'Dict[str, ad.AnnData]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "obs_col",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "copy",
+      "type": "bool",
+      "default": "True"
+     }
+    ]
+   },
+   {
+    "name": "save_results",
+    "doc": "",
+    "sig": "save_results(results_df: 'pd.DataFrame', path: 'str') -> 'None'",
+    "params": [
+     {
+      "name": "results_df",
+      "type": "pd.DataFrame",
+      "default": ""
+     },
+     {
+      "name": "path",
+      "type": "str",
+      "default": ""
+     }
+    ]
+   },
+   {
+    "name": "save_adata",
+    "doc": "",
+    "sig": "save_adata(adata: 'ad.AnnData', path: 'str') -> 'None'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "path",
+      "type": "str",
+      "default": ""
+     }
+    ]
+   }
+  ]
+ }
+]

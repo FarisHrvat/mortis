@@ -192,6 +192,7 @@ from .stats import (
 # Publication figures & export
 from .viz import (
     PALETTE,
+    diverging_cmap,
     plot_abundance_vs_organization,
     plot_class_enrichment,
     plot_delta_volcano,
@@ -285,6 +286,7 @@ __all__ = [
     "plot_class_enrichment",
     "plot_pathway_dotplot",
     "PALETTE",
+    "diverging_cmap",
 
     # Cross-cohort comparison
     "cross_cohort_profile",

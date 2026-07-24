@@ -63,6 +63,7 @@ __all__ = [
     "plot_organization_heatmap",
     "plot_class_enrichment",
     "plot_pathway_dotplot",
+    "diverging_cmap",
 ]
 
 #: Colours are chosen to stay distinguishable in greyscale and under the common
@@ -85,6 +86,32 @@ _LATEX_PREAMBLE = r"""
 
 _ORIGINAL_RCPARAMS: Dict[str, Any] = {}
 
+#: Theme chosen by the last set_publication_style() call. Plot functions read it
+#: so a diverging colormap can centre on the actual page ground.
+_ACTIVE_THEME = "print"
+
+
+def diverging_cmap(theme: Optional[str] = None):
+    """
+    A diverging colormap whose midpoint matches the background it is drawn on.
+
+    Standard diverging maps (RdBu, coolwarm) pass through white at zero. That is
+    right on paper and wrong on a dark ground, where every near-zero cell of a
+    heatmap lights up as a white block — the values closest to "nothing here"
+    end up the most visually prominent thing in the figure.
+
+    This keeps the package's red and blue endpoints and swaps the centre for the
+    theme's own background, so zero recedes instead of shouting.
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+
+    theme = theme or _ACTIVE_THEME
+    if theme != "dark":
+        return plt.get_cmap("RdBu_r")
+    return LinearSegmentedColormap.from_list(
+        "mortis_dark_diverging", ["#4a8fc7", "#2c4a63", "#0c1116", "#5e2c2c", "#e2665c"]
+    )
+
 
 def _latex_available() -> bool:
     return all(shutil.which(binary) for binary in ("latex", "dvipng"))
@@ -96,6 +123,7 @@ def set_publication_style(
     base_size: float = 8.0,
     linewidth: float = 0.8,
     dpi: int = 300,
+    theme: str = "print",
 ) -> None:
     """
     Apply the house style to every subsequent figure.
@@ -126,12 +154,25 @@ def set_publication_style(
     dpi : int
         Raster resolution, applied to PNG output and to any rasterised scatter
         interior inside a PDF.
+    theme : {"print", "light", "dark"}
+        ``"print"`` (default) is what a journal wants: black on an opaque white
+        page, regardless of what your desktop is set to.
+
+        ``"light"`` and ``"dark"`` render on a **transparent** background with
+        ink, axes and ticks recoloured to sit on that ground. Use them for
+        slides, posters and web pages, where a figure with a baked-in white
+        rectangle looks pasted on rather than placed. The data colours are
+        unchanged, so a figure stays recognisable across all three.
     """
     if base_size <= 0:
         raise InvalidParameterError(f"base_size must be > 0, got {base_size}.")
     if font_family not in ("sans-serif", "serif"):
         raise InvalidParameterError(
             f"font_family must be 'sans-serif' or 'serif', got '{font_family}'."
+        )
+    if theme not in ("print", "light", "dark"):
+        raise InvalidParameterError(
+            f"theme must be 'print', 'light' or 'dark', got '{theme}'."
         )
 
     if not _ORIGINAL_RCPARAMS:
@@ -177,14 +218,31 @@ def set_publication_style(
         "figure.dpi": 100,
         "savefig.dpi": dpi,
         "savefig.bbox": "tight",
-        "savefig.transparent": False,
         "figure.autolayout": False,
+    })
+
+    global _ACTIVE_THEME
+    _ACTIVE_THEME = theme
+    ink = {"print": "black", "light": "#10161c", "dark": "#d8d5cf"}[theme]
+    mpl.rcParams.update({
+        "savefig.transparent": theme != "print",
+        "figure.facecolor": "white" if theme == "print" else "none",
+        "axes.facecolor": "white" if theme == "print" else "none",
+        "savefig.facecolor": "white" if theme == "print" else "none",
+        "savefig.edgecolor": "none",
+        "text.color": ink,
+        "axes.labelcolor": ink,
+        "axes.edgecolor": ink,
+        "xtick.color": ink,
+        "ytick.color": ink,
+        "axes.titlecolor": ink,
+        "legend.labelcolor": ink,
     })
     if use_latex:
         mpl.rcParams["text.latex.preamble"] = _LATEX_PREAMBLE
 
     print(
-        f"[MORTIS] Publication style set (font={font_family}, {base_size}pt, "
+        f"[MORTIS] Publication style set (theme={theme}, font={font_family}, {base_size}pt, "
         f"LaTeX={'on' if use_latex else 'off'}, PDF text editable)."
     )
 
@@ -244,7 +302,12 @@ def save_figure(
     if not formats:
         raise InvalidParameterError("At least one format is required.")
 
-    base = Path(path).with_suffix("")
+    # Only strip a trailing extension when it is one of ours. Path.with_suffix("")
+    # would take everything after the last dot, so "figure_v1.2" or
+    # "two_axis.dark" would silently lose part of the name.
+    base = Path(path)
+    if base.suffix.lower().lstrip(".") in valid:
+        base = base.with_suffix("")
     base.parent.mkdir(parents=True, exist_ok=True)
 
     metadata = None
@@ -261,7 +324,9 @@ def save_figure(
 
     written: Dict[str, Path] = {}
     for fmt in formats:
-        out = base.with_suffix(f".{fmt}")
+        # Append rather than with_suffix(), which would replace a dotted
+        # part of the stem such as the "dark" in "two_axis.dark".
+        out = base.parent / f"{base.name}.{fmt}"
         if fmt == "pdf" and metadata is not None:
             fig.savefig(out, format="pdf", metadata=metadata)
         else:
@@ -804,7 +869,7 @@ def plot_organization_heatmap(
     group_key: Optional[str] = None,
     top_n: int = 30,
     result: Optional[pd.DataFrame] = None,
-    cmap: str = "RdBu_r",
+    cmap: Optional[str] = None,
     figsize: Optional[Tuple[float, float]] = None,
 ) -> plt.Figure:
     """
@@ -829,6 +894,10 @@ def plot_organization_heatmap(
         Output of :func:`mortis.differential_spatial_organization`. When given,
         metabolites are chosen by ``|delta|`` from it rather than by variance,
         so the heatmap shows the compounds actually being claimed.
+    cmap : str, optional
+        Default ``None`` picks a diverging map centred on the current theme's
+        background (see :func:`diverging_cmap`), so near-zero cells recede
+        rather than glowing white on a dark ground.
     """
     if metric not in org.layers:
         raise InvalidParameterError(
@@ -864,7 +933,8 @@ def plot_organization_heatmap(
     )
     limit = float(np.nanmax(np.abs(matrix))) if np.isfinite(matrix).any() else 1.0
     image = ax.imshow(
-        matrix, aspect="auto", cmap=cmap, vmin=-limit, vmax=limit, interpolation="nearest"
+        matrix, aspect="auto", cmap=cmap or diverging_cmap(),
+        vmin=-limit, vmax=limit, interpolation="nearest",
     )
 
     ax.set_xticks(np.arange(len(labels)))

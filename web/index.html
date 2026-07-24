@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MORTIS — cohort-scale spatial metabolomics</title>
+<meta name="description" content="A Python toolkit for spatial metabolomics: patient-level statistics, differential spatial organization, and publication figures with editable-vector PDF export." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Tokens. Palette is the package's own figure palette — the
+   RdBu diverging scheme this field reads by default — so the
+   site and the figures it documents share one identity.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ink:        #10161c;
+  --ground:     #fbfaf7;
+  --ground-alt: #f2efe9;
+  --rule:       #ddd8cf;
+  --muted:      #6a7078;
+  --responder:  #b2182b;
+  --nonresp:    #2166ac;
+  --signal:     #762a83;
+  --accent:     var(--signal);
+  --code-bg:    #f4f1ec;
+  --shadow:     0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
+
+  --serif: "IBM Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --sans:  "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --measure: 34rem;
+  --gap: clamp(1rem, 2.2vw, 1.75rem);
+  --section-y: clamp(5rem, 12vh, 9rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:        #eceae5;
+    --ground:     #0c1116;
+    --ground-alt: #121a21;
+    --rule:       #24303a;
+    --muted:      #8a939d;
+    --responder:  #e2665c;
+    --nonresp:    #6ba3d6;
+    --signal:     #b57edc;
+    --code-bg:    #121a21;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ink:#eceae5; --ground:#0c1116; --ground-alt:#121a21; --rule:#24303a; --muted:#8a939d;
+  --responder:#e2665c; --nonresp:#6ba3d6; --signal:#b57edc; --code-bg:#121a21;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
+}
+:root[data-theme="light"] {
+  --ink:#10161c; --ground:#fbfaf7; --ground-alt:#f2efe9; --rule:#ddd8cf; --muted:#6a7078;
+  --responder:#b2182b; --nonresp:#2166ac; --signal:#762a83; --code-bg:#f4f1ec;
+  --shadow: 0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
+}
+
+*,*::before,*::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-weight: 300; font-size: 17px; line-height: 1.65;
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+h1,h2,h3 { font-family: var(--serif); font-weight: 300; text-wrap: balance; margin: 0; letter-spacing: -.012em; }
+p { margin: 0; }
+a { color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+::selection { background: var(--signal); color: var(--ground); }
+
+/* ── Raster rail: the acquisition-position indicator ───────── */
+.rail { position: fixed; left: 0; top: 0; bottom: 0; width: 3px; z-index: 40; background: var(--rule); }
+.rail__fill { position: absolute; top: 0; left: 0; width: 100%; height: 0;
+  background: linear-gradient(180deg, var(--nonresp), var(--signal), var(--responder)); }
+@media (max-width: 800px) { .rail { display: none; } }
+
+/* ── Chrome ───────────────────────────────────────────────── */
+.topbar { position: fixed; inset: 0 0 auto 0; z-index: 30; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem; padding: .85rem clamp(1rem, 4vw, 2.5rem);
+  backdrop-filter: blur(14px); background: color-mix(in srgb, var(--ground) 86%, transparent);
+  border-bottom: 1px solid transparent; transition: border-color .3s; }
+.topbar.is-stuck { border-bottom-color: var(--rule); }
+.wordmark { font-family: var(--mono); font-size: .82rem; letter-spacing: .22em; text-transform: uppercase;
+  text-decoration: none; font-weight: 500; }
+.topnav { display: flex; gap: 1.35rem; align-items: center; font-size: .82rem; }
+.topnav a { color: var(--muted); text-decoration: none; transition: color .2s; }
+.topnav a:hover, .topnav a:focus-visible { color: var(--ink); }
+@media (max-width: 720px) { .topnav a[data-optional] { display: none; } }
+.themetoggle { background: none; border: 1px solid var(--rule); color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; padding: .3rem .6rem; border-radius: 2px; }
+.themetoggle:hover { color: var(--ink); border-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+/* ── Layout ───────────────────────────────────────────────── */
+.wrap { width: min(1180px, 100% - clamp(2rem, 8vw, 6rem)); margin-inline: auto; }
+.section { padding-block: var(--section-y); border-top: 1px solid var(--rule); }
+.section--plain { border-top: none; }
+.section--tint { background: var(--ground-alt); }
+.prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1.1rem; }
+.eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); display: flex; align-items: center; gap: .6rem; }
+.eyebrow::before { content: ""; width: 1.6rem; height: 1px; background: currentColor; }
+h2 { font-size: clamp(1.9rem, 4vw, 2.9rem); line-height: 1.14; margin-block: .5rem .35rem; }
+h3 { font-size: 1.16rem; font-family: var(--sans); font-weight: 500; letter-spacing: 0; }
+.lede { font-size: clamp(1.02rem, 1.5vw, 1.16rem); color: var(--muted); }
+strong { font-weight: 500; color: var(--ink); }
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hero { min-height: 92svh; display: grid; align-content: center; padding-block: 8rem 4rem; }
+.hero__grid { display: grid; gap: clamp(2rem, 5vw, 4rem); grid-template-columns: 1fr; align-items: center; }
+@media (min-width: 940px) { .hero__grid { grid-template-columns: 1.05fr .95fr; } }
+.hero h1 { font-size: clamp(2.7rem, 6.6vw, 4.9rem); line-height: 1.03; letter-spacing: -.028em; }
+.hero h1 em { font-style: italic; color: var(--signal); }
+.hero__sub { font-size: clamp(1.04rem, 1.7vw, 1.22rem); color: var(--muted); max-width: 30rem; margin-top: 1.4rem; }
+.hero__cta { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 2.1rem; align-items: center; }
+.install { font-family: var(--mono); font-size: .86rem; background: var(--code-bg); border: 1px solid var(--rule);
+  padding: .62rem .9rem; border-radius: 2px; display: inline-flex; gap: .7rem; align-items: center; }
+.install button { background: none; border: none; color: var(--muted); cursor: pointer; font-family: var(--mono);
+  font-size: .72rem; letter-spacing: .06em; }
+.install button:hover { color: var(--ink); }
+.btn { display: inline-block; text-decoration: none; font-size: .88rem; padding: .66rem 1.1rem;
+  border: 1px solid var(--ink); border-radius: 2px; transition: background .2s, color .2s; }
+.btn:hover { background: var(--ink); color: var(--ground); }
+
+.scanner { position: relative; aspect-ratio: 1.35 / 1; border: 1px solid var(--rule); background: var(--ground-alt);
+  border-radius: 2px; overflow: hidden; box-shadow: var(--shadow); }
+.scanner canvas { width: 100%; height: 100%; display: block; }
+.scanner__tag { position: absolute; left: .8rem; bottom: .7rem; font-family: var(--mono); font-size: .66rem;
+  letter-spacing: .12em; /* not uppercased: text-transform mangles the mu in "µm" */ color: var(--muted); background: color-mix(in srgb, var(--ground) 78%, transparent);
+  padding: .25rem .5rem; border-radius: 2px; }
+
+/* ── The stat that carries the argument ───────────────────── */
+.verdict { display: grid; gap: var(--gap); grid-template-columns: 1fr; margin-top: 2.6rem; }
+@media (min-width: 760px) { .verdict { grid-template-columns: 1fr 1fr; } }
+.card { border: 1px solid var(--rule); border-radius: 2px; padding: 1.6rem 1.5rem; background: var(--ground);
+  display: flex; flex-direction: column; gap: .5rem; }
+.card--bad { border-left: 3px solid var(--responder); }
+.card--good { border-left: 3px solid var(--nonresp); }
+.card__label { font-family: var(--mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.card__num { font-family: var(--serif); font-size: clamp(2.6rem, 7vw, 3.9rem); line-height: 1;
+  font-variant-numeric: tabular-nums; }
+.card--bad .card__num { color: var(--responder); }
+.card--good .card__num { color: var(--nonresp); }
+.card__num small { font-size: .38em; color: var(--muted); font-family: var(--mono); letter-spacing: .04em; }
+.card p { font-size: .92rem; color: var(--muted); }
+
+/* ── Figures ──────────────────────────────────────────────── */
+.figure { margin: 0; display: flex; flex-direction: column; gap: .75rem; }
+/* Figures are transparent SVGs rendered by the package in a matching theme,
+   so they sit on the page ground instead of inside a white rectangle. */
+.figure__frame { padding: 0; }
+.figure__frame img { width: 100%; }
+.fig-light { display: block; }
+.fig-dark  { display: none; }
+@media (prefers-color-scheme: dark) { .fig-light { display: none; } .fig-dark { display: block; } }
+:root[data-theme="dark"]  .fig-light { display: none; }
+:root[data-theme="dark"]  .fig-dark  { display: block; }
+:root[data-theme="light"] .fig-light { display: block; }
+:root[data-theme="light"] .fig-dark  { display: none; }
+figcaption { font-size: .84rem; color: var(--muted); max-width: 46rem; }
+figcaption b { color: var(--ink); font-weight: 500; }
+.split { display: grid; gap: clamp(1.6rem, 4vw, 3.2rem); grid-template-columns: 1fr; align-items: center; }
+@media (min-width: 960px) { .split { grid-template-columns: 1fr 1.25fr; } .split--flip > :first-child { order: 2; } }
+
+/* ── Pipeline ─────────────────────────────────────────────── */
+.stages { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 2.4rem; border-radius: 2px; overflow: hidden; }
+.stage { background: var(--ground); padding: 1.25rem 1.15rem; display: flex; flex-direction: column; gap: .4rem;
+  transition: background .25s; }
+.stage:hover { background: var(--ground-alt); }
+.stage__k { font-family: var(--mono); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--signal); }
+.stage__t { font-family: var(--sans); font-weight: 500; font-size: .98rem; }
+.stage__d { font-size: .84rem; color: var(--muted); }
+
+/* ── Code ─────────────────────────────────────────────────── */
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 2px;
+  padding: 1.15rem 1.25rem; overflow-x: auto; font-family: var(--mono); font-size: .82rem; line-height: 1.75; }
+code { font-family: var(--mono); font-size: .88em; }
+.tok-c { color: var(--muted); font-style: italic; }
+.tok-f { color: var(--signal); }
+.tok-s { color: var(--nonresp); }
+
+/* ── API reference ────────────────────────────────────────── */
+.apibar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 2rem 0 1.4rem; }
+.apisearch { flex: 1 1 240px; font-family: var(--mono); font-size: .84rem; padding: .6rem .8rem;
+  background: var(--ground); border: 1px solid var(--rule); border-radius: 2px; color: var(--ink); }
+.apisearch::placeholder { color: var(--muted); }
+.chip { font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+  padding: .4rem .7rem; border: 1px solid var(--rule); background: none; color: var(--muted);
+  border-radius: 2px; cursor: pointer; transition: .2s; }
+.chip:hover { color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.apigroup { margin-bottom: 2.4rem; }
+.apigroup > h3 { display: flex; align-items: baseline; gap: .7rem; padding-bottom: .5rem; border-bottom: 1px solid var(--rule); }
+.apigroup__blurb { font-size: .85rem; color: var(--muted); font-weight: 300; }
+.fn { border-bottom: 1px solid var(--rule); }
+.fn__head { width: 100%; text-align: left; background: none; border: none; cursor: pointer; color: inherit;
+  padding: .78rem 0; display: flex; gap: .8rem; align-items: baseline; font-family: var(--mono); font-size: .85rem; }
+.fn__head:hover .fn__name { color: var(--signal); }
+.fn__name { font-weight: 500; }
+.fn__doc { font-family: var(--sans); font-size: .84rem; color: var(--muted); font-weight: 300;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.fn__body { display: none; padding: 0 0 1.15rem; }
+.fn.is-open .fn__body { display: block; }
+.fn.is-open .fn__doc { white-space: normal; }
+.fn__sig { font-family: var(--mono); font-size: .78rem; background: var(--code-bg); border: 1px solid var(--rule);
+  padding: .7rem .85rem; border-radius: 2px; overflow-x: auto; margin-bottom: .9rem; white-space: pre-wrap; word-break: break-word; }
+table { border-collapse: collapse; width: 100%; font-size: .8rem; }
+th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 400; padding: .3rem .8rem .3rem 0; border-bottom: 1px solid var(--rule); }
+td { padding: .32rem .8rem .32rem 0; vertical-align: top; border-bottom: 1px solid color-mix(in srgb, var(--rule) 45%, transparent); }
+td:first-child { font-family: var(--mono); }
+td:nth-child(2), td:nth-child(3) { font-family: var(--mono); color: var(--muted); font-size: .75rem; }
+.tablewrap { overflow-x: auto; }
+
+/* ── Numbers strip ────────────────────────────────────────── */
+.numbers { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border-radius: 2px; overflow: hidden; margin-top: 2.4rem; }
+.num { background: var(--ground); padding: 1.4rem 1.2rem; display: flex; flex-direction: column; gap: .25rem; }
+.num__v { font-family: var(--serif); font-size: 1.95rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.num__l { font-size: .8rem; color: var(--muted); }
+
+footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
+.foot { display: flex; flex-wrap: wrap; gap: 1.4rem; justify-content: space-between; align-items: baseline;
+  font-size: .84rem; color: var(--muted); }
+.foot a { color: var(--muted); }
+
+/* ── Scroll-driven sequence ───────────────────────────────── */
+/* A pinned stage: the section is tall, the visual sticks, and scroll
+   position drives which step is showing. Motion tracks the scrollbar
+   rather than firing once, so the reader controls the pace. */
+.pin { position: relative; }
+.pin__stage { position: sticky; top: 0; height: 100svh; display: grid; align-content: center; overflow: hidden; }
+.pin__inner { display: grid; gap: clamp(1.5rem,4vw,3.5rem); grid-template-columns: 1fr; align-items: center; }
+@media (min-width: 960px) { .pin__inner { grid-template-columns: .78fr 1.22fr; } }
+.pin__steps { position: relative; min-height: 12rem; }
+.step { position: absolute; inset: 0; opacity: 0; transform: translateY(14px);
+  transition: opacity .5s ease, transform .5s ease; pointer-events: none;
+  display: flex; flex-direction: column; gap: .9rem; }
+.step.is-live { opacity: 1; transform: none; pointer-events: auto; }
+.step h3 { font-family: var(--serif); font-size: clamp(1.5rem,3vw,2.1rem); font-weight: 300; }
+.step p { color: var(--muted); font-size: .96rem; }
+.stepdots { display: flex; gap: .45rem; margin-top: .4rem; }
+.stepdots i { width: 1.6rem; height: 2px; background: var(--rule); display: block; transition: background .4s; }
+.stepdots i.on { background: var(--signal); }
+.pin__visual { position: relative; height: min(66svh, 34rem); }
+.pin__layer { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0;
+  transition: opacity .55s ease, transform .55s ease; transform: scale(.985); }
+.pin__layer.is-live { opacity: 1; transform: none; }
+.pin__layer img, .pin__layer canvas { max-height: 100%; max-width: 100%; width: auto; height: auto; }
+
+/* ── Motion ───────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(22px); transition: opacity .8s cubic-bezier(.2,.6,.2,1), transform .8s cubic-bezier(.2,.6,.2,1); }
+.reveal.is-in { opacity: 1; transform: none; }
+.reveal[data-delay="1"] { transition-delay: .09s; }
+.reveal[data-delay="2"] { transition-delay: .18s; }
+.reveal[data-delay="3"] { transition-delay: .27s; }
+.drift { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .step { position: relative; opacity: 1; transform: none; }
+  .pin__stage { position: static; height: auto; }
+  .pin__layer { position: relative; opacity: 1; transform: none; }
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="rail" aria-hidden="true"><div class="rail__fill" id="railFill"></div></div>
+
+<header class="topbar" id="topbar">
+  <a class="wordmark" href="#top">Mortis</a>
+  <nav class="topnav">
+    <a href="#problem">Problem</a>
+    <a href="#organization">Organization</a>
+    <a href="#pipeline" data-optional>Pipeline</a>
+    <a href="#api">API</a>
+    <a href="https://github.com/FarisHrvat/mortis" data-optional>GitHub</a>
+    <button class="themetoggle" id="themeToggle" type="button" aria-label="Switch colour theme">Theme</button>
+  </nav>
+</header>
+
+<main id="top">
+
+<!-- ══ HERO ══ -->
+<section class="section section--plain hero">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="eyebrow">Spatial metabolomics · Python</p>
+      <h1>The same amount,<br /><em>arranged differently.</em></h1>
+      <p class="hero__sub">
+        Imaging mass spectrometry tells you where a metabolite is, then most analyses throw
+        that away and ask only how much. MORTIS tests both — at the patient level, where the
+        statistics are actually valid.
+      </p>
+      <div class="hero__cta">
+        <span class="install"><code id="installCmd">pip install mortis-spatial</code><button type="button" id="copyBtn">copy</button></span>
+        <a class="btn" href="#quickstart">Quickstart</a>
+      </div>
+    </div>
+    <div class="scanner">
+      <canvas id="raster" width="720" height="533"></canvas>
+      <span class="scanner__tag" id="rasterTag">acquiring · 25 µm raster</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PROBLEM ══ -->
+<section class="section section--tint" id="problem">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">The flaw this package exists to fix</p>
+      <h2>A tissue section has 30,000 pixels and one patient.</h2>
+      <p class="lede">
+        Test those pixels as independent replicates and you inflate your sample size by four
+        orders of magnitude. The p-values that come out are not small because the biology is
+        strong. They are small because <em>n</em> is wrong.
+      </p>
+      <p>
+        Here is what that costs, measured. Six simulated patients, three per arm, 500 pixels each,
+        200 metabolites — and <strong>no group difference at all</strong>, only the ordinary
+        variation between patients:
+      </p>
+    </div>
+
+    <div class="verdict reveal">
+      <div class="card card--bad">
+        <span class="card__label">Pixel-level test · n = 1,500 per arm</span>
+        <span class="card__num" data-count="183">0<small>/200</small></span>
+        <p>metabolites called significant at FDR &lt; 0.05, on data containing nothing to find.
+           Roughly 92% of the findings were manufactured by the method.</p>
+      </div>
+      <div class="card card--good">
+        <span class="card__label">Patient-level test · n = 3 per arm</span>
+        <span class="card__num" data-count="0">0<small>/200</small></span>
+        <p>significant. The correct answer, from the same data, by counting patients
+           instead of pixels.</p>
+      </div>
+    </div>
+
+    <div class="prose reveal" style="margin-top:2.4rem">
+      <p>
+        This is not a subtle statistical preference. It is the difference between a result and an
+        artefact, and it is documented for imaging mass spectrometry specifically — a published
+        pixel-level t-test reporting <code>P = 9.6 × 10⁻⁷</code> where the correct patient-level
+        test gives <code>P = 0.78</code>.
+      </p>
+      <p>
+        So <code>pseudobulk()</code> comes first, and the pixel-level function still available for
+        genuine within-section comparisons raises a warning that names the risk.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ORGANIZATION ══ -->
+<section class="section" id="organization">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">What imaging can see that bulk cannot</p>
+      <h2>Two sections. Identical total signal.</h2>
+      <p class="lede">
+        Abundance testing asks whether there is more of something — the question bulk
+        metabolomics already answers. Run it on imaging data and you have paid for spatial
+        resolution to discard it.
+      </p>
+      <p>
+        A metabolite can sit at exactly the same abundance in two patients and be arranged
+        completely differently: diffuse and even in one, pooled into sharp foci in the other.
+        Lactate spread through a section and lactate concentrated in hypoxic cores are not the
+        same biology, and no abundance test can tell them apart.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Pinned: the argument builds as you scroll -->
+  <div class="pin" id="pin" style="height:360svh">
+    <div class="pin__stage">
+      <div class="wrap pin__inner">
+        <div class="pin__steps">
+          <article class="step" data-step="0">
+            <p class="eyebrow">Step one</p>
+            <h3>Measure how much.</h3>
+            <p><code>pseudobulk()</code> collapses every pixel in a section to one profile per
+               patient. Twelve sections, twelve numbers per metabolite — the unit the statistics
+               are actually valid at.</p>
+            <p>Spermidine comes back identical in both arms. Cliff's δ = 0.00. A bulk experiment
+               would stop here and report nothing.</p>
+          </article>
+          <article class="step" data-step="1">
+            <p class="eyebrow">Step two</p>
+            <h3>Then measure how it sits.</h3>
+            <p><code>spatial_organization()</code> collapses the same sections to <em>arrangement</em>
+               instead — Moran's I, normalised entropy, Gi* hotspot fraction, Gini. One number per
+               section per metabolite, scale-free so a big biopsy cannot outscore a small one.</p>
+            <p>Every responder concentrates spermidine into a focus. Every non-responder spreads it.
+               δ = 1.00, FDR = 0.002.</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow">Step three</p>
+            <h3>Ask which axis moved.</h3>
+            <p><code>compare_abundance_and_organization()</code> places every metabolite on both and
+               labels it. Four polyamines land at abundance δ = 0, organization δ = 1.0.</p>
+            <p>Same amount. Different arrangement. <strong>Only imaging can see this, and only if
+               you look for it.</strong></p>
+          </article>
+          <div class="stepdots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+        </div>
+
+        <div class="pin__visual">
+          <div class="pin__layer" data-layer="0"><canvas id="bars" width="620" height="440"></canvas></div>
+          <div class="pin__layer" data-layer="1">
+            <img class="fig-light" src="assets/ion_images.light.svg" alt="Spermidine across twelve sections: responders focal, non-responders diffuse." loading="lazy" />
+            <img class="fig-dark" src="assets/ion_images.dark.svg" alt="" aria-hidden="true" loading="lazy" />
+          </div>
+          <div class="pin__layer" data-layer="2">
+            <img class="fig-light" src="assets/two_axis.light.svg" alt="Abundance effect against organization effect; four polyamines at zero abundance and maximal organization effect." loading="lazy" />
+            <img class="fig-dark" src="assets/two_axis.dark.svg" alt="" aria-hidden="true" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="prose reveal" style="margin-top:var(--section-y)">
+      <p class="eyebrow">And the honest part</p>
+      <p>
+        This needs <strong>six sections per group</strong>. Measured, not assumed: on a benchmark
+        with three planted organization-only differences among thirty metabolites, effect size
+        alone over-called at every cohort size, while effect size plus FDR gave exactly three true
+        and zero false positives from n = 6 upward — and nothing at all below it. A Mann-Whitney
+        comparison of five against five bottoms out at <code>p = 0.0079</code>, which cannot
+        survive multiple-testing correction. Below six, an empty result is the correct answer.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PIPELINE ══ -->
+<section class="section section--tint" id="pipeline">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">End to end</p>
+      <h2>Instrument export to submitted figure.</h2>
+      <p class="lede">
+        Eleven stages on one <code>AnnData</code> object. Every stochastic step takes a seed;
+        every seeded step gives the same answer on a different machine.
+      </p>
+    </div>
+    <div class="stages reveal" id="stages"></div>
+
+    <div class="prose reveal" id="quickstart" style="margin-top:var(--section-y)">
+      <p class="eyebrow">Quickstart</p>
+      <h3 style="font-family:var(--serif);font-size:1.7rem;font-weight:300">The whole cohort analysis</h3>
+    </div>
+    <pre class="reveal" style="margin-top:1.2rem"><code><span class="tok-k">import</span> mortis <span class="tok-k">as</span> mt
+
+<span class="tok-c"># Load, clean, normalise</span>
+adatas       = mt.<span class="tok-f">load_from_folder</span>(<span class="tok-s">"./sections"</span>)
+clean, stats = mt.<span class="tok-f">filter_background</span>(adatas, cutoff=<span class="tok-s">1.5</span>)
+adata        = mt.<span class="tok-f">preprocess</span>(mt.<span class="tok-f">merge_samples</span>(clean))
+
+<span class="tok-c"># Collapse pixels to patients — never test pixels across patients</span>
+pb  = mt.<span class="tok-f">pseudobulk</span>(adata, sample_key=<span class="tok-s">"patient"</span>)
+org = mt.<span class="tok-f">spatial_organization</span>(adata, sample_key=<span class="tok-s">"section"</span>)
+
+<span class="tok-c"># Test both axes at the patient level</span>
+ab   = mt.<span class="tok-f">differential_abundance</span>(pb,  <span class="tok-s">"response"</span>, <span class="tok-s">"R"</span>, <span class="tok-s">"NR"</span>)
+do   = mt.<span class="tok-f">differential_spatial_organization</span>(org, <span class="tok-s">"response"</span>, <span class="tok-s">"R"</span>, <span class="tok-s">"NR"</span>)
+both = mt.<span class="tok-f">compare_abundance_and_organization</span>(ab, do)
+
+<span class="tok-c"># Identifiers and pathways, in one call</span>
+ids, paths = mt.<span class="tok-f">annotate_pathways</span>(adata, ab)
+
+<span class="tok-c"># Figures — vector PDF, text stays editable</span>
+mt.<span class="tok-f">set_publication_style</span>(latex=<span class="tok-s">True</span>)
+fig = mt.<span class="tok-f">plot_abundance_vs_organization</span>(both)
+mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3"</span>, provenance={<span class="tok-s">"cohort"</span>: <span class="tok-s">"vedo"</span>, <span class="tok-s">"seed"</span>: <span class="tok-s">0</span>})</code></pre>
+  </div>
+</section>
+
+<!-- ══ FIGURES ══ -->
+<section class="section" id="figures">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">Output</p>
+      <h2>Figures you can hand to a co-author.</h2>
+      <p class="lede">
+        PDF text stays text — embedded TrueType with a character map, so a collaborator can
+        retype a label in Illustrator and a reviewer can search the file. Only dense scatter
+        interiors are rasterised; axes and labels never are.
+      </p>
+      <p>
+        Every figure carries its analysis parameters and a hash in the PDF metadata, so
+        <code>pdfinfo figure.pdf</code> identifies the run that made it months later.
+      </p>
+    </div>
+    <div class="stages reveal" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));background:var(--rule)" id="gallery"></div>
+  </div>
+</section>
+
+<!-- ══ API ══ -->
+<section class="section section--tint" id="api">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">Reference</p>
+      <h2>Every function, generated from the package.</h2>
+      <p class="lede">
+        Pulled from the installed module at build time, so this cannot drift from the code.
+        Search, or filter by stage.
+      </p>
+    </div>
+    <div class="apibar reveal">
+      <input class="apisearch" id="apiSearch" type="search" placeholder="Search 100 functions — try 'pseudobulk' or 'spatial'" aria-label="Search the API reference" />
+      <span id="apiCount" class="chip" style="cursor:default" aria-live="polite"></span>
+    </div>
+    <div id="apiChips" class="apibar reveal" style="margin-top:-.6rem"></div>
+    <div id="apiOut"></div>
+  </div>
+</section>
+
+<!-- ══ NUMBERS ══ -->
+<section class="section" id="trust">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">Why you can trust the output</p>
+      <h2>Correctness is a claim you have to be able to check.</h2>
+      <p class="lede">
+        Every number here is measured on this machine and pinned by a test that fails on the
+        code as it stood before the fix.
+      </p>
+    </div>
+    <div class="numbers reveal" id="numbers"></div>
+    <div class="prose reveal" style="margin-top:2.4rem">
+      <p>
+        Spatial statistics stream over metabolite tiles, so a cohort that used to need 4.3 GB of
+        working memory now needs 0.99 GB and runs twice as fast — with bit-identical checksums.
+        Sparse and disk-backed matrices give the same answers as dense ones, and tile size is a
+        memory dial that never changes a result.
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>MORTIS · MIT licence · built on AnnData and scanpy</span>
+    <span><a href="https://github.com/FarisHrvat/mortis">github.com/FarisHrvat/mortis</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── Theme ─────────────────────────────────────────────── */
+  const root = document.documentElement;
+  const saved = localStorage.getItem("mortis-theme");
+  if (saved) root.setAttribute("data-theme", saved);
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.hasAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("mortis-theme", next);
+  });
+
+  /* ── Copy install command ──────────────────────────────── */
+  const copyBtn = document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("installCmd").textContent);
+      copyBtn.textContent = "copied";
+      setTimeout(() => (copyBtn.textContent = "copy"), 1600);
+    } catch { copyBtn.textContent = "select it"; }
+  });
+
+  /* ── Scroll rail + sticky bar ──────────────────────────── */
+  const fill = document.getElementById("railFill");
+  const bar = document.getElementById("topbar");
+  const onScroll = () => {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    fill.style.height = (h > 0 ? (window.scrollY / h) * 100 : 0) + "%";
+    bar.classList.toggle("is-stuck", window.scrollY > 24);
+  };
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  /* ── Reveal on scroll ──────────────────────────────────── */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); } });
+  }, { rootMargin: "0px 0px -12% 0px", threshold: 0.08 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  /* ── Count up the headline statistic ───────────────────── */
+  const counters = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      counters.unobserve(e.target);
+      const el = e.target, target = +el.dataset.count, small = el.querySelector("small").outerHTML;
+      if (reduced || target === 0) { el.innerHTML = target + small; return; }
+      const t0 = performance.now(), dur = 1100;
+      const step = (t) => {
+        const p = Math.min((t - t0) / dur, 1);
+        el.innerHTML = Math.round(target * (1 - Math.pow(1 - p, 3))) + small;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }, { threshold: 0.6 });
+  document.querySelectorAll("[data-count]").forEach((el) => counters.observe(el));
+
+  /* ── Hero: a MALDI raster resolving two arrangements ───── */
+  const cv = document.getElementById("raster"), ctx = cv.getContext("2d");
+  const tag = document.getElementById("rasterTag");
+  const COLS = 46, ROWS = 34, PAD = 8;
+  const cw = (cv.width - PAD * 2) / COLS, ch = (cv.height - PAD * 2) / ROWS;
+
+  // viridis, sampled — the colormap this field reads ion images in
+  const VIRIDIS = [[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],
+                   [31,158,137],[53,183,121],[109,205,89],[180,222,44],[253,231,37]];
+  const ramp = (t) => {
+    const x = Math.max(0, Math.min(1, t)) * (VIRIDIS.length - 1);
+    const i = Math.floor(x), f = x - i, a = VIRIDIS[i], b = VIRIDIS[Math.min(i + 1, VIRIDIS.length - 1)];
+    return `rgb(${a[0]+(b[0]-a[0])*f|0},${a[1]+(b[1]-a[1])*f|0},${a[2]+(b[2]-a[2])*f|0})`;
+  };
+
+  // Two fields with the SAME integrated signal: one focal, one diffuse.
+  const noise = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => Math.random()));
+  const focal = (c, r) => {
+    const dx = (c - COLS * 0.5) / (COLS * 0.17), dy = (r - ROWS * 0.5) / (ROWS * 0.22);
+    return Math.exp(-(dx * dx + dy * dy) / 2);
+  };
+  const build = (fn) => {
+    const g = [], flat = [];
+    for (let r = 0; r < ROWS; r++) { g.push([]); for (let c = 0; c < COLS; c++) { const v = fn(c, r); g[r].push(v); flat.push(v); } }
+    const sum = flat.reduce((a, b) => a + b, 0), max = Math.max(...flat);
+    return { g, sum, max };
+  };
+  const A = build((c, r) => focal(c, r) + noise[r][c] * 0.06);
+  const B = build((c, r) => 0.12 + noise[r][c] * 0.30);
+  const scale = A.sum / B.sum;                      // equalise total signal
+  B.g = B.g.map((row) => row.map((v) => v * scale));
+  B.max = Math.max(...B.g.flat());
+  const NORM = Math.max(A.max, B.max);
+
+  let head = 0, phase = 0, raf = null;
+  const paint = () => {
+    const field = phase === 0 ? A : B;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const idx = r * COLS + c;
+        if (idx > head) continue;
+        ctx.fillStyle = ramp(field.g[r][c] / NORM);
+        ctx.fillRect(PAD + c * cw, PAD + r * ch, Math.ceil(cw) + 0.5, Math.ceil(ch) + 0.5);
+      }
+    }
+    const hr = Math.floor(head / COLS), hc = head % COLS;
+    if (head < ROWS * COLS) {
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.fillRect(PAD + hc * cw, PAD + hr * ch, Math.ceil(cw) + 0.5, Math.ceil(ch) + 0.5);
+    }
+  };
+  const clear = () => { ctx.clearRect(0, 0, cv.width, cv.height); };
+
+  const tick = () => {
+    head += 11;
+    if (head >= ROWS * COLS) {
+      head = ROWS * COLS;
+      paint();
+      tag.textContent = phase === 0 ? "responder · focal · Σ = 1.00" : "non-responder · diffuse · Σ = 1.00";
+      raf = setTimeout(() => { phase = 1 - phase; head = 0; clear(); tag.textContent = "acquiring · 25 µm raster"; raf = requestAnimationFrame(tick); }, 2100);
+      return;
+    }
+    paint();
+    raf = requestAnimationFrame(tick);
+  };
+
+  if (reduced) { head = ROWS * COLS; paint(); tag.textContent = "responder · focal · Σ = 1.00"; }
+  else { raf = requestAnimationFrame(tick); }
+
+  /* ── Pinned sequence: scroll position selects the step ──── */
+  const pin = document.getElementById("pin");
+  const steps = [...document.querySelectorAll(".step")];
+  const layers = [...document.querySelectorAll(".pin__layer")];
+  const dots = [...document.querySelectorAll(".stepdots i")];
+  let current = -1;
+
+  function setStep(i) {
+    if (i === current) return;
+    current = i;
+    steps.forEach((el, n) => el.classList.toggle("is-live", n === i));
+    layers.forEach((el, n) => el.classList.toggle("is-live", n === i));
+    dots.forEach((el, n) => el.classList.toggle("on", n === i));
+    if (i === 0) drawBars();
+  }
+
+  function drivePin() {
+    const r = pin.getBoundingClientRect();
+    const travel = r.height - window.innerHeight;
+    if (travel <= 0) { setStep(0); return; }
+    // 0 at the moment the stage pins, 1 when it releases.
+    const t = Math.max(0, Math.min(1, -r.top / travel));
+    setStep(Math.min(steps.length - 1, Math.floor(t * steps.length * 0.999)));
+  }
+
+  /* Step-one visual: per-section abundance, drawn to show the two arms
+     landing on top of each other. The point is that nothing separates. */
+  const barCv = document.getElementById("bars"), bctx = barCv.getContext("2d");
+  const abundance = [
+    [1.02, .97, 1.05, .99, 1.01, .96],   // responder sections
+    [1.00, 1.03, .98, 1.02, .97, 1.01],  // non-responder sections
+  ];
+  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function drawBars() {
+    const W = barCv.width, H = barCv.height, pad = 54;
+    bctx.clearRect(0, 0, W, H);
+    const cols = [cssVar("--responder"), cssVar("--nonresp")];
+    const muted = cssVar("--muted"), rule = cssVar("--rule");
+    const groups = abundance.length, per = abundance[0].length;
+    const slot = (W - pad * 2) / (groups * per + 2);
+    const base = H - pad, top = pad + 10;
+
+    bctx.strokeStyle = rule; bctx.lineWidth = 1;
+    bctx.beginPath(); bctx.moveTo(pad - 8, base + .5); bctx.lineTo(W - pad + 8, base + .5); bctx.stroke();
+
+    // the mean line both arms share
+    const all = abundance.flat(), mean = all.reduce((a, b) => a + b, 0) / all.length;
+    const y = (v) => base - (v / 1.25) * (base - top);
+    bctx.setLineDash([4, 4]); bctx.strokeStyle = muted;
+    bctx.beginPath(); bctx.moveTo(pad - 8, y(mean)); bctx.lineTo(W - pad + 8, y(mean)); bctx.stroke();
+    bctx.setLineDash([]);
+
+    abundance.forEach((arm, g) => arm.forEach((v, i) => {
+      const x = pad + (g * per + i + 1) * slot;
+      bctx.fillStyle = cols[g];
+      bctx.fillRect(x, y(v), slot * .62, base - y(v));
+    }));
+
+    bctx.fillStyle = muted; bctx.font = "13px ui-monospace, monospace";
+    bctx.fillText("responder", pad + slot, base + 24);
+    bctx.fillText("non-responder", pad + (per + 1) * slot, base + 24);
+    bctx.fillStyle = cssVar("--ink"); bctx.font = "15px ui-serif, Georgia, serif";
+    bctx.fillText("Spermidine · abundance per section", pad - 8, pad - 6);
+    bctx.fillStyle = muted; bctx.font = "13px ui-monospace, monospace";
+    bctx.fillText("Cliff's \u03b4 = 0.00", W - pad - 118, pad - 6);
+  }
+  addEventListener("scroll", drivePin, { passive: true });
+  addEventListener("resize", () => { drawBars(); drivePin(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawBars);
+  document.getElementById("themeToggle").addEventListener("click", () => setTimeout(drawBars, 40));
+  drivePin(); drawBars();
+
+  /* ── Gentle drift on figures as they pass ───────────────── */
+  const drifters = [...document.querySelectorAll(".drift")];
+  function drive() {
+    if (!reduced) {
+      for (const el of drifters) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > innerHeight) continue;
+        const p = (r.top + r.height / 2 - innerHeight / 2) / innerHeight;
+        el.style.transform = `translateY(${(-p * 14).toFixed(2)}px)`;
+      }
+    }
+    requestAnimationFrame(drive);
+  }
+  requestAnimationFrame(drive);
+
+  /* ── Pipeline stages ───────────────────────────────────── */
+  const STAGES = [
+    ["Load", "imzML-free entry", "h5ad, csv and xlsx exports, tissue/background auto-paired."],
+    ["Clean", "background out", "Fold-change filtering, annotation score, DrugBank compounds."],
+    ["Normalise", "TIC or median", "Median is more robust when a few ions dominate the pixel total."],
+    ["Embed", "PCA · UMAP", "Harmony or ComBat when batches are genuinely confounded."],
+    ["Segment", "niches", "Leiden on a spatially smoothed embedding — contiguous domains."],
+    ["Pseudobulk", "pixels → patients", "The step that makes everything after it valid."],
+    ["Test", "Cliff's δ", "Effect size first; at n = 4 a rank p-value cannot go below 0.029."],
+    ["Organise", "how, not how much", "Moran's I, entropy, hotspot fraction, Gini — per section."],
+    ["Compare", "across cohorts", "Does the signature persist, reorganise, or flip?"],
+    ["Annotate", "KEGG", "Names → HMDB/KEGG → pathways, cached, in one call."],
+    ["Figure", "vector PDF", "Editable text, embedded provenance, LaTeX optional."],
+  ];
+  document.getElementById("stages").innerHTML = STAGES.map(([t, k, d]) =>
+    `<div class="stage"><span class="stage__k">${k}</span><span class="stage__t">${t}</span><span class="stage__d">${d}</span></div>`).join("");
+
+  /* ── Gallery ───────────────────────────────────────────── */
+  const GALLERY = [
+    ["effect_size", "plot_effect_size", "Cliff's δ ranked, filled by FDR."],
+    ["volcano", "plot_delta_volcano", "Bounded x-axis, unlike log fold change."],
+    ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
+    ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
+    ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
+    ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
+  ];
+  document.getElementById("gallery").innerHTML = GALLERY.map(([f, n, d]) =>
+    `<div class="stage"><div class="figure__frame" style="margin-bottom:.9rem">
+       <img class="fig-light" src="assets/${f}.light.svg" alt="${d}" loading="lazy" />
+       <img class="fig-dark" src="assets/${f}.dark.svg" alt="" aria-hidden="true" loading="lazy" />
+     </div><span class="stage__k">${n}</span><span class="stage__d">${d}</span></div>`).join("");
+
+  /* ── Measured numbers ──────────────────────────────────── */
+  const NUMBERS = [
+    ["495", "tests, all passing"],
+    ["0/200", "false positives on null data"],
+    ["0/52", "sections losing spatial resolution"],
+    ["4.3×", "less working memory"],
+    ["100", "documented public functions"],
+    ["bit-identical", "across 1, 2 and 4 threads"],
+    ["0.02 s", "cached pathway lookup"],
+    ["6", "sections per arm, the measured floor"],
+  ];
+  document.getElementById("numbers").innerHTML = NUMBERS.map(([v, l]) =>
+    `<div class="num"><span class="num__v">${v}</span><span class="num__l">${l}</span></div>`).join("");
+
+  /* ── API reference ─────────────────────────────────────── */
+  const out = document.getElementById("apiOut");
+  const search = document.getElementById("apiSearch");
+  const chipsEl = document.getElementById("apiChips");
+  const countEl = document.getElementById("apiCount");
+  let API = [], active = null;
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function render() {
+    const q = search.value.trim().toLowerCase();
+    let shown = 0;
+    out.innerHTML = API.map((g) => {
+      if (active && g.title !== active) return "";
+      const items = g.items.filter((it) =>
+        !q || it.name.toLowerCase().includes(q) || (it.doc || "").toLowerCase().includes(q));
+      if (!items.length) return "";
+      shown += items.length;
+      return `<div class="apigroup"><h3>${esc(g.title)}<span class="apigroup__blurb">${esc(g.blurb)}</span></h3>
+        ${items.map((it) => `
+          <div class="fn">
+            <button class="fn__head" type="button" aria-expanded="false">
+              <span class="fn__name">${esc(it.name)}</span>
+              <span class="fn__doc">${esc(it.doc || "")}</span>
+            </button>
+            <div class="fn__body">
+              <div class="fn__sig">${esc(it.sig)}</div>
+              ${it.params.length ? `<div class="tablewrap"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th></tr></thead><tbody>
+                ${it.params.map((p) => `<tr><td>${esc(p.name)}</td><td>${esc(p.type || "—")}</td><td>${esc(p.default || "required")}</td></tr>`).join("")}
+              </tbody></table></div>` : ""}
+            </div>
+          </div>`).join("")}
+      </div>`;
+    }).join("") || `<p class="lede">Nothing matches “${esc(search.value)}”.</p>`;
+    countEl.textContent = shown + " shown";
+
+    out.querySelectorAll(".fn__head").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fn = btn.closest(".fn"), open = fn.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", String(open));
+      });
+    });
+  }
+
+  fetch("api.json").then((r) => r.json()).then((data) => {
+    API = data;
+    chipsEl.innerHTML = `<button class="chip" data-g="" aria-pressed="true">All</button>` +
+      data.map((g) => `<button class="chip" data-g="${esc(g.title)}" aria-pressed="false">${esc(g.title)}</button>`).join("");
+    chipsEl.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        active = chip.dataset.g || null;
+        chipsEl.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
+        render();
+      });
+    });
+    const total = data.reduce((a, g) => a + g.items.length, 0);
+    search.placeholder = `Search ${total} functions — try “pseudobulk” or “spatial”`;
+    render();
+  }).catch(() => { out.innerHTML = `<p class="lede">The API index could not be loaded.</p>`; });
+
+  search.addEventListener("input", render);
+})();
+</script>
+</body>
+</html>

@@ -565,3 +565,95 @@ class TestLabelCollisions:
         ax = mt.plot_abundance_vs_organization(merged, label_top=2).axes[0]
         labelled = [t for t in ax.texts if t.get_text() in {"A", "B"}]
         assert len({t.get_position()[1] for t in labelled}) == 1
+
+
+class TestThemedFigures:
+    """
+    A figure with a baked-in white rectangle looks pasted onto a dark slide or
+    web page rather than placed in it. The light/dark themes render on a
+    transparent ground with the ink recoloured; print keeps the opaque white
+    page a journal expects.
+    """
+
+    def test_print_theme_is_opaque_white(self):
+        mt.set_publication_style(theme="print")
+        assert matplotlib.rcParams["savefig.transparent"] is False
+        assert matplotlib.rcParams["figure.facecolor"] == "white"
+        assert matplotlib.rcParams["text.color"] == "black"
+
+    @pytest.mark.parametrize("theme", ["light", "dark"])
+    def test_screen_themes_are_transparent(self, theme):
+        mt.set_publication_style(theme=theme)
+        assert matplotlib.rcParams["savefig.transparent"] is True
+        assert matplotlib.rcParams["figure.facecolor"] == "none"
+        assert matplotlib.rcParams["axes.facecolor"] == "none"
+
+    def test_dark_theme_ink_is_light(self):
+        mt.set_publication_style(theme="dark")
+        for key in ("text.color", "axes.labelcolor", "axes.edgecolor", "xtick.color"):
+            assert matplotlib.rcParams[key] == "#d8d5cf"
+
+    def test_data_colours_are_theme_independent(self, result):
+        """A figure must stay recognisable across themes; only the ink moves."""
+        def bar_colours(theme):
+            mt.set_publication_style(theme=theme)
+            ax = mt.plot_effect_size(result, top_n=6).axes[0]
+            return [p.get_edgecolor() for p in ax.patches]
+
+        assert bar_colours("print") == bar_colours("dark")
+
+    def test_transparent_svg_has_no_opaque_page(self, tmp_path, result):
+        mt.set_publication_style(theme="dark")
+        fig = mt.plot_effect_size(result, top_n=5)
+        svg = mt.save_figure(fig, tmp_path / "fig", formats=("svg",))["svg"].read_text()
+        assert "#ffffff" not in svg.lower(), "an opaque white page was written into the SVG"
+
+    def test_rejects_unknown_theme(self):
+        with pytest.raises(InvalidParameterError, match="theme must be"):
+            mt.set_publication_style(theme="solarized")
+
+    def test_dotted_filenames_survive(self, tmp_path, result):
+        """Regression: with_suffix('') ate everything after the last dot."""
+        mt.set_publication_style()
+        fig = mt.plot_effect_size(result, top_n=4)
+        written = mt.save_figure(fig, tmp_path / "two_axis.dark", formats=("svg",))
+        assert written["svg"].name == "two_axis.dark.svg"
+
+    def test_known_extension_is_still_replaced(self, tmp_path, result):
+        mt.set_publication_style()
+        fig = mt.plot_effect_size(result, top_n=4)
+        written = mt.save_figure(fig, tmp_path / "fig.pdf", formats=("svg",))
+        assert written["svg"].name == "fig.svg"
+
+    def test_dark_diverging_cmap_centres_on_the_ground(self):
+        """
+        RdBu passes through white at zero, so on a dark page every near-zero
+        heatmap cell lights up as a white block and the values closest to
+        "nothing here" become the loudest thing in the figure.
+        """
+        mt.set_publication_style(theme="dark")
+        cmap = mt.diverging_cmap()
+        assert cmap.name == "mortis_dark_diverging"
+        centre = cmap(0.5)[:3]
+        assert max(centre) < 0.2, f"midpoint {centre} is not dark"
+
+    def test_print_theme_keeps_the_conventional_map(self):
+        mt.set_publication_style(theme="print")
+        assert mt.diverging_cmap().name == "RdBu_r"
+        assert min(mt.diverging_cmap()(0.5)[:3]) > 0.9, "print midpoint should be near-white"
+
+    def test_heatmap_uses_the_theme_map_by_default(self, organization_cohort):
+        mt.set_publication_style(theme="dark")
+        org = mt.spatial_organization(
+            organization_cohort, sample_key="section", metrics=("morans_i",)
+        )
+        image = mt.plot_organization_heatmap(org, top_n=5).axes[0].images[0]
+        assert image.get_cmap().name == "mortis_dark_diverging"
+
+    def test_explicit_cmap_still_wins(self, organization_cohort):
+        mt.set_publication_style(theme="dark")
+        org = mt.spatial_organization(
+            organization_cohort, sample_key="section", metrics=("morans_i",)
+        )
+        image = mt.plot_organization_heatmap(org, top_n=5, cmap="viridis").axes[0].images[0]
+        assert image.get_cmap().name == "viridis"
