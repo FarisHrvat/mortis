@@ -206,8 +206,11 @@ figcaption b { color: var(--ink); font-weight: 500; }
 
 /* ── Walkthrough cells ────────────────────────────────────── */
 .cells { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-radius: 2px;
+  grid-template-columns: repeat(4, 1fr); border-radius: 2px;
   overflow: hidden; margin-top: 2.4rem; }
+/* 8 cells, so only 4 / 2 / 1 divide evenly. auto-fit landed on 3 and left a hole. */
+@media (max-width: 1320px) { .cells { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width:  700px) { .cells { grid-template-columns: 1fr; } }
 .cell { background: var(--ground); padding: 1.35rem 1.3rem; display: flex; flex-direction: column; gap: .7rem; }
 .cell__call { font-family: var(--mono); font-size: .82rem; color: var(--signal); font-weight: 500; }
 .cell__what { font-size: .9rem; }
@@ -272,7 +275,12 @@ td:nth-child(2), td:nth-child(3) { font-family: var(--mono); color: var(--muted)
 
 /* ── Numbers strip ────────────────────────────────────────── */
 .numbers { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); border-radius: 2px; overflow: hidden; margin-top: 2.4rem; }
+  grid-template-columns: repeat(4, 1fr); border-radius: 2px; overflow: hidden; margin-top: 2.4rem; }
+/* These must follow the base rule above: same specificity, so source order
+   decides, and placing them earlier let the 4-column base override them. */
+@media (max-width: 1020px) { .numbers { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width:  700px) { .numbers { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width:  430px) { .numbers { grid-template-columns: 1fr; } }
 .num { background: var(--ground); padding: 1.4rem 1.2rem; display: flex; flex-direction: column; gap: .25rem; }
 .num__v { font-family: var(--serif); font-size: 1.95rem; line-height: 1; font-variant-numeric: tabular-nums; }
 .num__l { font-size: .8rem; color: var(--muted); }
@@ -308,7 +316,13 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 .pin__layer img, .pin__layer canvas { max-height: 100%; max-width: 100%; width: auto; height: auto; }
 
 /* ── Motion ───────────────────────────────────────────────── */
+/* Scroll-linked, not scroll-triggered: --enter runs 0 to 1 as an element
+   crosses the viewport, so motion tracks the scrollbar rather than firing
+   once. Falls back to the plain reveal if the driver never runs. */
 .reveal { opacity: 0; transform: translateY(22px); transition: opacity .8s cubic-bezier(.2,.6,.2,1), transform .8s cubic-bezier(.2,.6,.2,1); }
+[data-enter] { --enter: 0; opacity: calc(.25 + .75 * var(--enter));
+  transform: translateY(calc((1 - var(--enter)) * 26px)); transition: none; }
+.section > .wrap > .prose > h2 { --enter: 1; }
 .reveal.is-in { opacity: 1; transform: none; }
 .reveal[data-delay="1"] { transition-delay: .09s; }
 .reveal[data-delay="2"] { transition-delay: .18s; }
@@ -317,6 +331,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
+  [data-enter] { --enter: 1; opacity: 1; transform: none; }
   .step { position: relative; opacity: 1; transform: none; }
   .pin__stage { position: static; height: auto; }
   .pin__layer { position: relative; opacity: 1; transform: none; }
@@ -352,6 +367,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
     <a href="#organization">Organization</a>
     <a href="#pipeline" data-optional>Pipeline</a>
     <a href="#verify" data-optional>Verify</a>
+    <a href="#validation">Validation</a>
     <a href="#api">API</a>
     <a href="https://github.com/FarisHrvat/mortis" data-optional>GitHub</a>
     <button class="themetoggle" id="themeToggle" type="button" aria-label="Switch colour theme">Theme</button>
@@ -401,7 +417,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
       </p>
     </div>
 
-    <div class="verdict reveal">
+    <div class="verdict reveal" data-enter>
       <div class="card card--bad">
         <span class="card__label">Pixel-level test · n = 1,500 per arm</span>
         <span class="card__num" data-count="183">0<small>/200</small></span>
@@ -527,7 +543,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
         every seeded step gives the same answer on a different machine.
       </p>
     </div>
-    <div class="stages reveal" id="stages" data-fill></div>
+    <div class="stages reveal" id="stages" data-fill data-enter></div>
 
     <div class="prose reveal" id="quickstart" style="margin-top:var(--section-y)">
       <p class="eyebrow">Quickstart</p>
@@ -570,7 +586,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
         run opened up — what goes in, what comes out, and what you do with it next.
       </p>
     </div>
-    <div class="cells reveal" id="walk" data-fill></div>
+    <div class="cells reveal" id="walk" data-fill data-enter></div>
   </div>
 </section>
 
@@ -628,7 +644,85 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
         <code>pdfinfo figure.pdf</code> identifies the run that made it months later.
       </p>
     </div>
-    <div class="stages gallery reveal" id="gallery" data-fill></div>
+    <div class="stages gallery reveal" id="gallery" data-enter></div>
+  </div>
+</section>
+
+<!-- ══ VALIDATION ══ -->
+<section class="section" id="validation">
+  <div class="wrap">
+    <div class="prose reveal">
+      <p class="eyebrow">Does it work on real data</p>
+      <h2>A public study, start to finish, using nothing else.</h2>
+      <p class="lede">
+        Everything above is a claim about the package. This is the package run against
+        openly available data by a script anyone can execute — no simulation, no private
+        cohort, no other tool in the pipeline.
+      </p>
+      <p>
+        The study is <code>2026_Frank_solanum_recal</code> on METASPACE: MALDI imaging of
+        grafted Solanum stems. Ion images are downloaded, reconstructed into pixel
+        matrices, and taken through cleaning, pseudobulk, sample-level testing, spatial
+        organization, chemical classification and a sealed manifest.
+      </p>
+    </div>
+
+    <div class="numbers reveal" id="valNumbers" data-fill data-enter></div>
+
+    <div class="split reveal" style="margin-top:var(--section-y)">
+      <div class="prose">
+        <p class="eyebrow">The controls</p>
+        <h3 style="font-family:var(--serif);font-size:1.6rem;font-weight:300">
+          A method that finds everything is worth nothing.</h3>
+        <p>
+          <strong>Positive control — tomato versus pepper tissue.</strong> Two different
+          plants. A working method has to find something, and it does: four ions separate
+          them at FDR &lt; 0.05 across 24 sections, led by
+          <code>N1,N12-Diacetylspermine</code> (δ = +0.89) and <code>L-Proline</code>
+          (δ = +0.83).
+        </p>
+        <p>
+          <strong>Underpowered control — position within homo-grafts.</strong> Holding
+          species constant leaves only three sections per arm, below the six-per-arm floor
+          MORTIS documents. It returns <strong>nothing</strong>, which is the correct
+          answer rather than a disappointing one.
+        </p>
+        <p>
+          <strong>A trap the script refuses.</strong> "Top versus bottom" looks like the
+          obvious contrast and is not: on a <code>tomato-pepper</code> graft the section
+          above the junction is tomato and the one below is pepper, so position is a
+          species contrast wearing a different label. Run naively across all grafts it
+          returns nothing at all.
+        </p>
+        <p>
+          Two further things worth reporting rather than hiding: five sections carry
+          <code>condition</code> metadata that contradicts their own name, so grouping
+          follows the name; and <strong>zero</strong> ions differ on spatial organization
+          here — an honest null on this tissue.
+        </p>
+      </div>
+      <figure class="figure">
+        <div class="figure__frame">
+          <img class="fig-light" src="assets/val_effect.light.svg" alt="Cliff's delta for the strongest ions separating tomato from pepper tissue." loading="lazy" />
+          <img class="fig-dark" src="assets/val_effect.dark.svg" alt="" aria-hidden="true" loading="lazy" />
+        </div>
+        <figcaption>
+          Tomato versus pepper across 24 public sections and 250,514 pixels. Solid bars
+          clear FDR &lt; 0.05. Every figure and table on this page came out of
+          <code>validation/run_validation.py</code>, cached so a rerun costs no downloads
+          and reproduces exactly.
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="prose reveal" style="margin-top:var(--section-y)">
+      <p class="eyebrow">Reproduce it</p>
+    </div>
+    <pre class="reveal"><code><span class="tok-c"># fetches the public study, runs everything, writes a sealed manifest</span>
+python validation/run_validation.py --sections <span class="tok-s">12</span> --ions <span class="tok-s">40</span>
+
+<span class="tok-c"># then check your run against ours</span>
+mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/results/manifest.json"</span>, adata=pb, results=...)</code></pre>
   </div>
 </section>
 
@@ -663,7 +757,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
         code as it stood before the fix.
       </p>
     </div>
-    <div class="numbers reveal" id="numbers" data-fill></div>
+    <div class="numbers reveal" id="numbers" data-fill data-enter></div>
     <div class="prose reveal" style="margin-top:2.4rem">
       <p>
         Spatial statistics stream over metabolite tiles, so a cohort that used to need 4.3 GB of
@@ -858,6 +952,76 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
     timer = requestAnimationFrame(tick);
   }
 
+  /* ── Pinned sequence: scroll position selects the step ──── */
+  const pin = document.getElementById("pin");
+  const steps = [...document.querySelectorAll(".step")];
+  const layers = [...document.querySelectorAll(".pin__layer")];
+  const dots = [...document.querySelectorAll(".stepdots i")];
+  let current = -1;
+
+  function setStep(i) {
+    if (i === current) return;
+    current = i;
+    steps.forEach((el, n) => el.classList.toggle("is-live", n === i));
+    layers.forEach((el, n) => el.classList.toggle("is-live", n === i));
+    dots.forEach((el, n) => el.classList.toggle("on", n === i));
+    if (i === 0) drawBars();
+  }
+
+  function drivePin() {
+    const r = pin.getBoundingClientRect();
+    const travel = r.height - window.innerHeight;
+    if (travel <= 0) { setStep(0); return; }
+    const t = Math.max(0, Math.min(1, -r.top / travel));
+    setStep(Math.min(steps.length - 1, Math.floor(t * steps.length * 0.999)));
+  }
+
+  /* Step one: per-section abundance, drawn so the two arms land on top of
+     each other. The point of the panel is that nothing separates them. */
+  const barCv = document.getElementById("bars"), bctx = barCv.getContext("2d");
+  const abundance = [[1.02, .97, 1.05, .99, 1.01, .96], [1.00, 1.03, .98, 1.02, .97, 1.01]];
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  function drawBars() {
+    const W = barCv.width, H = barCv.height, pad = 62;
+    bctx.clearRect(0, 0, W, H);
+    const cols = [cssVar("--responder"), cssVar("--nonresp")];
+    const muted = cssVar("--muted"), rule = cssVar("--rule"), ink = cssVar("--ink");
+    const per = abundance[0].length, slot = (W - pad * 2) / (abundance.length * per + 2);
+    const base = H - pad, top = pad + 18;
+    const y = (v) => base - (v / 1.25) * (base - top);
+
+    bctx.strokeStyle = rule; bctx.lineWidth = 1.2;
+    bctx.beginPath(); bctx.moveTo(pad - 10, base + .5); bctx.lineTo(W - pad + 10, base + .5); bctx.stroke();
+
+    const all = abundance.flat(), mean = all.reduce((a, b) => a + b, 0) / all.length;
+    bctx.setLineDash([5, 5]); bctx.strokeStyle = muted; bctx.lineWidth = 1;
+    bctx.beginPath(); bctx.moveTo(pad - 10, y(mean)); bctx.lineTo(W - pad + 10, y(mean)); bctx.stroke();
+    bctx.setLineDash([]);
+
+    abundance.forEach((arm, g) => arm.forEach((v, i) => {
+      const x = pad + (g * per + i + 1) * slot;
+      bctx.fillStyle = cols[g];
+      bctx.fillRect(x, y(v), slot * .64, base - y(v));
+    }));
+
+    bctx.fillStyle = muted; bctx.font = "15px ui-monospace, monospace";
+    bctx.fillText("responder", pad + slot, base + 28);
+    bctx.fillText("non-responder", pad + (per + 1) * slot, base + 28);
+    bctx.fillStyle = ink; bctx.font = "17px ui-serif, Georgia, serif";
+    bctx.fillText("Spermidine \u00b7 abundance per section", pad - 10, pad);
+    bctx.fillStyle = muted; bctx.font = "15px ui-monospace, monospace";
+    bctx.fillText("Cliff's \u03b4 = 0.00", W - pad - 150, pad);
+  }
+
+  addEventListener("scroll", drivePin, { passive: true });
+  addEventListener("resize", () => { drawBars(); drivePin(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawBars);
+  document.getElementById("themeToggle").addEventListener("click", () => setTimeout(drawBars, 40));
+  drawBars();
+  setStep(0);
+  drivePin();
+
   /* ── Pipeline stages ───────────────────────────────────── */
   const STAGES = [
     ["Load", "vendor exports", "h5ad, csv and xlsx, tissue and background auto-paired."],
@@ -880,12 +1044,14 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
   const GALLERY = [
     ["ion_images", "plot_ion_images", "One metabolite across every section, shared scale."],
     ["spatial_clusters", "plot_spatial", "Clusters painted back onto the tissue."],
+    ["umap", "plot_umap", "Embedding, coloured by arm."],
+    ["composition", "plot_cluster_composition", "Cluster make-up per group."],
     ["effect_size", "plot_effect_size", "Cliff's δ ranked, filled by FDR."],
     ["volcano", "plot_delta_volcano", "Bounded x-axis, unlike log fold change."],
-    ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
     ["two_axis", "plot_abundance_vs_organization", "Which axis moved, for every compound."],
+    ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
+    ["morans", "plot_morans", "Most spatially structured metabolites."],
     ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
-    ["heatmap", "plot_heatmap", "Mean intensity per group, class ordered."],
     ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
     ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
   ];
@@ -967,6 +1133,20 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
     `<div class="vrow"><span class="vrow__s ${st}">${st}</span>
      <span class="vrow__c">${c}</span><span class="vrow__d">${d}</span></div>`).join("");
 
+  /* ── Validation, from validation/results/summary.json ──── */
+  const VAL = [
+    ["24", "public sections analysed"],
+    ["250,514", "pixels"],
+    ["36", "ions shared across every section"],
+    ["4/36", "separate tomato from pepper, FDR < 0.05"],
+    ["0", "hits in the underpowered contrast"],
+    ["5", "sections whose metadata contradicts its name"],
+    ["1", "package used, end to end"],
+    ["sealed", "manifest written for the run"],
+  ];
+  document.getElementById("valNumbers").innerHTML = VAL.map(([v, l]) =>
+    `<div class="num"><span class="num__v">${v}</span><span class="num__l">${l}</span></div>`).join("");
+
   /* ── Measured numbers ──────────────────────────────────── */
   const NUMBERS = [
     ["517", "tests, all passing"],
@@ -979,6 +1159,8 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
     ["6", "sections per arm, the measured floor"],
     ["sealed", "manifest a reviewer can check"],
     ["0", "raw values in that manifest"],
+    ["120", "public API names"],
+    ["MIT", "licence"],
   ];
   document.getElementById("numbers").innerHTML = NUMBERS.map(([v, l]) =>
     `<div class="num"><span class="num__v">${v}</span><span class="num__l">${l}</span></div>`).join("");
