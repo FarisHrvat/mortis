@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>MORTIS — cohort-scale spatial metabolomics</title>
 <meta name="description" content="A Python toolkit for spatial metabolomics: patient-level statistics, differential spatial organization, and publication figures with editable-vector PDF export." />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
@@ -87,7 +88,10 @@ img { max-width: 100%; height: auto; display: block; }
   border-bottom: 1px solid transparent; transition: border-color .3s; }
 .topbar.is-stuck { border-bottom-color: var(--rule); }
 .wordmark { font-family: var(--mono); font-size: .82rem; letter-spacing: .22em; text-transform: uppercase;
-  text-decoration: none; font-weight: 500; }
+  text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: .6rem; color: var(--ink); }
+/* Inlined rather than <img>, so the mark inherits currentColor and tracks the
+   theme without a filter hack. */
+.mark { width: 1.15rem; height: auto; display: block; color: var(--signal); }
 .topnav { display: flex; gap: 1.35rem; align-items: center; font-size: .82rem; }
 .topnav a { color: var(--muted); text-decoration: none; transition: color .2s; }
 .topnav a:hover, .topnav a:focus-visible { color: var(--ink); }
@@ -131,7 +135,7 @@ strong { font-weight: 500; color: var(--ink); }
   border: 1px solid var(--ink); border-radius: 2px; transition: background .2s, color .2s; }
 .btn:hover { background: var(--ink); color: var(--ground); }
 
-.scanner { position: relative; aspect-ratio: 1.35 / 1; border: 1px solid var(--rule); background: var(--ground-alt);
+.scanner { position: relative; aspect-ratio: 1.48 / 1; border: 1px solid var(--rule); background: var(--ground-alt);
   border-radius: 2px; overflow: hidden; box-shadow: var(--shadow); }
 .scanner canvas { width: 100%; height: 100%; display: block; }
 .scanner__tag { position: absolute; left: .8rem; bottom: .7rem; font-family: var(--mono); font-size: .66rem;
@@ -312,7 +316,25 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 <div class="rail" aria-hidden="true"><div class="rail__fill" id="railFill"></div></div>
 
 <header class="topbar" id="topbar">
-  <a class="wordmark" href="#top">Mortis</a>
+  <a class="wordmark" href="#top"><svg class="mark" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 41" fill="currentColor">
+  <rect x="0" y="0" width="6" height="6"/>
+  <rect x="42" y="0" width="6" height="6"/>
+  <rect x="0" y="7" width="6" height="6"/>
+  <rect x="7" y="7" width="6" height="6"/>
+  <rect x="35" y="7" width="6" height="6"/>
+  <rect x="42" y="7" width="6" height="6"/>
+  <rect x="0" y="14" width="6" height="6"/>
+  <rect x="14" y="14" width="6" height="6"/>
+  <rect x="28" y="14" width="6" height="6"/>
+  <rect x="42" y="14" width="6" height="6"/>
+  <rect x="0" y="21" width="6" height="6"/>
+  <rect x="21" y="21" width="6" height="6"/>
+  <rect x="42" y="21" width="6" height="6"/>
+  <rect x="0" y="28" width="6" height="6"/>
+  <rect x="42" y="28" width="6" height="6"/>
+  <rect x="0" y="35" width="6" height="6"/>
+  <rect x="42" y="35" width="6" height="6"/>
+</svg><span>Mortis</span></a>
   <nav class="topnav">
     <a href="#problem">Problem</a>
     <a href="#organization">Organization</a>
@@ -343,7 +365,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
       </div>
     </div>
     <div class="scanner">
-      <canvas id="raster" width="720" height="533"></canvas>
+      <canvas id="raster" width="828" height="558"></canvas>
       <span class="scanner__tag" id="rasterTag">acquiring · 25 µm raster</span>
     </div>
   </div>
@@ -712,198 +734,117 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
   }, { threshold: 0.6 });
   document.querySelectorAll("[data-count]").forEach((el) => counters.observe(el));
 
-  /* ── Hero: a MALDI raster resolving two arrangements ───── */
+  /* ── Hero: a tissue section resolving under the raster ──── */
   const cv = document.getElementById("raster"), ctx = cv.getContext("2d");
   const tag = document.getElementById("rasterTag");
-  const COLS = 46, ROWS = 34, PAD = 8;
+  const COLS = 92, ROWS = 62, PAD = 6;
   const cw = (cv.width - PAD * 2) / COLS, ch = (cv.height - PAD * 2) / ROWS;
 
-  // viridis, sampled — the colormap this field reads ion images in
-  const VIRIDIS = [[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],
-                   [31,158,137],[53,183,121],[109,205,89],[180,222,44],[253,231,37]];
+  /* The ion ramp the package now uses for ion images: near-black through
+     petrol and teal to a warm pale. Deliberately not viridis. */
+  const RAMP = [[8,12,16],[18,48,68],[28,90,107],[63,144,136],[139,192,168],[234,227,210]];
   const ramp = (t) => {
-    const x = Math.max(0, Math.min(1, t)) * (VIRIDIS.length - 1);
-    const i = Math.floor(x), f = x - i, a = VIRIDIS[i], b = VIRIDIS[Math.min(i + 1, VIRIDIS.length - 1)];
+    const x = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+    const i = Math.floor(x), f = x - i;
+    const a = RAMP[i], b = RAMP[Math.min(i + 1, RAMP.length - 1)];
     return `rgb(${a[0]+(b[0]-a[0])*f|0},${a[1]+(b[1]-a[1])*f|0},${a[2]+(b[2]-a[2])*f|0})`;
   };
 
-  // Two fields with the SAME integrated signal: one focal, one diffuse.
-  const noise = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => Math.random()));
-  const focal = (c, r) => {
-    const dx = (c - COLS * 0.5) / (COLS * 0.17), dy = (r - ROWS * 0.5) / (ROWS * 0.22);
-    return Math.exp(-(dx * dx + dy * dy) / 2);
-  };
-  const build = (fn) => {
-    const g = [], flat = [];
-    for (let r = 0; r < ROWS; r++) { g.push([]); for (let c = 0; c < COLS; c++) { const v = fn(c, r); g[r].push(v); flat.push(v); } }
-    const sum = flat.reduce((a, b) => a + b, 0), max = Math.max(...flat);
-    return { g, sum, max };
-  };
-  const A = build((c, r) => focal(c, r) + noise[r][c] * 0.06);
-  const B = build((c, r) => 0.12 + noise[r][c] * 0.30);
-  const scale = A.sum / B.sum;                      // equalise total signal
-  B.g = B.g.map((row) => row.map((v) => v * scale));
-  B.max = Math.max(...B.g.flat());
-  const NORM = Math.max(A.max, B.max);
+  /* An irregular section, not a rectangle: a circle perturbed by a few low
+     harmonics, with an inner zone and a lumen through the middle — the same
+     geometry the documented demo sections use. */
+  const cx = COLS / 2, cy = ROWS / 2;
+  const phase = [Math.random()*6.28, Math.random()*6.28, Math.random()*6.28];
+  const wobble = (a) => 1 + 0.14*Math.sin(3*a+phase[0]) + 0.09*Math.sin(5*a+phase[1]) + 0.05*Math.sin(7*a+phase[2]);
+  const inTissue = [], inBand = [];
+  for (let r = 0; r < ROWS; r++) {
+    inTissue.push([]); inBand.push([]);
+    for (let c = 0; c < COLS; c++) {
+      const dx = (c - cx) / (COLS * 0.42), dy = (r - cy) / (ROWS * 0.42);
+      const rad = Math.hypot(dx, dy), w = wobble(Math.atan2(dy, dx));
+      inTissue[r].push(rad < w && rad > 0.24 * w);
+      inBand[r].push(rad < w && rad > 0.62 * w);
+    }
+  }
 
-  let head = 0, phase = 0, raf = null;
-  const paint = () => {
-    const field = phase === 0 ? A : B;
+  /* Two fields over that section carrying the SAME integrated signal:
+     one pooled into discrete foci, one spread through the outer band. */
+  function buildFields() {
+    const foci = [];
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * 6.28 + Math.random() * 0.7, rr = 0.80;
+      foci.push([cx + Math.cos(a) * cx * rr, cy + Math.sin(a) * cy * rr]);
+    }
+    const A = [], B = [];
+    let sumA = 0, sumB = 0;
     for (let r = 0; r < ROWS; r++) {
+      A.push([]); B.push([]);
       for (let c = 0; c < COLS; c++) {
-        const idx = r * COLS + c;
-        if (idx > head) continue;
-        ctx.fillStyle = ramp(field.g[r][c] / NORM);
-        ctx.fillRect(PAD + c * cw, PAD + r * ch, Math.ceil(cw) + 0.5, Math.ceil(ch) + 0.5);
+        if (!inTissue[r][c]) { A[r].push(NaN); B[r].push(NaN); continue; }
+        let v = 0.04;
+        for (const [fx, fy] of foci) {
+          const d = Math.hypot(c - fx, r - fy);
+          v += Math.exp(-(d * d) / (2 * 3.4 * 3.4));
+        }
+        v += Math.random() * 0.04;
+        const u = 0.04 + (inBand[r][c] ? 0.62 : 0.02) + Math.random() * 0.07;
+        A[r].push(v); B[r].push(u); sumA += v; sumB += u;
       }
     }
-    const hr = Math.floor(head / COLS), hc = head % COLS;
-    if (head < ROWS * COLS) {
-      ctx.fillStyle = "rgba(255,255,255,.85)";
-      ctx.fillRect(PAD + hc * cw, PAD + hr * ch, Math.ceil(cw) + 0.5, Math.ceil(ch) + 0.5);
+    const k = sumA / sumB;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) B[r][c] *= k;
+    let max = 0;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (A[r][c] > max) max = A[r][c];
+      if (B[r][c] > max) max = B[r][c];
     }
-  };
-  const clear = () => { ctx.clearRect(0, 0, cv.width, cv.height); };
+    return { A, B, max };
+  }
+  const F = buildFields();
 
-  const tick = () => {
-    head += 11;
+  let head = 0, showing = 0, timer = null;
+  function paint() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const field = showing === 0 ? F.A : F.B;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (r * COLS + c > head || !inTissue[r][c]) continue;
+        ctx.fillStyle = ramp(field[r][c] / F.max);
+        ctx.fillRect(PAD + c * cw, PAD + r * ch, Math.ceil(cw) + 0.6, Math.ceil(ch) + 0.6);
+      }
+    }
+    if (head < ROWS * COLS) {                       // the laser position
+      const hr = Math.floor(head / COLS), hc = head % COLS;
+      ctx.fillStyle = "rgba(234,227,210,.9)";
+      ctx.fillRect(PAD, PAD + hr * ch, (hc + 1) * cw, Math.max(1, ch * 0.16));
+    }
+  }
+
+  function tick() {
+    head += 46;
     if (head >= ROWS * COLS) {
       head = ROWS * COLS;
       paint();
-      tag.textContent = phase === 0 ? "responder · focal · Σ = 1.00" : "non-responder · diffuse · Σ = 1.00";
-      raf = setTimeout(() => { phase = 1 - phase; head = 0; clear(); tag.textContent = "acquiring · 25 µm raster"; raf = requestAnimationFrame(tick); }, 2100);
+      tag.textContent = showing === 0
+        ? "responder · pooled into foci · \u03a3 = 1.00"
+        : "non-responder · spread through the band · \u03a3 = 1.00";
+      timer = setTimeout(() => {
+        showing = 1 - showing; head = 0;
+        tag.textContent = "acquiring · 25 \u00b5m raster";
+        timer = requestAnimationFrame(tick);
+      }, 2400);
       return;
     }
     paint();
-    raf = requestAnimationFrame(tick);
-  };
-
-  if (reduced) { head = ROWS * COLS; paint(); tag.textContent = "responder · focal · Σ = 1.00"; }
-  else { raf = requestAnimationFrame(tick); }
-
-  /* ── Pinned sequence: scroll position selects the step ──── */
-  const pin = document.getElementById("pin");
-  const steps = [...document.querySelectorAll(".step")];
-  const layers = [...document.querySelectorAll(".pin__layer")];
-  const dots = [...document.querySelectorAll(".stepdots i")];
-  let current = -1;
-
-  function setStep(i) {
-    if (i === current) return;
-    current = i;
-    steps.forEach((el, n) => el.classList.toggle("is-live", n === i));
-    layers.forEach((el, n) => el.classList.toggle("is-live", n === i));
-    dots.forEach((el, n) => el.classList.toggle("on", n === i));
-    if (i === 0) drawBars();
+    timer = requestAnimationFrame(tick);
   }
 
-  function drivePin() {
-    const r = pin.getBoundingClientRect();
-    const travel = r.height - window.innerHeight;
-    if (travel <= 0) { setStep(0); return; }
-    // 0 at the moment the stage pins, 1 when it releases.
-    const t = Math.max(0, Math.min(1, -r.top / travel));
-    setStep(Math.min(steps.length - 1, Math.floor(t * steps.length * 0.999)));
+  if (reduced) {
+    head = ROWS * COLS; paint();
+    tag.textContent = "responder · pooled into foci · \u03a3 = 1.00";
+  } else {
+    timer = requestAnimationFrame(tick);
   }
-
-  /* Step-one visual: per-section abundance, drawn to show the two arms
-     landing on top of each other. The point is that nothing separates. */
-  const barCv = document.getElementById("bars"), bctx = barCv.getContext("2d");
-  const abundance = [
-    [1.02, .97, 1.05, .99, 1.01, .96],   // responder sections
-    [1.00, 1.03, .98, 1.02, .97, 1.01],  // non-responder sections
-  ];
-  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-  function drawBars() {
-    const W = barCv.width, H = barCv.height, pad = 54;
-    bctx.clearRect(0, 0, W, H);
-    const cols = [cssVar("--responder"), cssVar("--nonresp")];
-    const muted = cssVar("--muted"), rule = cssVar("--rule");
-    const groups = abundance.length, per = abundance[0].length;
-    const slot = (W - pad * 2) / (groups * per + 2);
-    const base = H - pad, top = pad + 10;
-
-    bctx.strokeStyle = rule; bctx.lineWidth = 1;
-    bctx.beginPath(); bctx.moveTo(pad - 8, base + .5); bctx.lineTo(W - pad + 8, base + .5); bctx.stroke();
-
-    // the mean line both arms share
-    const all = abundance.flat(), mean = all.reduce((a, b) => a + b, 0) / all.length;
-    const y = (v) => base - (v / 1.25) * (base - top);
-    bctx.setLineDash([4, 4]); bctx.strokeStyle = muted;
-    bctx.beginPath(); bctx.moveTo(pad - 8, y(mean)); bctx.lineTo(W - pad + 8, y(mean)); bctx.stroke();
-    bctx.setLineDash([]);
-
-    abundance.forEach((arm, g) => arm.forEach((v, i) => {
-      const x = pad + (g * per + i + 1) * slot;
-      bctx.fillStyle = cols[g];
-      bctx.fillRect(x, y(v), slot * .62, base - y(v));
-    }));
-
-    bctx.fillStyle = muted; bctx.font = "13px ui-monospace, monospace";
-    bctx.fillText("responder", pad + slot, base + 24);
-    bctx.fillText("non-responder", pad + (per + 1) * slot, base + 24);
-    bctx.fillStyle = cssVar("--ink"); bctx.font = "15px ui-serif, Georgia, serif";
-    bctx.fillText("Spermidine · abundance per section", pad - 8, pad - 6);
-    bctx.fillStyle = muted; bctx.font = "13px ui-monospace, monospace";
-    bctx.fillText("Cliff's \u03b4 = 0.00", W - pad - 118, pad - 6);
-  }
-  addEventListener("scroll", drivePin, { passive: true });
-  addEventListener("resize", () => { drawBars(); drivePin(); });
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawBars);
-  document.getElementById("themeToggle").addEventListener("click", () => setTimeout(drawBars, 40));
-  drivePin(); drawBars();
-
-  /* ── Gentle drift on figures as they pass ───────────────── */
-  const drifters = [...document.querySelectorAll(".drift")];
-  function drive() {
-    if (!reduced) {
-      for (const el of drifters) {
-        const r = el.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > innerHeight) continue;
-        const p = (r.top + r.height / 2 - innerHeight / 2) / innerHeight;
-        el.style.transform = `translateY(${(-p * 14).toFixed(2)}px)`;
-      }
-    }
-    requestAnimationFrame(drive);
-  }
-  requestAnimationFrame(drive);
-
-  /* ── Pipeline stages ───────────────────────────────────── */
-  const STAGES = [
-    ["Load", "imzML-free entry", "h5ad, csv and xlsx exports, tissue/background auto-paired."],
-    ["Clean", "background out", "Fold-change filtering, annotation score, DrugBank compounds."],
-    ["Normalise", "TIC or median", "Median is more robust when a few ions dominate the pixel total."],
-    ["Embed", "PCA · UMAP", "Harmony or ComBat when batches are genuinely confounded."],
-    ["Segment", "niches", "Leiden on a spatially smoothed embedding — contiguous domains."],
-    ["Pseudobulk", "pixels → patients", "The step that makes everything after it valid."],
-    ["Test", "Cliff's δ", "Effect size first; at n = 4 a rank p-value cannot go below 0.029."],
-    ["Organise", "how, not how much", "Moran's I, entropy, hotspot fraction, Gini — per section."],
-    ["Compare", "across cohorts", "Does the signature persist, reorganise, or flip?"],
-    ["Annotate", "KEGG", "Names → HMDB/KEGG → pathways, cached, in one call."],
-    ["Figure", "vector PDF", "Editable text, embedded provenance, LaTeX optional."],
-    ["Verify", "manifest", "A sealed file a reviewer can check your re-run against."],
-  ];
-  document.getElementById("stages").innerHTML = STAGES.map(([t, k, d]) =>
-    `<div class="stage"><span class="stage__k">${k}</span><span class="stage__t">${t}</span><span class="stage__d">${d}</span></div>`).join("");
-
-  /* ── Gallery ───────────────────────────────────────────── */
-  const GALLERY = [
-    ["ion_images", "plot_ion_images", "One metabolite across every section, shared scale."],
-    ["spatial_clusters", "plot_spatial", "Clusters painted back onto the tissue."],
-    ["effect_size", "plot_effect_size", "Cliff's δ ranked, filled by FDR."],
-    ["volcano", "plot_delta_volcano", "Bounded x-axis, unlike log fold change."],
-    ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
-    ["two_axis", "plot_abundance_vs_organization", "Which axis moved, for every compound."],
-    ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
-    ["heatmap", "plot_heatmap", "Mean intensity per group, class ordered."],
-    ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
-    ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
-  ];
-  document.getElementById("gallery").innerHTML = GALLERY.map(([f, n, d]) =>
-    `<div class="stage"><div class="figure__frame" style="margin-bottom:.9rem">
-       <img class="fig-light" src="assets/${f}.light.svg" alt="${d}" loading="lazy" />
-       <img class="fig-dark" src="assets/${f}.dark.svg" alt="" aria-hidden="true" loading="lazy" />
-     </div><span class="stage__k">${n}</span><span class="stage__d">${d}</span></div>`).join("");
 
   /* ── No ragged holes in any tile grid ──────────────────── */
   /* auto-fit changes the column count with the viewport, so no fixed number
