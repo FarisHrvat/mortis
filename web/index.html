@@ -34,6 +34,7 @@
   --measure: 34rem;
   --gap: clamp(1rem, 2.2vw, 1.75rem);
   --section-y: clamp(5rem, 12vh, 9rem);
+  --bar-h: 3.4rem;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -61,7 +62,7 @@
 }
 
 *,*::before,*::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--bar-h) + 1rem); }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
   font-family: var(--sans); font-weight: 300; font-size: 17px; line-height: 1.65;
@@ -82,7 +83,7 @@ img { max-width: 100%; height: auto; display: block; }
 /* ── Chrome ───────────────────────────────────────────────── */
 .topbar { position: fixed; inset: 0 0 auto 0; z-index: 30; display: flex; align-items: center;
   justify-content: space-between; gap: 1rem; padding: .85rem clamp(1rem, 4vw, 2.5rem);
-  backdrop-filter: blur(14px); background: color-mix(in srgb, var(--ground) 86%, transparent);
+  min-height: var(--bar-h); background: var(--ground);
   border-bottom: 1px solid transparent; transition: border-color .3s; }
 .topbar.is-stuck { border-bottom-color: var(--rule); }
 .wordmark { font-family: var(--mono); font-size: .82rem; letter-spacing: .22em; text-transform: uppercase;
@@ -270,7 +271,8 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
    position drives which step is showing. Motion tracks the scrollbar
    rather than firing once, so the reader controls the pace. */
 .pin { position: relative; }
-.pin__stage { position: sticky; top: 0; height: 100svh; display: grid; align-content: center; overflow: hidden; }
+.pin__stage { position: sticky; top: var(--bar-h); height: calc(100svh - var(--bar-h));
+  display: grid; align-content: center; overflow: hidden; }
 .pin__inner { display: grid; gap: clamp(1.5rem,4vw,3.5rem); grid-template-columns: 1fr; align-items: center; }
 @media (min-width: 960px) { .pin__inner { grid-template-columns: .78fr 1.22fr; } }
 .pin__steps { position: relative; min-height: 12rem; }
