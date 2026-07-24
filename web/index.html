@@ -32,7 +32,7 @@
   --sans:  "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --measure: 34rem;
+  --measure: 52rem;
   --gap: clamp(1rem, 2.2vw, 1.75rem);
   --section-y: clamp(5rem, 12vh, 9rem);
   --bar-h: 3.4rem;
@@ -107,6 +107,11 @@ img { max-width: 100%; height: auto; display: block; }
 .section--plain { border-top: none; }
 .section--tint { background: var(--ground-alt); }
 .prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1.1rem; }
+/* Justified with hyphenation on: justification without it opens rivers of
+   whitespace at this measure. */
+.prose p, .step p, figcaption { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
+.prose .eyebrow { text-align: left; }
+@media (max-width: 620px) { .prose p, .step p, figcaption { text-align: left; hyphens: manual; } }
 .eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
   color: var(--muted); display: flex; align-items: center; gap: .95rem; }
 /* 2px, not 1px: a hairline rule and small caps alias into each other on
@@ -278,7 +283,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 .pin__stage { position: sticky; top: var(--bar-h); height: calc(100svh - var(--bar-h));
   display: grid; align-content: center; overflow: hidden; }
 .pin__inner { display: grid; gap: clamp(1.5rem,4vw,3.5rem); grid-template-columns: 1fr; align-items: center; }
-@media (min-width: 960px) { .pin__inner { grid-template-columns: .78fr 1.22fr; } }
+@media (min-width: 960px) { .pin__inner { grid-template-columns: .92fr 1.08fr; } }
 .pin__steps { position: relative; min-height: 12rem; }
 .step { position: absolute; inset: 0; opacity: 0; transform: translateY(14px);
   transition: opacity .5s ease, transform .5s ease; pointer-events: none;
@@ -845,6 +850,43 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
   } else {
     timer = requestAnimationFrame(tick);
   }
+
+  /* ── Pipeline stages ───────────────────────────────────── */
+  const STAGES = [
+    ["Load", "vendor exports", "h5ad, csv and xlsx, tissue and background auto-paired."],
+    ["Clean", "background out", "Fold-change filtering, annotation score, DrugBank compounds."],
+    ["Normalise", "TIC or median", "Median is more robust when a few ions dominate the pixel total."],
+    ["Embed", "PCA · UMAP", "Harmony or ComBat when batches are genuinely confounded."],
+    ["Segment", "niches", "Leiden on a spatially smoothed embedding — contiguous domains."],
+    ["Pseudobulk", "pixels → patients", "The step that makes everything after it valid."],
+    ["Test", "Cliff's δ", "Effect size first; at n = 4 a rank p-value cannot go below 0.029."],
+    ["Organise", "how, not how much", "Moran's I, entropy, hotspot fraction, Gini — per section."],
+    ["Compare", "across cohorts", "Does the signature persist, reorganise, or flip?"],
+    ["Annotate", "KEGG", "Names → HMDB/KEGG → pathways, cached, in one call."],
+    ["Figure", "vector PDF", "Editable text, embedded provenance, LaTeX optional."],
+    ["Verify", "manifest", "A sealed file a reviewer can check your re-run against."],
+  ];
+  document.getElementById("stages").innerHTML = STAGES.map(([t, k, d]) =>
+    `<div class="stage"><span class="stage__k">${k}</span><span class="stage__t">${t}</span><span class="stage__d">${d}</span></div>`).join("");
+
+  /* ── Gallery ───────────────────────────────────────────── */
+  const GALLERY = [
+    ["ion_images", "plot_ion_images", "One metabolite across every section, shared scale."],
+    ["spatial_clusters", "plot_spatial", "Clusters painted back onto the tissue."],
+    ["effect_size", "plot_effect_size", "Cliff's δ ranked, filled by FDR."],
+    ["volcano", "plot_delta_volcano", "Bounded x-axis, unlike log fold change."],
+    ["org_heatmap", "plot_organization_heatmap", "Sections × metabolites, split by arm."],
+    ["two_axis", "plot_abundance_vs_organization", "Which axis moved, for every compound."],
+    ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
+    ["heatmap", "plot_heatmap", "Mean intensity per group, class ordered."],
+    ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
+    ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
+  ];
+  document.getElementById("gallery").innerHTML = GALLERY.map(([f, n, d]) =>
+    `<div class="stage"><div class="figure__frame">
+       <img class="fig-light" src="assets/${f}.light.svg" alt="${d}" loading="lazy" />
+       <img class="fig-dark" src="assets/${f}.dark.svg" alt="" aria-hidden="true" loading="lazy" />
+     </div><span class="stage__k">${n}</span><span class="stage__d">${d}</span></div>`).join("");
 
   /* ── No ragged holes in any tile grid ──────────────────── */
   /* auto-fit changes the column count with the viewport, so no fixed number

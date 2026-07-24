@@ -511,9 +511,9 @@ def plot_delta_volcano(
         rasterized=len(delta) > 5000,
     )
 
-    ax.axhline(-np.log10(fdr_threshold), color=_ink(), linewidth=0.6, linestyle="--")
+    ax.axhline(-np.log10(fdr_threshold), color=_ink(), linewidth=0.6, alpha=0.22)
     for x in (-delta_threshold, delta_threshold):
-        ax.axvline(x, color=_ink(), linewidth=0.6, linestyle="--")
+        ax.axvline(x, color=_ink(), linewidth=0.6, alpha=0.22)
 
     if label_top > 0:
         ranked = result.assign(_score=np.abs(delta) * y).nlargest(label_top, "_score")
@@ -585,11 +585,13 @@ def plot_abundance_vs_organization(
             rasterized=len(subset) > 5000,
         )
 
+    # Threshold guides sit at 12% opacity. At full strength four dotted lines
+    # read as a grid laid over the data rather than as a reference.
     for value in (-delta_threshold, delta_threshold):
-        ax.axvline(value, color=_ink(), linewidth=0.5, linestyle=":")
-        ax.axhline(value, color=_ink(), linewidth=0.5, linestyle=":")
-    ax.axvline(0.0, color=_ink(), linewidth=0.7)
-    ax.axhline(0.0, color=_ink(), linewidth=0.7)
+        ax.axvline(value, color=_ink(), linewidth=0.6, alpha=0.12)
+        ax.axhline(value, color=_ink(), linewidth=0.6, alpha=0.12)
+    ax.axvline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
+    ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
 
     if label_top > 0:
         focus = merged[merged["classification"] == "organization only"].head(label_top)
@@ -664,9 +666,9 @@ def plot_signature_comparison(
         )
 
     limit = 1.08
-    ax.plot([-limit, limit], [-limit, limit], color=_ink(), linewidth=0.5, linestyle="--", zorder=0)
-    ax.axvline(0.0, color=_ink(), linewidth=0.7)
-    ax.axhline(0.0, color=_ink(), linewidth=0.7)
+    ax.plot([-limit, limit], [-limit, limit], color=_ink(), linewidth=0.6, alpha=0.2, zorder=0)
+    ax.axvline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
+    ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
 
     if rho is None:
         rho = table.attrs.get("rho")
