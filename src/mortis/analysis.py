@@ -1104,7 +1104,13 @@ def neighborhood_enrichment(
     if copy: adata = adata.copy()
 
     prior_n_threads = nb.get_num_threads()
-    nb.set_num_threads(max(1, n_jobs if n_jobs is not None else _N_JOBS))
+    # Clamp to what Numba will actually accept. set_num_threads() raises if
+    # asked for more threads than NUMBA_NUM_THREADS, which is fixed at import
+    # from the core count -- so n_jobs=8 on a 4-core CI runner used to crash
+    # rather than simply using 4. Asking for more than you have is a wish,
+    # not an error.
+    requested = n_jobs if n_jobs is not None else _N_JOBS
+    nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
 
     W = adata.obsp["spatial_connectivities"].tocoo()
     upper = W.row < W.col

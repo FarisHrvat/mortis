@@ -14,12 +14,15 @@ signature persist or reorganise?". So the shared machinery lives in
 
 The one rule that matters
 -------------------------
-**Run each cohort through the identical pipeline first, then compare.** Analyse
-one cohort as an appendix of the other — carrying clusters, normalisation
-factors or feature selection across — and the comparison measures your
-processing choices rather than the biology. Reviewers reject asymmetric
-comparisons, correctly. Every function here takes two *finished, independent*
-result tables, which makes the symmetric pattern the path of least resistance.
+**Run each cohort through the identical pipeline first, then compare.**
+
+Analyse the second cohort as an appendix of the first — reusing its clusters,
+its normalisation factors, its feature selection — and what you end up measuring
+is your own processing choices, dressed up as biology. Reviewers reject
+asymmetric comparisons, and they are right to.
+
+Every function here takes two *finished, independent* result tables, which makes
+doing it properly the path of least resistance.
 
 Spearman is used throughout rather than Pearson: effect sizes are already rank
 statistics, and with a few hundred metabolites a handful of extreme values

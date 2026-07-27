@@ -83,7 +83,7 @@ That's it. Verify it worked:
 python -c "import mortis; print(mortis.__version__)"
 ```
 
-If that prints a version number (e.g. `0.5.0`) instead of an error,
+If that prints a version number (e.g. `0.1.0`) instead of an error,
 you're ready for the **[Quickstart](quickstart.md)**.
 
 ## Optional extras

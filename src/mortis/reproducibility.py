@@ -6,10 +6,14 @@ the same numbers — without giving them the patient data.
 
 The problem
 -----------
-"Available on reasonable request" is the standard answer and it verifies
-nothing. A reviewer who doubts a result has three options today: take it on
-trust, ask for data the ethics approval usually forbids sharing, or try to
-re-implement the analysis from a methods paragraph. None of those is checking.
+"Data available from the corresponding author on reasonable request" is the
+standard line, and it verifies exactly nothing.
+
+Put yourself in the reviewer's chair. You doubt a result. Your options are: take
+it on trust, ask for data the ethics approval almost certainly forbids sharing,
+or reimplement six months of analysis from one paragraph of methods. None of
+those is checking. Two of them are wishful thinking and the third is a career
+sacrifice.
 
 What a manifest is
 ------------------

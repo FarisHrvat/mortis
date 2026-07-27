@@ -1,22 +1,37 @@
 cff-version: 1.2.0
-message: "If you use MORTIS in your research, please cite it as below."
-title: "MORTIS: high-performance downstream analysis for spatial metabolomics"
-version: 0.5.0
-date-released: "2026-07-03"
+title: "MORTIS: cohort-scale analysis for spatial metabolomics"
+message: >-
+  MORTIS is currently under review for publication. Once the paper is out,
+  the preferred citation will be the article, and it will be added here.
+  Until then, please cite the software using the metadata below, including
+  the version you actually ran.
+version: 0.1.0
+date-released: "2026-07-24"
 license: MIT
 type: software
 authors:
   - given-names: Faris
     family-names: Hrvat
     email: farishrvatit@gmail.com
-    # TODO: add your ORCID (https://orcid.org) if you have or create one —
-    # it's what makes this citation properly linkable/trackable in academic
-    # indices: orcid: "https://orcid.org/0000-0000-0000-0000"
+    # Add your ORCID once you have one (https://orcid.org) — it is what makes
+    # a software citation trackable in the academic indices.
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
 repository-code: "https://github.com/FarisHrvat/mortis"
+url: "https://farishrvat.github.io/mortis/"
+abstract: >-
+  A Python package for downstream analysis of spatial metabolomics data
+  (MALDI-MSI, DESI and related imaging mass spectrometry). It tests at the
+  patient level rather than the pixel level, measures differential spatial
+  organization — whether a metabolite is arranged differently between groups
+  independently of how much of it there is — compares cohorts and timepoints,
+  and exports publication figures alongside a sealed manifest that lets a
+  reviewer verify an analysis reproduces without access to the underlying data.
 keywords:
   - spatial metabolomics
   - imaging mass spectrometry
   - MALDI-MSI
+  - pseudobulk
+  - spatial statistics
+  - reproducibility
   - bioinformatics
   - anndata
-  - scanpy

@@ -6,13 +6,16 @@ patients, independently of whether there is more or less of them.
 
 The question this answers
 -------------------------
-Abundance testing asks "is there more of metabolite X in responders?" That is
-the question bulk metabolomics already answers, and running it on imaging data
-throws away the only thing imaging adds. A metabolite can be present at
-identical total abundance in two patients and still be organised completely
-differently — diffuse and uniform in one, concentrated into sharp foci in the
-other. Lactate spread evenly through a section and lactate pooled into hypoxic
-cores are not the same biology, and no abundance test can tell them apart.
+Abundance testing asks "is there more of metabolite X in responders?" — which
+is precisely the question bulk metabolomics answered years ago, more cheaply.
+Ask only that of imaging data and you have paid for spatial resolution in order
+to throw it away.
+
+Because a metabolite can sit at *identical* total abundance in two patients and
+be arranged completely differently: spread evenly through one section, pooled
+into sharp foci in the other. Lactate diffused through tissue and lactate
+concentrated in hypoxic cores are not the same biology. No abundance test will
+ever tell you which one you are looking at.
 
 This module summarises each metabolite's *spatial pattern* in one section into
 a small number of scalars, giving one value per patient per metabolite. Those
@@ -360,8 +363,11 @@ def differential_spatial_organization(
         ``median_group2`` holding the metric rather than an intensity.
     """
     if metric not in org.layers:
+        # anndata >= 0.13 lists .X itself under a None key; showing that to a
+        # user looking for a metric name is just confusing.
+        available = sorted(k for k in org.layers.keys() if k is not None)
         raise InvalidParameterError(
-            f"Metric '{metric}' not found in org.layers. Available: {list(org.layers.keys())}. "
+            f"Metric '{metric}' not found in org.layers. Available: {available}. "
             "Request it in spatial_organization(metrics=...)."
         )
     result = differential_abundance(

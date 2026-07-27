@@ -1,10 +1,21 @@
 name: Deploy Docs
 
+# Two sites, one deployment:
+#   /            the landing page in web/ — the guided tour, the figure
+#                gallery, and the searchable API reference
+#   /reference/  the MkDocs handbook in docs/ — long-form tutorials and
+#                concept pages
+#
+# The API index is regenerated here from the installed package rather than
+# served from the committed copy, so it cannot drift from the code.
+
 on:
   push:
     branches: [main]
     paths:
+      - "web/**"
       - "docs/**"
+      - "src/**"
       - "mkdocs.yml"
       - "CHANGELOG.md"
       - ".github/workflows/docs.yml"
@@ -29,17 +40,31 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install MkDocs Material
-        run: pip install mkdocs-material mkdocs-glightbox
+      - name: Install the package and the docs toolchain
+        run: |
+          python -m pip install -e .
+          python -m pip install mkdocs-material mkdocs-glightbox
 
-      - name: Build site
-        run: mkdocs build --strict
+      - name: Regenerate the API index from the installed package
+        run: python web/build_api.py
+
+      - name: Build the MkDocs handbook
+        run: mkdocs build --strict --site-dir _handbook
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/reference
+          cp -r web/index.html web/api.json web/assets _site/
+          cp -r _handbook/. _site/reference/
+          # Without .nojekyll, Pages hides any path starting with an
+          # underscore — which is where MkDocs keeps its assets.
+          touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
 
   deploy:
     needs: build

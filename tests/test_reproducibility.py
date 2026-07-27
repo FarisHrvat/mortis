@@ -87,7 +87,9 @@ class TestBatchOffsetPrecision:
     def test_neighbours_never_cross_batches(self):
         adata = _grid_adata(n_side=10, n_batches=35)
         _, idx = _build_spatial_weights(adata, n_neighbors=6, batch_key="sample")
-        batches = adata.obs["sample"].values
+        # np.asarray, not .values: under pandas 3 an object column comes back as
+        # a StringArray, which does not support the 2-D fancy indexing below.
+        batches = np.asarray(adata.obs["sample"], dtype=object)
         neighbour_batches = batches[idx]
         assert (neighbour_batches == batches[:, None]).all(), (
             "a spatial neighbour was drawn from a different section"
@@ -280,3 +282,48 @@ class TestStorageBackendsAgree:
         np.testing.assert_array_equal(
             reference["geary_c"].to_numpy(), tiled["geary_c"].to_numpy()
         )
+
+
+class TestThreadRequestsAreClamped:
+    """
+    Numba fixes its thread ceiling at import from the core count, and
+    ``set_num_threads`` raises above it. Asking for more threads than the
+    machine has is a wish, not an error, so it gets clamped — this used to
+    crash every CI runner with fewer cores than the test asked for.
+    """
+
+    @staticmethod
+    def _clustered():
+        adata = _grid_adata(n_side=10, n_vars=8)
+        rng = np.random.default_rng(0)
+        adata.obs["cluster"] = np.array(["c0", "c1"])[rng.integers(0, 2, adata.n_obs)]
+        return mt.spatial_neighbors(adata)
+
+    def test_absurd_thread_count_does_not_raise(self):
+        import numba as nb
+
+        result = mt.neighborhood_enrichment(
+            self._clustered(), n_permutations=40,
+            n_jobs=nb.config.NUMBA_NUM_THREADS + 64, random_state=0,
+        )[1]
+        assert len(result) > 0
+
+    def test_result_is_unchanged_by_an_over_request(self):
+        """Clamping must not quietly change the answer."""
+        import numba as nb
+
+        one = mt.neighborhood_enrichment(
+            self._clustered(), n_permutations=40, n_jobs=1, random_state=11
+        )[1].sort_values(["cluster_a", "cluster_b"])
+        many = mt.neighborhood_enrichment(
+            self._clustered(), n_permutations=40,
+            n_jobs=nb.config.NUMBA_NUM_THREADS + 64, random_state=11,
+        )[1].sort_values(["cluster_a", "cluster_b"])
+        np.testing.assert_array_equal(one["zscore"].to_numpy(), many["zscore"].to_numpy())
+
+    def test_thread_count_is_restored_afterwards(self):
+        import numba as nb
+
+        before = nb.get_num_threads()
+        mt.neighborhood_enrichment(self._clustered(), n_permutations=20, n_jobs=1, random_state=0)
+        assert nb.get_num_threads() == before

@@ -6,11 +6,11 @@ figures for the sample-level and spatial-organization analyses.
 
 Why a separate module
 ---------------------
-Figures made during exploration and figures that go into a manuscript have
-different requirements, and mixing them produces the familiar late-stage mess:
-inconsistent fonts across panels, text that turns into uneditable outlines the
-moment a co-author opens the PDF in Illustrator, and no way to tell which
-version of the analysis a given figure came from.
+Figures you make while poking at data and figures that go into a manuscript want
+different things, and mixing the two produces a mess everyone recognises at
+submission time: eight panels in five fonts, text that turns to uneditable
+outlines the moment a co-author opens it in Illustrator, and absolutely no way
+to tell which version of the analysis produced figure 3b.
 
 Three things this module guarantees:
 
@@ -960,8 +960,9 @@ def plot_organization_heatmap(
         rather than glowing white on a dark ground.
     """
     if metric not in org.layers:
+        available = sorted(k for k in org.layers.keys() if k is not None)
         raise InvalidParameterError(
-            f"Metric '{metric}' not in org.layers. Available: {list(org.layers.keys())}."
+            f"Metric '{metric}' not in org.layers. Available: {available}."
         )
     if group_key is not None and group_key not in org.obs.columns:
         raise InvalidParameterError(f"'{group_key}' not found in org.obs.")

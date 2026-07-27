@@ -5,34 +5,40 @@ Sample-level (patient-level) statistics for spatial metabolomics cohorts.
 
 Why this module exists
 ----------------------
-An MSI section yields tens of thousands of pixels, but those pixels are not
-independent observations — they all come from one tissue section from one
-patient. Testing them as if they were independent inflates the sample size by
-three or four orders of magnitude and manufactures significance out of nothing.
+An MSI section gives you tens of thousands of pixels. It does not give you tens
+of thousands of patients. They all came from one piece of tissue from one
+person, and testing them as though they were independent inflates your sample
+size by three or four orders of magnitude — which manufactures significance out
+of thin air.
 
-The size of the problem is easy to underestimate, so here is a measurement.
-Simulate six patients (three per arm), 500 pixels each, 200 metabolites, with
-**no group difference at all** — only patient-to-patient variation:
+This is easy to wave away in the abstract, so here is what it actually costs.
+Six simulated patients, three per arm, 500 pixels each, 200 metabolites, and
+**no group difference whatsoever** — only the ordinary variation between
+people:
 
     pixel-level Mann-Whitney (n = 1500 per arm) ->  183 / 200 "significant"
     patient-level pseudobulk (n = 3 per arm)    ->    0 / 200 significant
 
-Roughly 92% of the pixel-level hits were fabricated. This is the same failure
-mode documented for single-cell and spatial transcriptomics, and for MSI
-specifically (block-SAM, *Bioinformatics* 2026, reports a pixel-level t-test
-giving P = 9.6e-07 where the correct patient-level test gives P = 0.78).
+Roughly 92% of those findings were invented by the method. It is the same trap
+that single-cell and spatial transcriptomics fell into, and it is documented for
+imaging mass spectrometry specifically: block-SAM (*Bioinformatics* 2026) shows
+a pixel-level t-test returning P = 9.6e-07 where the correct patient-level test
+gives P = 0.78. Same data. One of those numbers is a result and the other is an
+artefact of counting wrong.
 
-So: collapse to one profile per sample first, then test. That is
-:func:`pseudobulk` followed by :func:`differential_abundance`.
+So: collapse to one profile per sample, *then* test. That is :func:`pseudobulk`
+followed by :func:`differential_abundance`, in that order, every time.
 
 Why Cliff's delta rather than fold change
 -----------------------------------------
-Cohorts here are small — often 4 to 10 patients per arm. At that size a
-p-value is mostly noise and a mean-based fold change is hostage to a single
-outlying patient. Cliff's delta asks a question that stays meaningful at n = 4:
-*given a random patient from each group, how much more often does one exceed
-the other?* It is rank-based, bounded in [-1, 1], and needs no distributional
-assumption. Report it first; treat the p-value as supporting detail.
+Cohorts here are small — 4 to 10 patients an arm is normal. At that size a
+p-value is mostly noise, and a mean-based fold change can be dragged anywhere
+by one unusual patient.
+
+Cliff's delta asks something that still means what you think it means at n = 4:
+*pick a patient from each group at random — how much more often does one exceed
+the other?* Rank-based, bounded in [-1, 1], no distributional assumptions to
+violate. Lead with it and let the p-value play a supporting role.
 """
 
 from __future__ import annotations
@@ -73,8 +79,9 @@ def _to_dense(X) -> np.ndarray:
 def _analysis_matrix(adata: ad.AnnData, layer: Optional[str]) -> np.ndarray:
     if layer is not None:
         if layer not in adata.layers:
+            available = sorted(k for k in adata.layers.keys() if k is not None)
             raise InvalidParameterError(
-                f"Layer '{layer}' not found. Available: {list(adata.layers.keys())}."
+                f"Layer '{layer}' not found. Available: {available}."
             )
         return _to_dense(adata.layers[layer])
     return _to_dense(adata.X)

@@ -4,11 +4,14 @@ MORTIS Compound Identifier & Pathway Module
 Turning a list of compound names into pathway results, in one step instead of
 three manual ones.
 
-The manual version of this is: paste names into MetaboAnalyst's name-mapping
-tool, download the ID table, work out which pathways those IDs belong to, then
-run enrichment somewhere else. Every step is a browser round-trip and none of it
-is reproducible six months later. :func:`annotate_pathways` does all of it from
-the compound names already in ``adata.var_names``.
+The manual version goes: paste your compound names into MetaboAnalyst, download
+the ID table, work out which pathways those IDs belong to, then run enrichment
+somewhere else entirely. Three browser round-trips, several intermediate
+spreadsheets, and no chance whatsoever of reconstructing what you did six months
+later when a reviewer asks.
+
+:func:`annotate_pathways` does the whole thing from the compound names already
+sitting in ``adata.var_names``.
 
 Where the pieces come from
 --------------------------
@@ -21,12 +24,12 @@ the same service the web tool uses.
 returns every compound-to-pathway link KEGG holds (about 19,600 of them) and a
 second returns the pathway names.
 
-**Enrichment** — done here, by :func:`mortis.pathway_ora`, not remotely. This
-was not the original plan. MetaboAnalyst documents exactly one REST endpoint,
-the name mapper; there is no public enrichment endpoint (six candidate paths
-all return 404). Keeping the statistics local turns out to be the better
-outcome anyway, because the background set matters enormously and a web tool
-cannot know yours. Enrichment must be tested against **the compounds you
+**Enrichment** — computed here by :func:`mortis.pathway_ora`, not remotely.
+This was not the plan. MetaboAnalyst documents exactly one REST endpoint, the
+name mapper, and six guesses at an enrichment endpoint all returned 404.
+
+Which turned out to be a lucky escape, because the background set decides the
+answer and a web service has no way of knowing yours. Enrichment must be tested against **the compounds you
 measured**, not against every compound in the database — otherwise a panel that
 only detects polar metabolites looks dramatically enriched for polar pathways,
 purely because of what the instrument could see. ``pathway_ora`` uses the

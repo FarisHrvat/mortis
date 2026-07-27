@@ -2143,13 +2143,134 @@
   ]
  },
  {
+  "title": "Verify",
+  "blurb": "Manifests a reviewer can check a re-run against.",
+  "items": [
+   {
+    "name": "export_manifest",
+    "doc": "Write a verification manifest for one analysis.",
+    "sig": "export_manifest(path: 'Union[str, Path]', adata: 'Optional[ad.AnnData]' = None, results: 'Optional[Mapping[str, pd.DataFrame]]' = None, analysis: 'str' = 'unnamed analysis', notes: 'Optional[str]' = None, extra: 'Optional[Mapping[str, Any]]' = None) -> 'Path'",
+    "params": [
+     {
+      "name": "path",
+      "type": "Union[str, Path",
+      "default": ""
+     },
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": "None"
+     },
+     {
+      "name": "results",
+      "type": "Mapping[str, pd.DataFrame",
+      "default": "None"
+     },
+     {
+      "name": "analysis",
+      "type": "str",
+      "default": "'unnamed analysis'"
+     },
+     {
+      "name": "notes",
+      "type": "str",
+      "default": "None"
+     },
+     {
+      "name": "extra",
+      "type": "Mapping[str, Any",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "verify_manifest",
+    "doc": "Check a re-run against a manifest, and say exactly what differs.",
+    "sig": "verify_manifest(path: 'Union[str, Path]', adata: 'Optional[ad.AnnData]' = None, results: 'Optional[Mapping[str, pd.DataFrame]]' = None, strict_environment: 'bool' = False) -> 'pd.DataFrame'",
+    "params": [
+     {
+      "name": "path",
+      "type": "Union[str, Path",
+      "default": ""
+     },
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": "None"
+     },
+     {
+      "name": "results",
+      "type": "Mapping[str, pd.DataFrame",
+      "default": "None"
+     },
+     {
+      "name": "strict_environment",
+      "type": "bool",
+      "default": "False"
+     }
+    ]
+   },
+   {
+    "name": "record_step",
+    "doc": "Append one step to the object's provenance chain.",
+    "sig": "record_step(adata: 'ad.AnnData', step: 'str', params: 'Optional[Mapping[str, Any]]' = None) -> 'None'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "step",
+      "type": "str",
+      "default": ""
+     },
+     {
+      "name": "params",
+      "type": "Mapping[str, Any",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "data_fingerprint",
+    "doc": "A privacy-safe summary of an AnnData object.",
+    "sig": "data_fingerprint(adata: 'ad.AnnData', layer: 'Optional[str]' = None) -> 'Dict[str, Any]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     },
+     {
+      "name": "layer",
+      "type": "str",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "result_fingerprint",
+    "doc": "A checksum of one result table.",
+    "sig": "result_fingerprint(result: 'pd.DataFrame') -> 'Dict[str, Any]'",
+    "params": [
+     {
+      "name": "result",
+      "type": "pd.DataFrame",
+      "default": ""
+     }
+    ]
+   }
+  ]
+ },
+ {
   "title": "Plot",
   "blurb": "Publication figures with editable-vector PDF export.",
   "items": [
    {
     "name": "set_publication_style",
     "doc": "Apply the house style to every subsequent figure.",
-    "sig": "set_publication_style(latex: 'bool' = False, font_family: 'str' = 'sans-serif', base_size: 'float' = 8.0, linewidth: 'float' = 0.8, dpi: 'int' = 300) -> 'None'",
+    "sig": "set_publication_style(latex: 'bool' = False, font_family: 'str' = 'sans-serif', base_size: 'float' = 8.0, linewidth: 'float' = 0.8, dpi: 'int' = 300, theme: 'str' = 'print') -> 'None'",
     "params": [
      {
       "name": "latex",
@@ -2175,6 +2296,11 @@
       "name": "dpi",
       "type": "int",
       "default": "300"
+     },
+     {
+      "name": "theme",
+      "type": "str",
+      "default": "'print'"
      }
     ]
    },
@@ -2219,7 +2345,7 @@
    {
     "name": "plot_ion_images",
     "doc": "One metabolite's ion image in every section, laid out for comparison.",
-    "sig": "plot_ion_images(adata, metabolite: 'str', sample_key: 'str', group_key: 'Optional[str]' = None, n_cols: 'Optional[int]' = None, percentile: 'Tuple[float, float]' = (1.0, 99.0), shared_scale: 'bool' = True, cmap: 'str' = 'viridis', panel_size: 'float' = 1.5) -> 'plt.Figure'",
+    "sig": "plot_ion_images(adata, metabolite: 'str', sample_key: 'str', group_key: 'Optional[str]' = None, n_cols: 'Optional[int]' = None, percentile: 'Tuple[float, float]' = (1.0, 99.0), shared_scale: 'bool' = True, cmap: 'Optional[str]' = None, panel_size: 'float' = 1.5) -> 'plt.Figure'",
     "params": [
      {
       "name": "adata",
@@ -2259,7 +2385,7 @@
      {
       "name": "cmap",
       "type": "str",
-      "default": "'viridis'"
+      "default": "None"
      },
      {
       "name": "panel_size",
@@ -2409,7 +2535,7 @@
    {
     "name": "plot_organization_heatmap",
     "doc": "Sections against metabolites, coloured by an organization metric.",
-    "sig": "plot_organization_heatmap(org, metric: 'str' = 'morans_i', group_key: 'Optional[str]' = None, top_n: 'int' = 30, result: 'Optional[pd.DataFrame]' = None, cmap: 'str' = 'RdBu_r', figsize: 'Optional[Tuple[float, float]]' = None) -> 'plt.Figure'",
+    "sig": "plot_organization_heatmap(org, metric: 'str' = 'morans_i', group_key: 'Optional[str]' = None, top_n: 'int' = 30, result: 'Optional[pd.DataFrame]' = None, cmap: 'Optional[str]' = None, figsize: 'Optional[Tuple[float, float]]' = None) -> 'plt.Figure'",
     "params": [
      {
       "name": "org",
@@ -2439,7 +2565,7 @@
      {
       "name": "cmap",
       "type": "str",
-      "default": "'RdBu_r'"
+      "default": "None"
      },
      {
       "name": "figsize",
@@ -2503,6 +2629,30 @@
      {
       "name": "figsize",
       "type": "Tuple[float, float",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "diverging_cmap",
+    "doc": "A diverging colormap whose midpoint matches the background it is drawn on.",
+    "sig": "diverging_cmap(theme: 'Optional[str]' = None)",
+    "params": [
+     {
+      "name": "theme",
+      "type": "str",
+      "default": "None"
+     }
+    ]
+   },
+   {
+    "name": "ion_cmap",
+    "doc": "Sequential colormap for ion images.",
+    "sig": "ion_cmap(theme: 'Optional[str]' = None)",
+    "params": [
+     {
+      "name": "theme",
+      "type": "str",
       "default": "None"
      }
     ]
