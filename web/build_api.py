@@ -38,7 +38,7 @@ import mortis as mt  # noqa: E402
 GROUPS: List[tuple] = [
     ("Load", "Reading instrument exports and ROIs into AnnData.",
      ["read_metabolomics_data", "load_from_folder", "load_annotation_scores", "check_rois",
-      "save_spatial_data", "draw_ROIs", "draw_ROIs_for_folder"]),
+      "save_spatial_data", "make_writable", "draw_ROIs", "draw_ROIs_for_folder"]),
     ("Clean", "Removing background, low-confidence annotations and drug compounds.",
      ["filter_background", "filter_by_score", "filter_drugs", "list_drug_matches"]),
     ("Normalise", "Per-pixel normalisation, transformation and embedding.",

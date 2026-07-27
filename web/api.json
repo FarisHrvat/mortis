@@ -94,6 +94,18 @@
     ]
    },
    {
+    "name": "make_writable",
+    "doc": "Convert pandas extension string columns back to plain object dtype, in place, so the object can be written to ``.h5ad`` by any anndata version.",
+    "sig": "make_writable(adata: 'ad.AnnData') -> 'ad.AnnData'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     }
+    ]
+   },
+   {
     "name": "draw_ROIs",
     "doc": "Single-window interactive ROI selector. User draws Tissue (Green) -> Clicks Confirm -> Draws Background (White) -> Clicks Confirm.",
     "sig": "draw_ROIs(adata: anndata._core.anndata.AnnData) -> anndata._core.anndata.AnnData",
@@ -3659,7 +3671,7 @@
    },
    {
     "name": "save_adata",
-    "doc": "",
+    "doc": "Write an AnnData to ``.h5ad``, surviving pandas/anndata version drift.",
     "sig": "save_adata(adata: 'ad.AnnData', path: 'str') -> 'None'",
     "params": [
      {
