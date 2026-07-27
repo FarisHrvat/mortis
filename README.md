@@ -104,11 +104,6 @@ If you use `filter_drugs()` please also cite DrugBank (Wishart et al. 2018);
 `run_harmony()`, Korsunsky et al. 2019; `annotate_pathways()`, MetaboAnalyst and
 KEGG. Each is linked from the function's own documentation.
 
-## Why "MORTIS"
-
-My boss asked how the spatial metabolomics analysis was going. I said I was in
-full rigor mortis. The name stuck, and then it needed a backronym, and by then
-it was too late.
 
 ## Licence
 
