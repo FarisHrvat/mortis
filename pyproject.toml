@@ -52,18 +52,27 @@ dependencies = [
     "h5py>=3.9.0",
     "openpyxl>=3.1.0",
     "tifffile>=2023.1.0",
-    "harmonypy>=0.0.9",
     "psutil",
 ]
 
 [project.optional-dependencies]
+# harmonypy ships no Windows wheel — it wants CMake and pthreads — and it backs
+# exactly one function, run_harmony(), which already raises a helpful ImportError
+# when it is missing. Keeping it out of the base install is the difference
+# between the package working on Windows and not.
+harmony = ["harmonypy>=0.0.9"]
+# The CLI reads YAML configs; nothing else in the package needs a parser.
+cli = ["pyyaml>=6.0"]
 # esda/libpysal are only used by tests/test_correctness_vs_reference.py, to
 # cross-check the custom spatial statistics (Moran's I, Geary's C, Gi*)
 # against an independent published implementation. Never imported by
 # mortis itself — skipped automatically if not installed.
-dev = ["pytest>=7.0", "pytest-cov", "ruff", "build", "esda", "libpysal"]
+dev = ["pytest>=7.0", "pytest-cov", "ruff", "build", "esda", "libpysal", "pyyaml>=6.0"]
 fast-io = ["pyarrow", "python-calamine"]
 image-network = ["networkx", "adjustText"]
+
+[project.scripts]
+mortis = "mortis.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

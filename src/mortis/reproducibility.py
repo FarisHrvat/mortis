@@ -68,6 +68,7 @@ from .exceptions import InvalidParameterError, MortisError
 
 __all__ = [
     "record_step",
+    "provenance",
     "data_fingerprint",
     "result_fingerprint",
     "export_manifest",
@@ -155,13 +156,51 @@ def record_step(
         Parameters worth recording. Values are coerced to strings, so anything
         is safe to pass.
     """
-    chain: List[Dict[str, Any]] = list(adata.uns.get("mortis_provenance", []))
-    chain.append({
+    chain = list(adata.uns.get("mortis_provenance", []))
+    # Stored as JSON strings rather than dicts. HDF5 has no notion of a nested
+    # mapping, so a list of dicts in .uns makes write_h5ad() fail with
+    # "Can't implicitly convert non-string objects to strings" — which used to
+    # mean that recording provenance quietly broke saving the object it was
+    # recorded on. A list of strings round-trips fine. Use provenance() to read
+    # it back as dicts.
+    chain.append(json.dumps({
         "step": str(step),
         "params": {str(k): str(v) for k, v in (params or {}).items()},
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    })
+    }))
     adata.uns["mortis_provenance"] = chain
+
+
+def provenance(adata: ad.AnnData) -> List[Dict[str, Any]]:
+    """
+    The steps recorded on an object, oldest first.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Object to read. Returns an empty list if nothing was ever recorded.
+
+    Returns
+    -------
+    list of dict
+        Each with ``step``, ``params`` and ``at``.
+
+    Examples
+    --------
+    >>> for entry in mt.provenance(pb):
+    ...     print(entry["step"], entry["params"])
+    pseudobulk {'sample_key': 'patient', 'method': 'mean', ...}
+    """
+    out: List[Dict[str, Any]] = []
+    for entry in adata.uns.get("mortis_provenance", []):
+        if isinstance(entry, dict):
+            out.append(entry)          # written by an older version, still readable
+            continue
+        try:
+            out.append(json.loads(entry))
+        except (TypeError, ValueError):
+            out.append({"step": str(entry), "params": {}, "at": ""})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +328,7 @@ def export_manifest(
             "git_commit": _git_commit(),
         },
         "data": data_fingerprint(adata) if adata is not None else None,
-        "provenance": list(adata.uns.get("mortis_provenance", [])) if adata is not None else [],
+        "provenance": provenance(adata) if adata is not None else [],
         "results": {
             str(name): result_fingerprint(frame) for name, frame in (results or {}).items()
         },

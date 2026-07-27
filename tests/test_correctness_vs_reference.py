@@ -15,6 +15,8 @@ runtime dependencies of mortis itself — install with
 unavailable).
 """
 
+import importlib.util
+
 import anndata as ad
 import numpy as np
 import pandas as pd
@@ -204,6 +206,10 @@ class TestComBatMatchesScanpy:
         assert np.allclose(a1.layers["log1p"], a2.X, atol=1e-4)
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("harmonypy") is None,
+    reason="harmonypy is an optional extra (no Windows wheel)",
+)
 class TestHarmonyMatchesDirectCall:
     def test_run_harmony_identical_to_direct_harmonypy_call(self, toy_adata):
         import harmonypy

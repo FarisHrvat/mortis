@@ -166,20 +166,44 @@ class TestProvenance:
 
     def test_pseudobulk_records_itself(self):
         pb = mt.pseudobulk(_adata(n_obs=80), sample_key="patient")
-        chain = pb.uns["mortis_provenance"]
+        chain = mt.provenance(pb)
         assert chain[-1]["step"] == "pseudobulk"
         assert chain[-1]["params"]["sample_key"] == "patient"
+
+    def test_a_recorded_object_can_still_be_saved(self, tmp_path):
+        """
+        Regression: provenance used to be stored as a list of dicts, which HDF5
+        cannot represent — so recording a step quietly broke write_h5ad() on the
+        very object it was recorded on. Found by the CLI, which saves its
+        pseudobulk output.
+        """
+        import anndata as ad
+
+        pb = mt.pseudobulk(_adata(n_obs=80), sample_key="patient")
+        mt.record_step(pb, "a manual step", {"why": "because"})
+        path = tmp_path / "pb.h5ad"
+        pb.write_h5ad(path)
+
+        reloaded = ad.read_h5ad(path)
+        assert [s["step"] for s in mt.provenance(reloaded)] == ["pseudobulk", "a manual step"]
+        assert mt.provenance(reloaded)[-1]["params"]["why"] == "because"
+
+    def test_reads_the_old_dict_format(self):
+        """Objects written by an earlier version stay readable."""
+        adata = _adata()
+        adata.uns["mortis_provenance"] = [{"step": "legacy", "params": {}, "at": ""}]
+        assert mt.provenance(adata)[0]["step"] == "legacy"
 
     def test_manual_steps_can_be_recorded(self):
         adata = _adata()
         mt.record_step(adata, "dropped section S07", {"reason": "fold artefact"})
-        assert adata.uns["mortis_provenance"][-1]["step"] == "dropped section S07"
+        assert mt.provenance(adata)[-1]["step"] == "dropped section S07"
 
     def test_chain_appends_in_order(self):
         adata = _adata()
         mt.record_step(adata, "first")
         mt.record_step(adata, "second")
-        assert [s["step"] for s in adata.uns["mortis_provenance"]] == ["first", "second"]
+        assert [s["step"] for s in mt.provenance(adata)] == ["first", "second"]
 
     def test_provenance_reaches_the_manifest(self, tmp_path):
         pb = mt.pseudobulk(_adata(n_obs=80), sample_key="patient")

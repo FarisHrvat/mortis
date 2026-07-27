@@ -4,6 +4,8 @@ metabolite_set_enrichment, lipid_class_summary, subset_obs, merge_samples,
 split_by_obs, run_harmony.
 """
 
+import importlib.util
+
 import anndata as ad
 import numpy as np
 import pandas as pd
@@ -22,6 +24,11 @@ from mortis.analysis import (
 )
 from mortis.exceptions import InvalidParameterError
 from mortis.preprocessing import preprocess, run_harmony
+
+# harmonypy is an optional extra (no Windows wheel), so these skip rather
+# than fail where it is not installed.
+_has_harmony = importlib.util.find_spec('harmonypy') is not None
+needs_harmony = pytest.mark.skipif(not _has_harmony, reason='harmonypy not installed')
 
 # ---------------------------------------------------------------------------
 # Fixture
@@ -283,6 +290,7 @@ class TestSplitByObs:
 # run_harmony
 # ---------------------------------------------------------------------------
 
+@needs_harmony
 class TestRunHarmony:
     def test_harmony_embedding_created(self, base_adata):
         adata = run_harmony(base_adata.copy(), batch_key="patient")
