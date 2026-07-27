@@ -89,7 +89,7 @@ jobs:
             pathways: false
           output: {dir: /work/results, figures: true, formats: [png], manifest: true}
           YAML
-          docker run --rm -v "$PWD/work:/work" mortis:ci run /work/analysis.yaml
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/work:/work" mortis:ci run /work/analysis.yaml
           test -s work/results/differential_abundance.csv
           test -s work/results/manifest.json
           test -n "$(ls work/results/*.png)"
@@ -101,4 +101,4 @@ jobs:
           # is a container people quietly stop using.
           owner=$(stat -c '%u' work/results/differential_abundance.csv)
           echo "output uid: $owner (runner uid: $(id -u))"
-          test "$owner" != "0"
+          test "$owner" = "$(id -u)"

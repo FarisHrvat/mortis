@@ -2,7 +2,12 @@
 #
 #   docker build -t mortis .
 #   docker run --rm -v "$PWD:/work" mortis info
-#   docker run --rm -v "$PWD:/work" mortis run analysis.yaml
+#   docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" mortis run analysis.yaml
+#
+# Pass --user whenever a volume is mounted. Without it the container writes as
+# its own user, which either cannot write to your directory or leaves you files
+# you do not own — the two ways container output ruins an afternoon. The image
+# is built to run as an arbitrary uid so that flag always works.
 #
 # Two stages, because building the wheels needs a compiler and running them
 # does not. Carrying gcc into the final image would roughly double the download
@@ -40,16 +45,21 @@ FROM python:3.11-slim AS runtime
 # wheel, so there is no system hdf5 package to keep in step with it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash mortis
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /opt/venv /opt/venv
+# An arbitrary --user has no home directory, and matplotlib and numba both want
+# somewhere to cache. Point them at /tmp, which is writable for anyone, or the
+# first run fails on a permission error rather than on anything to do with the
+# analysis.
 ENV PATH="/opt/venv/bin:$PATH" \
     MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/mpl \
+    NUMBA_CACHE_DIR=/tmp/numba \
+    HOME=/tmp \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-USER mortis
 WORKDIR /work
 
 # Fail the build rather than ship an image that cannot import itself.
