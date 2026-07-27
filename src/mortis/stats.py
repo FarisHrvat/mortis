@@ -53,6 +53,7 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
 from .exceptions import InsufficientSamplesError, InvalidParameterError
+from .io import make_writable
 from .reproducibility import record_step
 
 __all__ = [
@@ -216,11 +217,11 @@ def pseudobulk(
         obs[column] = [lookup[s] for s in kept]
     obs["n_pixels"] = pixel_counts
 
-    result = ad.AnnData(
+    result = make_writable(ad.AnnData(
         X=np.vstack(profiles).astype(np.float32),
         obs=obs,
         var=adata.var.copy(),
-    )
+    ))
     result.uns["pseudobulk"] = {
         "sample_key": sample_key,
         "method": method,

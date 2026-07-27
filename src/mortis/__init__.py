@@ -130,6 +130,7 @@ from .io import (
     check_rois,
     load_annotation_scores,
     load_from_folder,
+    make_writable,
     read_metabolomics_data,
     save_spatial_data,
 )
@@ -233,6 +234,7 @@ __all__ = [
 
     # I/O
     "read_metabolomics_data",
+    "make_writable",
     "load_from_folder",
     "load_annotation_scores",
     "check_rois",

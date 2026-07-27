@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import anndata as ad
 import numpy as np
+import pandas as pd
 import pytest
 
 import mortis as mt
@@ -327,3 +328,50 @@ class TestThreadRequestsAreClamped:
         before = nb.get_num_threads()
         mt.neighborhood_enrichment(self._clustered(), n_permutations=20, n_jobs=1, random_state=0)
         assert nb.get_num_threads() == before
+
+
+class TestCrossVersionWriting:
+    """
+    A file written on one machine has to be re-saveable on another. Newer pandas
+    returns nullable StringArray for text columns and anndata refuses to write
+    those without an opt-in, so an object that round-tripped through a recent
+    environment could not be saved by an older one — which is exactly the
+    situation a container or a cluster node creates. Found by the Docker build.
+    """
+
+    @staticmethod
+    def _string_dtype_adata():
+        adata = _grid_adata(n_side=8, n_vars=6)
+        adata.obs["patient"] = pd.array(
+            [f"P{i % 4}" for i in range(adata.n_obs)], dtype="string"
+        )
+        adata.var.index = pd.Index([f"m{j}" for j in range(adata.n_vars)], dtype="string")
+        return adata
+
+    def test_make_writable_normalises_index_and_columns(self):
+        adata = self._string_dtype_adata()
+        assert isinstance(adata.var.index.dtype, pd.StringDtype)
+
+        mt.make_writable(adata)
+        assert not isinstance(adata.var.index.dtype, pd.StringDtype)
+        assert not isinstance(adata.obs["patient"].dtype, pd.StringDtype)
+        # and the values survive the conversion
+        assert adata.obs["patient"].iloc[0] == "P0"
+        assert list(adata.var_names[:2]) == ["m0", "m1"]
+
+    def test_pseudobulk_output_is_writable(self, tmp_path):
+        pb = mt.pseudobulk(self._string_dtype_adata(), sample_key="patient")
+        pb.write_h5ad(tmp_path / "pb.h5ad")          # must not raise
+
+    def test_organization_output_is_writable(self, tmp_path):
+        # Two sections of 100 pixels each, comfortably over the min_pixels floor.
+        adata = _grid_adata(n_side=10, n_vars=6, n_batches=2)
+        adata.obs["section"] = pd.array(adata.obs["sample"].astype(str), dtype="string")
+        adata.var.index = pd.Index([f"m{j}" for j in range(adata.n_vars)], dtype="string")
+
+        org = mt.spatial_organization(adata, sample_key="section", metrics=("morans_i",))
+        org.write_h5ad(tmp_path / "org.h5ad")        # must not raise
+
+    def test_save_adata_normalises_first(self, tmp_path):
+        mt.save_adata(self._string_dtype_adata(), str(tmp_path / "a.h5ad"))
+        assert (tmp_path / "a.h5ad").exists()

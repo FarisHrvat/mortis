@@ -15,6 +15,7 @@
 <p align="center">
   <a href="https://github.com/FarisHrvat/mortis/actions/workflows/test.yml"><img src="https://github.com/FarisHrvat/mortis/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <img src="https://img.shields.io/badge/tested-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg" alt="Linux, macOS, Windows">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/version-0.1.0-orange.svg" alt="version 0.1.0">
 </p>
@@ -68,6 +69,29 @@ mt.compare_abundance_and_organization(ab, do)   # which axis actually moved?
 The [documentation](https://farishrvat.github.io/mortis/) has the guided tour,
 every function with its parameters, the figure gallery, and a validation run on
 a public METASPACE study using nothing but this package.
+
+## Or without writing any Python
+
+```bash
+mortis template > analysis.yaml     # a commented starting point
+mortis run analysis.yaml            # results, figures and a manifest
+```
+
+The config that produced a result is a better methods section than one written
+from memory, so every run writes it back out beside the results.
+
+**In a container**, when you would rather not install anything:
+
+```bash
+docker build -t mortis .
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" mortis run /work/analysis.yaml
+```
+
+**On a cluster** — [`hpc/`](hpc/) has Slurm and PBS templates, an Apptainer
+definition for sites that will not permit `pip install`, and a conda
+environment for the ones that will. The scripts derive thread limits from the
+scheduler's allocation and set them before Python starts, which is the
+difference between using your cores and oversubscribing a shared node.
 
 ## Does it work?
 

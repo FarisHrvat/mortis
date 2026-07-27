@@ -1724,7 +1724,11 @@ def save_results(results_df: pd.DataFrame, path: str) -> None:
     print(f"[MORTIS] Saved: {out} ({len(results_df)} rows)")
 
 def save_adata(adata: ad.AnnData, path: str) -> None:
+    """Write an AnnData to ``.h5ad``, surviving pandas/anndata version drift."""
+    from .io import make_writable
+
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
+    make_writable(adata)
     adata.write_h5ad(out)
     print(f"[MORTIS] Saved AnnData: {out} (shape={adata.shape})")

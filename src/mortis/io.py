@@ -40,6 +40,29 @@ from .exceptions import FileFormatError, MissingROIError
 _SUPPORTED_EXTENSIONS = {".h5ad", ".csv", ".xlsx"}
 
 
+def make_writable(adata: ad.AnnData) -> ad.AnnData:
+    """
+    Convert pandas extension string columns back to plain object dtype, in
+    place, so the object can be written to ``.h5ad`` by any anndata version.
+
+    Newer pandas hands back nullable ``StringArray`` for text columns, and
+    anndata refuses to write those unless you opt in, on the grounds that
+    versions below 0.11 cannot read them. The result is a file written on one
+    machine that cannot be re-saved on another — which is exactly the situation
+    a container or a cluster node puts you in.
+
+    Plain object dtype is what every anndata version has always understood, so
+    normalising to it costs nothing and removes the whole class of problem.
+    """
+    for frame in (adata.obs, adata.var):
+        for column in frame.columns:
+            if isinstance(frame[column].dtype, pd.StringDtype):
+                frame[column] = frame[column].astype(object)
+        if isinstance(frame.index.dtype, pd.StringDtype):
+            frame.index = frame.index.astype(object)
+    return adata
+
+
 def _read_tabular(file_path: Path) -> ad.AnnData:
     """Parse a CSV or XLSX file into an AnnData object using high-performance engines."""
     try:

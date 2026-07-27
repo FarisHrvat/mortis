@@ -61,6 +61,7 @@ from .exceptions import (
     InvalidParameterError,
     MissingSpatialError,
 )
+from .io import make_writable
 from .reproducibility import record_step
 from .stats import differential_abundance
 
@@ -298,7 +299,9 @@ def spatial_organization(
     obs["n_pixels"] = pixel_counts
 
     stacked = {m: np.vstack(collected[m]).astype(np.float32) for m in metrics}
-    result = ad.AnnData(X=stacked[metrics[0]].copy(), obs=obs, var=adata.var.copy())
+    result = make_writable(
+        ad.AnnData(X=stacked[metrics[0]].copy(), obs=obs, var=adata.var.copy())
+    )
     for m in metrics:
         result.layers[m] = stacked[m]
     result.uns["spatial_organization"] = {
