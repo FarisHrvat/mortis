@@ -1,0 +1,18 @@
+# Keep the build context small and, more importantly, keep patient data out of
+# it. Anything sent to the daemon can end up in an image layer.
+test_data/
+validation/cache/
+validation/results/
+.git/
+.github/
+docs/
+web/
+site/
+tests/
+*.h5ad
+*.npz
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/

@@ -1,0 +1,104 @@
+name: Docker
+
+# The Dockerfile is a claim that the package installs cleanly from nothing on a
+# machine that is not mine. Building it on every push is the only way that claim
+# stays true — an image that has not been built since it was written is a
+# guess.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "pyproject.toml"
+      - "src/**"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: mortis:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Building proves it compiles. These prove it actually works, which is a
+      # different and more useful thing.
+      - name: The entry point responds
+        run: docker run --rm mortis:ci --help
+
+      - name: It can describe its own environment
+        run: docker run --rm mortis:ci info
+
+      - name: It emits a config that parses
+        run: |
+          docker run --rm mortis:ci template > analysis.yaml
+          python -c "import yaml, sys; yaml.safe_load(open('analysis.yaml')); print('config parses')"
+
+      - name: It runs an analysis end to end on a mounted volume
+        run: |
+          mkdir -p work
+          python -m pip install --quiet anndata numpy
+          python - <<'PY'
+          import anndata as ad, numpy as np
+          rng = np.random.default_rng(0)
+          side, n_vars, n_sections = 10, 12, 12
+          n = side * side
+          coords = np.array([[i % side, i // side] for i in range(n)], dtype=float)
+          blocks, sec, grp, pat = [], [], [], []
+          for i in range(n_sections):
+              g = "R" if i < 6 else "NR"
+              off = rng.normal(0, 1.0, n_vars)
+              if g == "R":
+                  off[:3] += 6.0
+              blocks.append(rng.normal(off, 1.0, (n, n_vars)))
+              sec += [f"S{i:02d}"] * n; grp += [g] * n; pat += [f"P{i:02d}"] * n
+          X = np.vstack(blocks).astype(np.float32); X -= X.min()
+          a = ad.AnnData(X=X)
+          a.obsm["spatial"] = np.tile(coords, (n_sections, 1))
+          a.obs["section"], a.obs["response"], a.obs["patient"] = sec, grp, pat
+          a.var_names = [f"m{j:03d}" for j in range(n_vars)]
+          a.write_h5ad("work/cohort.h5ad")
+          PY
+          cat > work/analysis.yaml <<'YAML'
+          input:
+            path: /work/cohort.h5ad
+            sample_key: patient
+            section_key: section
+            group_key: response
+            groups: [R, NR]
+          preprocess: {normalize: tic, log1p: true}
+          analysis:
+            abundance: true
+            organization: true
+            organization_metrics: [morans_i]
+            classify_compounds: false
+            pathways: false
+          output: {dir: /work/results, figures: true, formats: [png], manifest: true}
+          YAML
+          docker run --rm -v "$PWD/work:/work" mortis:ci run /work/analysis.yaml
+          test -s work/results/differential_abundance.csv
+          test -s work/results/manifest.json
+          test -n "$(ls work/results/*.png)"
+          echo "container produced results on the mounted volume"
+
+      - name: Results are owned by the caller, not by root
+        run: |
+          # A container that writes root-owned files into a mounted directory
+          # is a container people quietly stop using.
+          owner=$(stat -c '%u' work/results/differential_abundance.csv)
+          echo "output uid: $owner (runner uid: $(id -u))"
+          test "$owner" != "0"

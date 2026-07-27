@@ -1,0 +1,36 @@
+Bootstrap: docker
+From: python:3.11-slim
+
+# For clusters that will not let you pip install anything. Build on a machine
+# where you have root, copy the .sif across:
+#
+#     apptainer build mortis.sif hpc/apptainer.def
+#     apptainer run --bind "$PWD:/work" mortis.sif run /work/analysis.yaml
+#
+# Apptainer runs as you rather than as root, so results land owned by you and
+# your home directory is bound by default.
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libgomp1 && rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir --upgrade pip
+    pip install --no-cache-dir "mortis-spatial[cli,harmony]"
+    # EDIT: to install from a checkout instead of PyPI, replace the line above
+    # with a %files section copying the source in, then `pip install /src`.
+    apt-get purge -y build-essential && apt-get autoremove -y
+
+%environment
+    export MPLBACKEND=Agg
+    export PYTHONUNBUFFERED=1
+
+%runscript
+    exec mortis "$@"
+
+%test
+    # Runs at build time. A container that cannot import itself should not
+    # reach the cluster.
+    python -c "import mortis; print('MORTIS', mortis.__version__)"
+    mortis --help > /dev/null
+
+%labels
+    Description Cohort-scale analysis for spatial metabolomics
