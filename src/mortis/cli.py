@@ -94,7 +94,7 @@ def _load_config(path: Path) -> Dict[str, Any]:
             f"No config at '{path}'.\n"
             "Write one with:  mortis template > analysis.yaml"
         )
-    with path.open() as handle:
+    with path.open(encoding="utf-8") as handle:
         config = yaml.safe_load(handle) or {}
     if not isinstance(config, dict):
         raise SystemExit(f"'{path}' does not look like a MORTIS config.")
@@ -258,7 +258,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     # The config that ran, written back out. Not the config you meant to run.
     try:
         import yaml
-        (out / "config.yaml").write_text(yaml.safe_dump(config, sort_keys=False))
+        (out / "config.yaml").write_text(
+            yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
     except ImportError:
         pass
 

@@ -395,7 +395,7 @@ def main() -> int:
         "top_abundance": ab.head(6)[["metabolite", "delta", "pval_adj"]].to_dict("records"),
         "top_organization": do.head(6)[["metabolite", "delta", "pval_adj"]].to_dict("records"),
     }
-    (out / "summary.json").write_text(json.dumps(summary, indent=2))
+    (out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     print("\n" + "=" * 74)
     print(f"  sections            {len(built)}  ({dict(Counter(labels))})")

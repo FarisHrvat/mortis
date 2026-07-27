@@ -347,7 +347,7 @@ def export_manifest(
     if out.suffix.lower() != ".json":
         out = out.with_name(out.name + ".json")
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(body, indent=2))
+    out.write_text(json.dumps(body, indent=2), encoding="utf-8")
 
     print(
         f"[MORTIS] Manifest written: {out.name} "
@@ -398,7 +398,7 @@ def verify_manifest(
     >>> report[report["status"] == "fail"]
     Empty DataFrame
     """
-    body = json.loads(Path(path).read_text())
+    body = json.loads(Path(path).read_text(encoding="utf-8"))
     if "manifest_version" not in body or "seal_sha256" not in body:
         raise MortisError(f"'{path}' is not a MORTIS manifest.")
 

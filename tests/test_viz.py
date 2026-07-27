@@ -133,7 +133,7 @@ class TestExport:
         mt.set_publication_style()
         fig = mt.plot_effect_size(result, top_n=5)
         svg = mt.save_figure(fig, tmp_path / "fig", formats=("svg",))["svg"]
-        assert "<text" in svg.read_text(), "SVG text was converted to paths"
+        assert "<text" in svg.read_text(encoding="utf-8"), "SVG text was converted to paths"
 
     def test_provenance_is_embedded_and_hashed(self, tmp_path, result):
         mt.set_publication_style()
@@ -605,7 +605,7 @@ class TestThemedFigures:
     def test_transparent_svg_has_no_opaque_page(self, tmp_path, result):
         mt.set_publication_style(theme="dark")
         fig = mt.plot_effect_size(result, top_n=5)
-        svg = mt.save_figure(fig, tmp_path / "fig", formats=("svg",))["svg"].read_text()
+        svg = mt.save_figure(fig, tmp_path / "fig", formats=("svg",))["svg"].read_text(encoding="utf-8")
         assert "#ffffff" not in svg.lower(), "an opaque white page was written into the SVG"
 
     def test_rejects_unknown_theme(self):

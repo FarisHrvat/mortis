@@ -104,12 +104,15 @@ def _cached_read(directory: Optional[Path], name: str) -> Optional[str]:
     if directory is None:
         return None
     path = directory / name
-    return path.read_text() if path.exists() else None
+    # encoding is explicit everywhere text is touched: Windows defaults to
+    # cp1252, and these cached payloads are full of Greek letters from
+    # compound names (alpha-, beta-) that cp1252 cannot represent.
+    return path.read_text(encoding="utf-8") if path.exists() else None
 
 
 def _cached_write(directory: Optional[Path], name: str, payload: str) -> None:
     if directory is not None:
-        (directory / name).write_text(payload)
+        (directory / name).write_text(payload, encoding="utf-8")
 
 
 def _request(url: str, body: Optional[dict], timeout: float, retries: int) -> str:

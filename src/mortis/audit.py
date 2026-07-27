@@ -49,7 +49,7 @@ def generate_audit_receipt(
     out_path = Path(output_dir) / f"mortis_audit_{analysis_name}_{receipt_hash[:8]}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(receipt, f, indent=4)
 
     print(f"[MORTIS] Audit receipt generated: {out_path.name}")

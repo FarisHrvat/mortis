@@ -2233,6 +2233,18 @@
     ]
    },
    {
+    "name": "provenance",
+    "doc": "The steps recorded on an object, oldest first.",
+    "sig": "provenance(adata: 'ad.AnnData') -> 'List[Dict[str, Any]]'",
+    "params": [
+     {
+      "name": "adata",
+      "type": "ad.AnnData",
+      "default": ""
+     }
+    ]
+   },
+   {
     "name": "data_fingerprint",
     "doc": "A privacy-safe summary of an AnnData object.",
     "sig": "data_fingerprint(adata: 'ad.AnnData', layer: 'Optional[str]' = None) -> 'Dict[str, Any]'",

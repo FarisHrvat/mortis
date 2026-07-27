@@ -66,8 +66,8 @@ GROUPS: List[tuple] = [
       "map_compound_ids", "fetch_kegg_pathway_sets", "annotate_pathways", "clear_cache",
       "score_metabolite_set", "metabolite_set_enrichment", "lipid_class_summary"]),
     ("Verify", "Manifests a reviewer can check a re-run against.",
-     ["export_manifest", "verify_manifest", "record_step", "data_fingerprint",
-      "result_fingerprint"]),
+     ["export_manifest", "verify_manifest", "record_step", "provenance",
+      "data_fingerprint", "result_fingerprint"]),
     ("Plot", "Publication figures with editable-vector PDF export.",
      ["set_publication_style", "reset_style", "save_figure", "plot_ion_images", "plot_effect_size",
       "plot_delta_volcano", "plot_abundance_vs_organization", "plot_signature_comparison",
@@ -162,7 +162,9 @@ def main() -> int:
         print(f"  ! {len(missing)} exported name(s) are in no group: {missing}")
 
     out = Path(__file__).parent / "api.json"
-    out.write_text(json.dumps(index, indent=1))
+    # Docstrings are full of em-dashes and Greek letters; without an explicit
+    # encoding this fails outright on Windows.
+    out.write_text(json.dumps(index, indent=1), encoding="utf-8")
     total = sum(len(g["items"]) for g in index)
     print(f"wrote {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out} "
           f"— {total} functions across {len(index)} stages")
