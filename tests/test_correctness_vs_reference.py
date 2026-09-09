@@ -126,22 +126,49 @@ class TestGetisOrdVsEsda:
         # falls back to a heuristic — see the UserWarning this raises).
         ref = G_Local(x_structured, w, star=True, permutations=0)
 
-        # esda's fallback self-weight heuristic adds the self-term WITHOUT
-        # renormalizing the row back to sum to 1 (row sums to 1 + 1/k, not
-        # 1), whereas MORTIS's uniform-weight construction keeps every row
-        # normalized to sum to 1 including self. This is a genuine, harmless
-        # difference in normalization convention, not a disagreement about
-        # the underlying statistic: the two z-score arrays are related by a
-        # single constant scale factor (correlation ~1.0, negligible
-        # variance in the ratio), which is exactly what a pure
-        # renormalization difference predicts. Verify that directly rather
-        # than asserting a magnitude match that a normalization difference
-        # would never satisfy.
+        # These are two different published statistics that share a name.
+        # esda's G_Local computes the Getis & Ord (1992) ratio form,
+        # (sum_j w_ij x_j) / (sum_j x_j), and takes its moments from the
+        # weight cardinalities. MORTIS computes the Ord & Getis (1995) Gi*
+        # z-statistic, which is what GeoDa and ArcGIS report and what the
+        # hotspot literature means by Gi*. They rank pixels identically and
+        # differ by a constant scale, so check that rather than equality --
+        # and see test_matches_the_published_gi_star_formula below, which
+        # pins MORTIS to the 1995 formula directly.
         corr = np.corrcoef(mortis_z, ref.Zs)[0, 1]
         assert corr > 0.999
 
         ratio = mortis_z / ref.Zs
         assert np.std(ratio) / np.abs(np.median(ratio)) < 0.01  # ratio is ~constant
+
+    def test_matches_the_published_gi_star_formula(self, spatial_ref_data):
+        """
+        Ord & Getis (1995), equation 4, written out term by term.
+
+        No shared code with the implementation: the weights come from
+        libpysal, the arithmetic from the paper.
+        """
+        adata, coords, x_structured = spatial_ref_data
+        _, df = getis_ord_gi(adata.copy(), "structured", n_neighbors=6,
+                             batch_key="nonexistent")
+
+        w = libpysal.weights.KNN.from_array(coords, k=6)
+        w = libpysal.weights.fill_diagonal(w, 1.0)
+        w.transform = "r"
+        W = w.sparse
+        x = np.asarray(x_structured, dtype=np.float64)
+        n = len(x)
+
+        x_bar = x.mean()
+        s = np.sqrt((x ** 2).mean() - x_bar ** 2)
+        lag = np.asarray(W @ x).ravel()
+        w_sum = np.asarray(W.sum(axis=1)).ravel()
+        w_sq = np.asarray(W.multiply(W).sum(axis=1)).ravel()
+        expected = (lag - x_bar * w_sum) / (
+            s * np.sqrt((n * w_sq - w_sum ** 2) / (n - 1))
+        )
+
+        assert np.max(np.abs(df["gi_star"].to_numpy() - expected)) < 1e-5
 
 
 # ---------------------------------------------------------------------------

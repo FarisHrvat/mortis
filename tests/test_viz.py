@@ -403,8 +403,46 @@ class TestIonImages:
         fig = mt.plot_ion_images(
             organization_cohort, "m000", sample_key="section", group_key="response"
         )
-        arms = [ax.get_title().split("\n")[1] for ax in self._panels(fig)]
+        panels = self._panels(fig)
+        sections = organization_cohort.obs.drop_duplicates("section")
+        arm_of = dict(zip(sections["section"].astype(str), sections["response"].astype(str)))
+        arms = [arm_of[ax.get_title()] for ax in panels]
         assert arms == sorted(arms), "panels are interleaved rather than grouped"
+
+    def test_arm_is_named_once_per_block_not_under_every_panel(self, organization_cohort):
+        # The arm used to be a second line under each panel title, which on a
+        # ten-section cohort printed it ten times. It is now one label on the
+        # left of each block.
+        fig = mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", group_key="response"
+        )
+        panels = self._panels(fig)
+        assert not any("\n" in ax.get_title() for ax in panels)
+        labelled = [ax.get_ylabel() for ax in panels if ax.get_ylabel()]
+        assert sorted(labelled) == ["NR", "R"]
+
+    def test_panel_titles_line_up(self, organization_cohort):
+        # Equal aspect shrinks each axes box to its tissue outline, so without
+        # a north anchor five differently-shaped sections put their titles at
+        # five different heights. Adding the colourbar re-runs the layout and
+        # used to undo the anchor, so this checks the finished figure.
+        fig = mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", group_key="response"
+        )
+        tops = {round(ax.get_position().y1, 4) for ax in self._panels(fig)}
+        assert len(tops) <= 2, f"panel tops at {len(tops)} different heights: {tops}"
+
+    def test_each_block_starts_a_new_row(self, organization_cohort):
+        fig = mt.plot_ion_images(
+            organization_cohort, "m000", sample_key="section", group_key="response"
+        )
+        rows = {}
+        for ax in self._panels(fig):
+            rows.setdefault(round(ax.get_position().y0, 3), []).append(ax.get_ylabel())
+        # A row that contains a block label must not also contain panels from
+        # the previous block, so at most one label per row.
+        for members in rows.values():
+            assert sum(1 for m in members if m) <= 1
 
     def test_shared_scale_uses_one_clim(self, organization_cohort):
         fig = mt.plot_ion_images(organization_cohort, "m000", sample_key="section")
@@ -473,8 +511,24 @@ class TestClassAndPathwayFigures:
             "pval_adj": [0.001, 0.02, 0.6],
         })
         ax = mt.plot_class_enrichment(report).axes[0]
-        labels = [t.get_text() for t in ax.texts]
-        assert "n=12" in labels and "n=30" in labels and "n=4" in labels
+        # The count rides in the tick label. Putting it at the end of the bar
+        # broke for any class with a median delta of zero, where the bar has no
+        # length and the count printed over the class name.
+        ticks = [t.get_text() for t in ax.get_yticklabels()]
+        assert "Polyamine  (12)" in ticks
+        assert "Amino acid  (30)" in ticks
+        assert "Sterol  (4)" in ticks
+
+    def test_class_enrichment_count_cannot_collide_with_a_zero_bar(self):
+        report = pd.DataFrame({
+            "chemical_class": ["Peptide", "Amine"],
+            "median_delta": [0.0, 0.0],
+            "n_compounds": [33, 50],
+            "pval_adj": [0.9, 0.9],
+        })
+        ax = mt.plot_class_enrichment(report).axes[0]
+        assert not ax.texts, "counts drawn inside the axes will land on the spine"
+        assert "Peptide  (33)" in [t.get_text() for t in ax.get_yticklabels()]
 
     def test_class_enrichment_rejects_empty(self):
         with pytest.raises(InvalidParameterError, match="empty"):
@@ -714,3 +768,65 @@ class TestReproduciblePDFs:
         from mortis.viz import _pdf_timestamp
 
         assert _pdf_timestamp().year >= 2024
+
+
+class TestEffectForest:
+    """
+    The figure that replaces the volcano when the cohort is small.
+
+    A volcano needs the significance axis to vary. On five sections per arm the
+    smallest attainable p is 0.0079, so after correction every point sits on
+    one line and the y-axis says nothing. The interval is what carries the
+    information at that size.
+    """
+
+    @staticmethod
+    def _result(n=4, with_ci=True):
+        names = [
+            "2-Aminobicyclo[3.1.0]hexane-2,6-dicarboxylic acid",
+            "PC(16:0/18:1(9Z))",
+            "Arecaidine",
+            "N1-Acetylspermine",
+        ][:n]
+        frame = pd.DataFrame({
+            "metabolite": names,
+            "delta": [0.8, -0.6, 0.5, -0.9][:n],
+            "n_group1": [5] * n,
+            "n_group2": [5] * n,
+        })
+        if with_ci:
+            frame["delta_ci_low"] = [0.4, -0.9, -0.1, -1.0][:n]
+            frame["delta_ci_high"] = [1.0, -0.2, 0.8, -0.5][:n]
+        return frame
+
+    def test_draws_one_interval_per_compound(self):
+        ax = mt.plot_effect_forest(self._result()).axes[0]
+        assert len(ax.get_yticklabels()) == 4
+
+    def test_full_names_survive_no_ellipsis(self):
+        ax = mt.plot_effect_forest(self._result()).axes[0]
+        text = " ".join(t.get_text() for t in ax.get_yticklabels()).replace("\n", "")
+        assert "2-Aminobicyclo[3.1.0]hexane-2,6-dicarboxylic acid" in text
+        assert "…" not in text, "a truncated systematic name is unidentifiable"
+
+    def test_wraps_long_names_over_two_lines(self):
+        ax = mt.plot_effect_forest(self._result()).axes[0]
+        wrapped = [t.get_text() for t in ax.get_yticklabels() if "\n" in t.get_text()]
+        assert wrapped, "a 48-character name should be split, not left to run off"
+
+    def test_interval_excluding_zero_is_drawn_solid(self):
+        ax = mt.plot_effect_forest(self._result()).axes[0]
+        markers = [ln for ln in ax.lines if ln.get_marker() == "o"]
+        filled = [m for m in markers if m.get_markerfacecolor() != "none"]
+        # three of the four intervals exclude zero
+        assert len(filled) == 3
+
+    def test_says_what_is_missing_when_there_are_no_intervals(self):
+        with pytest.raises(InvalidParameterError, match="bootstrap=2000"):
+            mt.plot_effect_forest(self._result(with_ci=False))
+
+    def test_largest_effect_sits_at_the_top(self):
+        ax = mt.plot_effect_forest(self._result()).axes[0]
+        labels = [t.get_text().replace("\n", "") for t in ax.get_yticklabels()]
+        assert labels[-1] == "N1-Acetylspermine"        # |delta| = 0.9
+        assert labels[0] == "Arecaidine"                # |delta| = 0.5

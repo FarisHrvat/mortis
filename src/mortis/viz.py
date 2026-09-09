@@ -420,8 +420,29 @@ def _require_columns(frame: pd.DataFrame, columns: Sequence[str], name: str) -> 
 
 
 def _wrap(labels: Sequence[str], width: int = 34) -> list:
-    """Truncate long compound names so they do not eat the axes."""
-    return [lbl if len(lbl) <= width else lbl[: width - 1] + "…" for lbl in labels]
+    """
+    Break long compound names over two lines rather than cutting them off.
+
+    Systematic names run past forty characters -- "2-Aminobicyclo[3.1.0]hexane-
+    2,6-dicarboxylic acid" is 48 -- and an ellipsis in the middle of one makes
+    it unidentifiable, which is not a saving. Split at a separator near the
+    halfway point so the whole name survives; ``tight_layout`` then finds the
+    room for it.
+    """
+    out = []
+    for label in labels:
+        text = str(label)
+        if len(text) <= width:
+            out.append(text)
+            continue
+        middle = len(text) // 2
+        breaks = [i for i, ch in enumerate(text) if ch in "-_/(, " and 4 < i < len(text) - 4]
+        if breaks:
+            cut = min(breaks, key=lambda i: abs(i - middle))
+            out.append(text[: cut + 1].rstrip() + "\n" + text[cut + 1 :].lstrip())
+        else:
+            out.append(text[:middle] + "\n" + text[middle:])
+    return out
 
 
 def plot_effect_size(
@@ -484,7 +505,7 @@ def plot_effect_size(
         )
 
     ax.set_yticks(y)
-    ax.set_yticklabels(_wrap(top["metabolite"].astype(str).tolist()))
+    ax.set_yticklabels(_wrap(top["metabolite"].astype(str).tolist(), 30))
     ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.05, 1.05)
     # Direction goes under the axis ends rather than into one long label,
@@ -502,18 +523,132 @@ def plot_effect_size(
     if n1 is not None and n2 is not None:
         ax.set_title(f"{group_labels[0]} (n={n1}) vs {group_labels[1]} (n={n2})", loc="left")
 
-    handles = [
-        mpl.patches.Patch(facecolor=PALETTE["up"], edgecolor=PALETTE["up"],
-                          label=f"FDR $<$ {fdr_threshold}"),
-        mpl.patches.Patch(facecolor="none", edgecolor=PALETTE["up"],
-                          label=f"FDR $\\geq$ {fdr_threshold}"),
-    ]
-    # Below the axes, not inside it: at ten-plus bars the legend always landed
-    # on data wherever it was placed within the frame.
-    ax.legend(
-        handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.16),
-        ncol=2, frameon=False, fontsize=mpl.rcParams["font.size"] - 1,
-    )
+    # The fill/outline legend only earns its space when both states appear.
+    # On an underpowered cohort every bar is hollow, and a legend explaining
+    # that half of it is unused is a third line of text under the axis for no
+    # information. Below the axes when shown: at ten-plus bars it lands on data
+    # wherever it is placed inside the frame.
+    if bool(significant.any()) and bool((~significant).any()):
+        handles = [
+            mpl.patches.Patch(facecolor=PALETTE["up"], edgecolor=PALETTE["up"],
+                              label=f"FDR $<$ {fdr_threshold}"),
+            mpl.patches.Patch(facecolor="none", edgecolor=PALETTE["up"],
+                              label=f"FDR $\\geq$ {fdr_threshold}"),
+        ]
+        ax.legend(
+            handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.16),
+            ncol=2, frameon=False, fontsize=mpl.rcParams["font.size"] - 1,
+        )
+    fig.tight_layout()
+    return fig
+
+
+def plot_effect_forest(
+    result: pd.DataFrame,
+    top_n: int = 20,
+    group_labels: Tuple[str, str] = ("group 1", "group 2"),
+    delta_threshold: float = 0.474,
+    figsize: Optional[Tuple[float, float]] = None,
+    ax: Optional[plt.Axes] = None,
+) -> plt.Figure:
+    """
+    Ranked effect sizes with their bootstrap confidence intervals.
+
+    The figure to use when the cohort is too small for a volcano to say
+    anything. With five sections per arm a two-sided rank test cannot return a
+    p below 0.0079, so after correction across a panel every point sits on the
+    same line and the significance axis carries no information at all. The
+    interval does: it shows how much of the effect is supported and how much is
+    the sample size talking.
+
+    An interval that excludes zero is the statement worth making at small n,
+    and it is drawn solid. Everything else is hollow.
+
+    Parameters
+    ----------
+    result : pandas.DataFrame
+        Output of :func:`mortis.differential_abundance` run with
+        ``bootstrap > 0``, so that ``delta_ci_low`` and ``delta_ci_high`` are
+        present.
+    top_n : int
+        How many compounds to show, taken in order of ``|delta|``.
+    group_labels : tuple of str
+        ``(group1, group2)``, used for the direction labels under the axis.
+    delta_threshold : float
+        Where to mark the "large effect" boundary. Drawn as a tick on the axis
+        rather than a line across the data.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+
+    Examples
+    --------
+    >>> res = mt.differential_abundance(pb, "state", "Fibrotic", "Healthy",
+    ...                                 bootstrap=2000)
+    >>> mt.plot_effect_forest(res, group_labels=("Fibrotic", "Healthy"))
+    """
+    _require_columns(result, ("metabolite", "delta"), "result")
+    missing = [c for c in ("delta_ci_low", "delta_ci_high") if c not in result.columns]
+    if missing:
+        raise InvalidParameterError(
+            f"This figure draws confidence intervals and the result table has no "
+            f"{missing} column(s). Re-run differential_abundance with "
+            f"bootstrap=2000 (or any positive number) to get them."
+        )
+    if top_n < 1:
+        raise InvalidParameterError(f"top_n must be at least 1, got {top_n}.")
+
+    ordered = result.reindex(
+        result["delta"].abs().sort_values(ascending=False).index
+    ).head(top_n)
+    # Largest effect at the top, which is where a reader starts.
+    ordered = ordered.iloc[::-1]
+
+    height = max(2.2, 0.24 * len(ordered) + 1.1)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize or (COLUMN_WIDE, height))
+    else:
+        fig = ax.figure
+
+    y = np.arange(len(ordered))
+    delta = ordered["delta"].to_numpy()
+    low = ordered["delta_ci_low"].to_numpy()
+    high = ordered["delta_ci_high"].to_numpy()
+    excludes_zero = (low > 0) | (high < 0)
+    colour = np.where(delta >= 0, PALETTE["up"], PALETTE["down"])
+
+    for yi, d, lo, hi, solid, c in zip(y, delta, low, high, excludes_zero, colour):
+        ax.plot([lo, hi], [yi, yi], color=c, linewidth=1.1, solid_capstyle="butt",
+                alpha=0.9 if solid else 0.45)
+        ax.plot([d], [yi], marker="o", markersize=4.2,
+                markerfacecolor=c if solid else "none",
+                markeredgecolor=c, markeredgewidth=1.0)
+
+    ax.axvline(0.0, color=_ink(), linewidth=0.8)
+    ax.set_yticks(y)
+    ax.set_yticklabels(_wrap(ordered["metabolite"].astype(str).tolist(), 30))
+    ax.set_ylim(-0.7, len(ordered) - 0.3)
+    ax.set_xlim(-1.12, 1.12)
+    ax.set_xlabel("Cliff's $\\delta$   (95% bootstrap CI)")
+
+    # Threshold as a tick on the frame, not a line across the data.
+    for value in (-delta_threshold, delta_threshold):
+        ax.plot([value, value], [-0.7, -0.55], color=_ink(), linewidth=0.9,
+                alpha=0.6, clip_on=False)
+
+    ax.annotate(f"$\\leftarrow$ {group_labels[1]}", xy=(0.0, -0.13),
+                xycoords="axes fraction", ha="left", va="top",
+                fontsize=mpl.rcParams["font.size"] - 1, color=PALETTE["down"])
+    ax.annotate(f"{group_labels[0]} $\\rightarrow$", xy=(1.0, -0.13),
+                xycoords="axes fraction", ha="right", va="top",
+                fontsize=mpl.rcParams["font.size"] - 1, color=PALETTE["up"])
+
+    n1 = int(result["n_group1"].iloc[0]) if "n_group1" in result.columns else None
+    n2 = int(result["n_group2"].iloc[0]) if "n_group2" in result.columns else None
+    if n1 is not None and n2 is not None:
+        ax.set_title(f"{group_labels[0]} (n={n1}) vs {group_labels[1]} (n={n2})",
+                     loc="left")
     fig.tight_layout()
     return fig
 
@@ -575,6 +710,21 @@ def plot_delta_volcano(
     return fig
 
 
+#: Nature's column widths in inches: single, one-and-a-half, double. Figures
+#: are drawn at the width they will be printed at, so the type comes out the
+#: size it was set at rather than whatever a later rescale makes it.
+COLUMN_SINGLE, COLUMN_WIDE, COLUMN_DOUBLE = 3.50, 4.72, 7.20
+
+#: How the organisation metrics are named on an axis. The layer keys are
+#: identifiers; nobody wants "morans_i" printed on a figure.
+_METRIC_LABELS = {
+    "morans_i": "Moran's $I$",
+    "entropy": "normalised entropy",
+    "hotspot_fraction": "hotspot fraction",
+    "gini": "Gini coefficient",
+}
+
+
 def _scatter_stacked(ax, frame, x_col, y_col, *, colour, base_size, label,
                      alpha, zorder):
     """
@@ -609,11 +759,14 @@ def _note_stacking(ax, most: int, corner: str = "right") -> None:
     """
     if most <= 1:
         return
-    x = 0.99 if corner == "right" else 0.01
-    ax.text(
-        x, 0.01, f"marker area \u221d metabolites at that point (up to {most})",
-        transform=ax.transAxes, ha=corner, va="bottom",
-        fontsize=mpl.rcParams["font.size"] - 3, color=_ink(), alpha=0.6,
+    # Below the axes, not inside them. Points sit right up against the frame on
+    # a small cohort, and a note placed in a corner lands on top of them.
+    x = 1.0 if corner == "right" else 0.0
+    ax.annotate(
+        f"marker area \u221d metabolites at that point (up to {most})",
+        xy=(x, 0.0), xycoords="axes fraction", xytext=(0, -34),
+        textcoords="offset points", ha=corner, va="top",
+        fontsize=mpl.rcParams["font.size"] - 2, color=_ink(), alpha=0.65,
     )
 
 
@@ -681,13 +834,17 @@ def plot_abundance_vs_organization(
         ))
     _note_stacking(ax, stacked)
 
-    # Threshold guides sit at 12% opacity. At full strength four dotted lines
-    # read as a grid laid over the data rather than as a reference.
-    for value in (-delta_threshold, delta_threshold):
-        ax.axvline(value, color=_ink(), linewidth=0.6, alpha=0.12)
-        ax.axhline(value, color=_ink(), linewidth=0.6, alpha=0.12)
+    # Only the two zero lines are drawn. Guides at the classification
+    # threshold were four more full-width lines, and at any opacity that reads
+    # as a grid laid over the data. The threshold is marked with a tick on the
+    # axis instead, where it cannot cross anything.
     ax.axvline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
     ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
+    for value in (-delta_threshold, delta_threshold):
+        ax.plot([value, value], [-1.08, -1.04], color=_ink(), linewidth=0.8,
+                alpha=0.55, clip_on=False, zorder=4)
+        ax.plot([-1.08, -1.04], [value, value], color=_ink(), linewidth=0.8,
+                alpha=0.55, clip_on=False, zorder=4)
 
     if label_top > 0:
         # One label per coordinate, carrying a count when several metabolites
@@ -699,7 +856,8 @@ def plot_abundance_vs_organization(
         for (x, y), group in organization_only.groupby(
             ["delta_abundance", "delta_organization"], sort=False
         ):
-            name = str(group["metabolite"].iloc[0])[:22]
+            name = str(group["metabolite"].iloc[0])
+            name = name if len(name) <= 16 else name[:15] + "\u2026"
             if len(group) > 1:
                 name = f"{name} +{len(group) - 1} more"
             points.append((x, y))
@@ -707,7 +865,10 @@ def plot_abundance_vs_organization(
             if len(points) == label_top:
                 break
         if points:
-            _annotate_spread(ax, points, labels)
+            _annotate_spread(
+                ax, points, labels,
+                avoid=merged[["delta_abundance", "delta_organization"]].to_numpy(),
+            )
 
     ax.set_xlim(-1.08, 1.08)
     ax.set_ylim(-1.08, 1.08)
@@ -807,42 +968,57 @@ def plot_signature_comparison(
     return fig
 
 
-def _annotate_spread(ax, points, labels, fontsize=None):
+def _annotate_spread(ax, points, labels, fontsize=None, avoid=None):
     """
-    Annotate points, nudging labels apart when the points sit on top of each other.
+    Annotate points, keeping the text off both other labels and the data.
 
-    Effect sizes are bounded and quantised — Cliff's delta from six samples per
-    group can only take a few dozen values — so the strongest findings routinely
-    land on the *exact* same coordinate. Placing every label at a fixed offset
-    stacks them into unreadable overlap, which is what happened to four
-    organization-only compounds all sitting at (0, 1).
+    Effect sizes are bounded and quantised -- Cliff's delta from five samples
+    per group takes 51 values, from two it takes 5 -- so the compounds worth
+    naming routinely land on or beside each other. A fixed offset stacks the
+    labels; nudging them apart in one direction only moves the collision onto
+    the scatter.
 
-    Labels are placed in the order given (callers pass their most important
-    first) and each one is pushed down past whatever is already occupying that
-    column. Deterministic, and no extra dependency.
+    Each label is tried in eight positions around its point, nearest first, and
+    the first that hits neither a placed label nor a marker in ``avoid`` wins.
+    If every candidate collides the label is placed anyway at the last one,
+    because a slightly crowded label beats a missing name.
     """
     fontsize = fontsize if fontsize is not None else mpl.rcParams["font.size"] - 2.5
     line_height = fontsize * 1.45
 
-    # Work in display space so "too close" means what it looks like on the
-    # page. Bucketing on data coordinates only caught exact ties, which left
-    # labels on merely-nearby points still overlapping.
+    # Display space, so "too close" means what it looks like on the page.
+    obstacles: List[Tuple[float, float]] = []
+    if avoid is not None and len(avoid):
+        obstacles = [tuple(xy) for xy in ax.transData.transform(np.asarray(avoid, float))]
+
+    # (dx, dy) in points, ordered outward: right, left, above, below, diagonals.
+    candidates = [
+        (6, 3), (-6, 3), (6, -line_height), (-6, -line_height),
+        (6, line_height), (-6, line_height),
+        (6, -2 * line_height), (-6, -2 * line_height),
+    ]
     placed: List[Tuple[float, float]] = []
     for (x, y), label in zip(points, labels):
         px, py = ax.transData.transform((float(x), float(y)))
-        level = 0
-        while any(
-            abs(px - qx) < 90 and abs((py - level * line_height) - qy) < line_height
-            for qx, qy in placed
-        ):
-            level += 1
-            if level > 12:
+        width = 0.62 * fontsize * len(str(label))
+        chosen = candidates[-1]
+        for dx, dy in candidates:
+            cx, cy = px + dx, py + dy
+            clash = any(
+                abs(cx - qx) < width and abs(cy - qy) < line_height for qx, qy in placed
+            ) or any(
+                qx - cx < width and cx - qx < 6 and abs(cy - qy) < line_height * 0.8
+                for qx, qy in obstacles
+            )
+            if not clash:
+                chosen = (dx, dy)
                 break
-        placed.append((px, py - level * line_height))
+        placed.append((px + chosen[0], py + chosen[1]))
         ax.annotate(
             str(label), (x, y),
-            xytext=(5, 3 - level * line_height), textcoords="offset points",
-            fontsize=fontsize, va="top" if level else "bottom",
+            xytext=chosen, textcoords="offset points", fontsize=fontsize,
+            ha="left" if chosen[0] > 0 else "right",
+            va="bottom" if chosen[1] >= 0 else "top",
         )
 
 
@@ -998,46 +1174,81 @@ def plot_ion_images(
         counts = pd.Series(list(group_of.values())).value_counts()
         n_cols = int(counts.max())
     n_cols = int(n_cols or min(len(order), 5))
-    n_rows = int(np.ceil(len(order) / n_cols))
+
+    # Each group starts on a fresh row, so the group name can be a single label
+    # on the left of its block instead of a second line under every panel
+    # title. Repeating the arm ten times is noise; saying it twice is a figure.
+    placement, row = [], 0
+    for group in dict.fromkeys(group_of[s] for s in order):
+        members = [s for s in order if group_of[s] == group]
+        for i, sample in enumerate(members):
+            placement.append((row + i // n_cols, i % n_cols, sample, group, i == 0))
+        row += int(np.ceil(len(members) / n_cols))
+    n_rows = max(row, 1)
+
+    # Intensities are arbitrary units after normalisation, so a raw axis reads
+    # "8 x 10^-5" and matplotlib parks that exponent over the top panel. Scale
+    # to O(1) and put the decade in the label instead.
+    decade = 0
+    if shared_scale and np.isfinite(vmax) and vmax > 0:
+        decade = int(np.floor(np.log10(vmax)))
+        decade = decade if abs(decade) >= 2 else 0
+    scale = 10.0 ** -decade
 
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(panel_size * n_cols, panel_size * n_rows + 0.6),
+        figsize=(panel_size * n_cols, panel_size * n_rows + 0.5),
         squeeze=False,
     )
+    for ax in axes.ravel():
+        ax.set_visible(False)
+
     handle = None
-    for ax, sample in zip(axes.ravel(), order):
+    for r, c, sample, group, first_of_group in placement:
+        ax = axes[r][c]
+        ax.set_visible(True)
         mask = samples == sample
-        xy, v = coords[mask], values[mask]
+        xy, v = coords[mask], values[mask] * scale
         if not shared_scale:
             finite = v[np.isfinite(v)]
-            vmin, vmax = np.percentile(finite, percentile) if finite.size else (0.0, 1.0)
-            if vmin == vmax:
-                vmax = vmin + 1e-9
-        handle = _draw_ion_panel(ax, xy, v, vmin, vmax, cmap or ion_cmap())
-        label = f"{sample}\n{group_of[sample]}" if group_of[sample] else str(sample)
-        ax.set_title(label, fontsize=mpl.rcParams["font.size"] - 2)
-        ax.set_aspect("equal")
+            lo, hi = np.percentile(finite, percentile) if finite.size else (0.0, 1.0)
+            if lo == hi:
+                hi = lo + 1e-9
+        else:
+            lo, hi = vmin * scale, vmax * scale
+        handle = _draw_ion_panel(ax, xy, v, lo, hi, cmap or ion_cmap())
+        ax.set_title(str(sample), fontsize=mpl.rcParams["font.size"] - 1, pad=3)
+        # Equal aspect shrinks the axes box to the tissue outline, and by
+        # default matplotlib centres what is left inside the cell, so the
+        # titles of five differently-shaped sections end up at five different
+        # heights. Anchoring north pins the top edge and lines them up.
+        ax.set_aspect("equal", anchor="N")
         ax.set_xticks([])
         ax.set_yticks([])
         for spine in ax.spines.values():
             spine.set_visible(False)
+        if first_of_group and group:
+            ax.set_ylabel(group, fontsize=mpl.rcParams["font.size"], labelpad=6)
 
-    for ax in axes.ravel()[len(order):]:
-        ax.set_visible(False)
-
-    # Leave real headroom: with few rows the suptitle otherwise lands on the
-    # first row of panel labels.
     fig.suptitle(metabolite, fontsize=mpl.rcParams["font.size"] + 1, y=0.995)
-    fig.subplots_adjust(top=1 - 0.42 / (panel_size * n_rows + 0.6))
+    fig.subplots_adjust(top=1 - 0.38 / (panel_size * n_rows + 0.5))
     if shared_scale and handle is not None:
         bar = fig.colorbar(
-            handle, ax=axes.ravel().tolist(), fraction=0.025, pad=0.025, aspect=28
+            handle, ax=[ax for ax in axes.ravel() if ax.get_visible()],
+            fraction=0.022, pad=0.02, aspect=26,
         )
-        bar.set_label("intensity", fontsize=mpl.rcParams["font.size"] - 1)
+        units = "intensity (a.u.)" if not decade else f"intensity ($\\times10^{{{decade}}}$ a.u.)"
+        bar.set_label(units, fontsize=mpl.rcParams["font.size"] - 1)
         bar.outline.set_visible(False)
     else:
         fig.tight_layout()
+
+    # Re-apply the anchor last. Adding a colourbar with ax=[...] re-runs the
+    # layout over every panel it was given and resets the anchor set earlier,
+    # which puts the titles back at five different heights.
+    for ax in axes.ravel():
+        if ax.get_visible():
+            ax.set_anchor("N")
     return fig
 
 
@@ -1122,7 +1333,7 @@ def plot_organization_heatmap(
     )
 
     ax.set_xticks(np.arange(len(labels)))
-    ax.set_xticklabels(_wrap(list(labels), 22), rotation=90)
+    ax.set_xticklabels(_wrap(list(labels), 18), rotation=90)
     ax.set_yticks(np.arange(matrix.shape[0]))
     ax.set_yticklabels(org.obs_names.astype(str).to_numpy()[row_order])
 
@@ -1159,7 +1370,8 @@ def plot_organization_heatmap(
             start = end + 1
 
     bar = fig.colorbar(image, ax=ax, fraction=0.025, pad=0.02)
-    bar.set_label(metric, fontsize=mpl.rcParams["font.size"] - 1)
+    bar.set_label(_METRIC_LABELS.get(metric, metric),
+                  fontsize=mpl.rcParams["font.size"] - 1)
     bar.outline.set_visible(False)
     fig.tight_layout()
     return fig
@@ -1207,25 +1419,24 @@ def plot_class_enrichment(
     significant = ordered["pval_adj"].to_numpy() < fdr_threshold
     colors = np.where(deltas >= 0, PALETTE["up"], PALETTE["down"])
 
-    for yi, delta, color, sig, n in zip(
-        y, deltas, colors, significant, ordered["n_compounds"].to_numpy()
-    ):
+    for yi, delta, color, sig in zip(y, deltas, colors, significant):
         ax.barh(
             yi, delta, height=0.7,
             color=color if sig else "none", edgecolor=color, linewidth=0.9,
         )
-        offset = 0.02 if delta >= 0 else -0.02
-        ax.text(
-            delta + offset, yi, f"n={int(n)}",
-            va="center", ha="left" if delta >= 0 else "right",
-            fontsize=mpl.rcParams["font.size"] - 2.5,
-        )
 
+    # The class size goes in the tick label, not next to the bar. A class whose
+    # median delta is zero has a bar of zero length, so a count placed at the
+    # end of it lands on the axis and prints over the class name.
     ax.set_yticks(y)
-    ax.set_yticklabels(ordered["chemical_class"].astype(str).tolist())
+    ax.set_yticklabels([
+        f"{name}  ({int(size)})"
+        for name, size in zip(ordered["chemical_class"].astype(str),
+                              ordered["n_compounds"])
+    ])
     ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.15, 1.15)
-    ax.set_xlabel("median Cliff's $\\delta$ within class")
+    ax.set_xlabel("median Cliff's $\\delta$ within class  (compounds in brackets)")
     fig.tight_layout()
     return fig
 
