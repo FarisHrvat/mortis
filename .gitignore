@@ -17,11 +17,9 @@ dist/
 venv/
 env/
 
-# Editors / OS / local tooling (all of these hold machine-specific paths)
+# Editors / OS
 .vscode/
 .idea/
-.claude/
-.cursor/
 .DS_Store
 
 # Notebooks
