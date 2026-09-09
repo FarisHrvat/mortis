@@ -1067,6 +1067,305 @@ def _draw_ion_panel(ax, xy: np.ndarray, values: np.ndarray, vmin, vmax, cmap):
     )
 
 
+def _panel_layout(samples: np.ndarray, groups: Optional[np.ndarray],
+                  n_cols: Optional[int]):
+    """
+    Where each section goes in a grid of panels, grouped by arm.
+
+    Each group starts on a fresh row so its name can sit once on the left of
+    its block, rather than on a second line under every panel title. Repeating
+    the arm ten times is noise; saying it twice is a figure.
+
+    Returns ``(placement, n_rows, n_cols)`` where placement holds
+    ``(row, col, sample, group, is_first_of_group)``.
+    """
+    if groups is not None:
+        order = sorted(pd.unique(samples),
+                       key=lambda s: (str(groups[samples == s][0]), str(s)))
+        group_of = {s: str(groups[samples == s][0]) for s in order}
+    else:
+        order = sorted(pd.unique(samples))
+        group_of = {s: "" for s in order}
+
+    if n_cols is None and groups is not None:
+        n_cols = int(pd.Series(list(group_of.values())).value_counts().max())
+    n_cols = int(n_cols or min(len(order), 5))
+
+    placement, row = [], 0
+    for group in dict.fromkeys(group_of[s] for s in order):
+        members = [s for s in order if group_of[s] == group]
+        for i, sample in enumerate(members):
+            placement.append((row + i // n_cols, i % n_cols, sample, group, i == 0))
+        row += int(np.ceil(len(members) / n_cols))
+    return placement, max(row, 1), n_cols
+
+
+def plot_embedding(
+    adata,
+    color: str,
+    basis: str = "X_umap",
+    palette: Optional[Sequence[str]] = None,
+    point_size: float = 2.0,
+    figsize: Optional[Tuple[float, float]] = None,
+    legend_title: Optional[str] = None,
+    ax: Optional[plt.Axes] = None,
+) -> plt.Figure:
+    """
+    A UMAP or PCA scatter in the same style, and the same colours, as the rest
+    of the figures.
+
+    scanpy's own embedding plot is fine on its own and wrong in a set: it puts
+    a grey panel behind the points and picks its palette independently, so the
+    same cluster comes out blue in one figure and orange in the next. Here the
+    categories are coloured by :func:`plot_spatial_panels`'s palette, so a
+    domain keeps its colour wherever it appears.
+
+    Parameters
+    ----------
+    color : str
+        A categorical column in ``adata.obs``.
+    basis : str
+        Key in ``adata.obsm``. Defaults to the UMAP embedding.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    if basis not in adata.obsm:
+        available = sorted(k for k in adata.obsm.keys())
+        raise InvalidParameterError(
+            f"There is no {basis!r} embedding on this object. Run "
+            f"mortis.run_umap(adata) to make one. Present: {listing(available)}."
+        )
+    if color not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {color!r} in adata.obs to colour by. "
+            f"Columns present: {listing(adata.obs.columns)}."
+            f"{suggest(color, adata.obs.columns)}"
+        )
+
+    xy = np.asarray(adata.obsm[basis], dtype=float)[:, :2]
+    labels = adata.obs[color].astype(str).values
+    categories = list(pd.Categorical(labels).categories)
+    colours = list(palette) if palette else _categorical_palette(len(categories))
+    colour_of = dict(zip(categories, colours))
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize or (COLUMN_WIDE, 3.0))
+    else:
+        fig = ax.figure
+
+    # Densest category first, so the sparse ones stay visible on top of it.
+    for category in sorted(categories, key=lambda c: -(labels == c).sum()):
+        mask = labels == category
+        ax.scatter(
+            xy[mask, 0], xy[mask, 1], s=point_size, linewidths=0,
+            color=colour_of[category], label=category, alpha=0.85,
+            rasterized=int(mask.sum()) > 20000,
+        )
+
+    ax.set_xlabel(f"{basis.lstrip('X_').upper()} 1")
+    ax.set_ylabel(f"{basis.lstrip('X_').upper()} 2")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    handles = [
+        mpl.lines.Line2D([], [], marker="o", linestyle="none", markersize=4,
+                         markerfacecolor=colour_of[c], markeredgecolor="none",
+                         label=c)
+        for c in categories
+    ]
+    ax.legend(
+        handles=handles, loc="center left", bbox_to_anchor=(1.01, 0.5),
+        frameon=False, fontsize=mpl.rcParams["font.size"] - 1,
+        title=legend_title or color, title_fontsize=mpl.rcParams["font.size"] - 1,
+    )
+    fig.tight_layout()
+    return fig
+
+
+def plot_spatial_panels(
+    adata,
+    color: str,
+    sample_key: str = "section",
+    group_key: Optional[str] = None,
+    n_cols: Optional[int] = None,
+    palette: Optional[Sequence[str]] = None,
+    panel_size: float = 1.35,
+    point_size: Optional[float] = None,
+    legend_title: Optional[str] = None,
+    legend: str = "auto",
+) -> plt.Figure:
+    """
+    One panel per section, coloured by a categorical column in ``.obs``.
+
+    The figure to use for clusters, spatial domains or any other label, in
+    place of drawing every section on one pair of axes. Sections do not share a
+    coordinate frame -- each was acquired separately and their x and y start
+    wherever the stage happened to be -- so overlaying them produces a cloud
+    that looks like tissue and is not.
+
+    Parameters
+    ----------
+    color : str
+        A categorical column in ``adata.obs``: cluster labels, domains, or any
+        annotation. Rename the categories before plotting if you want the
+        legend to say what they mean.
+    sample_key : str
+        The column identifying the section, one panel each.
+    group_key : str, optional
+        Arm or condition. Panels are grouped by it and each block is labelled
+        once on the left.
+    point_size : float, optional
+        Marker size. Default scales with how many pixels a panel holds, so a
+        3,000-pixel biopsy and a 60,000-pixel resection both come out solid
+        rather than one being speckled and the other a blob.
+    legend : {"auto", "right", "below"}
+        Where the key goes. A legend on the right costs about an inch and a
+        half of width, and a figure wider than the page it is printed on gets
+        scaled down until its labels are unreadable. ``"auto"`` puts it below
+        once the panels alone are wider than a text column.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+
+    Examples
+    --------
+    >>> adata = mt.rename_clusters(adata, {"0": "Fibrotic core", "1": "Septa"})
+    >>> mt.plot_spatial_panels(adata, "cluster", group_key="state")
+    """
+    if color not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {color!r} in adata.obs to colour by. "
+            f"Columns present: {listing(adata.obs.columns)}."
+            f"{suggest(color, adata.obs.columns)}"
+        )
+    if sample_key not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {sample_key!r} in adata.obs, so the "
+            f"pixels cannot be split into one panel per section. Columns "
+            f"present: {listing(adata.obs.columns)}."
+            f"{suggest(sample_key, adata.obs.columns)}"
+        )
+    if "spatial" not in adata.obsm:
+        raise InvalidParameterError(
+            "Panels are drawn from adata.obsm['spatial'], which is not set on "
+            "this object. mortis.read_file() fills it in from the 'x' and 'y' "
+            "columns."
+        )
+
+    coords = np.asarray(adata.obsm["spatial"], dtype=float)
+    samples = adata.obs[sample_key].astype(str).values
+    labels = adata.obs[color].astype(str).values
+    groups = adata.obs[group_key].astype(str).values if group_key else None
+
+    categories = list(pd.Categorical(labels).categories)
+    colours = list(palette) if palette else _categorical_palette(len(categories))
+    colour_of = dict(zip(categories, colours))
+
+    placement, n_rows, n_cols = _panel_layout(samples, groups, n_cols)
+    if legend == "auto":
+        # A text column is about 6.2 inches. Past that the figure is scaled to
+        # fit and everything in it shrinks, which is how a 10pt legend arrives
+        # on the page at 6pt.
+        legend = "below" if panel_size * n_cols + 1.6 > 6.2 else "right"
+    if legend not in ("right", "below"):
+        raise InvalidParameterError(
+            f"legend must be 'auto', 'right' or 'below', got {legend!r}."
+        )
+
+    legend_rows = int(np.ceil(len(categories) / 3)) if legend == "below" else 0
+    fig, axes = plt.subplots(
+        n_rows, n_cols,
+        figsize=(panel_size * n_cols + (1.6 if legend == "right" else 0.5),
+                 panel_size * n_rows + 0.4 + 0.22 * legend_rows),
+        squeeze=False,
+    )
+    for ax in axes.ravel():
+        ax.set_visible(False)
+
+    for r, c, sample, group, first_of_group in placement:
+        ax = axes[r][c]
+        ax.set_visible(True)
+        mask = samples == sample
+        xy = coords[mask]
+        size = point_size if point_size is not None else _panel_point_size(xy)
+        ax.scatter(
+            xy[:, 0], xy[:, 1],
+            c=[colour_of[label] for label in labels[mask]],
+            s=size, linewidths=0, marker="s", rasterized=len(xy) > 20000,
+        )
+        ax.set_title(str(sample), fontsize=mpl.rcParams["font.size"] - 1, pad=3)
+        ax.set_aspect("equal", anchor="N")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.invert_yaxis()
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        if first_of_group and group:
+            ax.set_ylabel(group, fontsize=mpl.rcParams["font.size"], labelpad=6)
+
+    handles = [
+        mpl.lines.Line2D([], [], marker="s", linestyle="none", markersize=4,
+                         markerfacecolor=colour_of[c], markeredgecolor="none",
+                         label=c)
+        for c in categories
+    ]
+    if legend == "right":
+        fig.legend(
+            handles=handles, loc="center left", bbox_to_anchor=(0.995, 0.5),
+            frameon=False, fontsize=mpl.rcParams["font.size"] - 1,
+            title=legend_title or color,
+            title_fontsize=mpl.rcParams["font.size"] - 1,
+        )
+        fig.tight_layout(rect=(0, 0, 0.99, 1))
+    else:
+        fig.legend(
+            handles=handles, loc="lower center", bbox_to_anchor=(0.5, 0.0),
+            ncol=min(3, len(categories)), frameon=False,
+            fontsize=mpl.rcParams["font.size"] - 1,
+            title=legend_title or color,
+            title_fontsize=mpl.rcParams["font.size"] - 1,
+        )
+        fig.tight_layout(rect=(0, 0.045 + 0.03 * legend_rows, 1, 1))
+    for ax in axes.ravel():
+        if ax.get_visible():
+            ax.set_anchor("N")
+    return fig
+
+
+def _panel_point_size(xy: np.ndarray) -> float:
+    """
+    Marker size that fills the tissue without smearing it.
+
+    A fixed size makes a 3,000-pixel biopsy look like scattered dust and a
+    60,000-pixel resection look like a solid blob. Scaling with the pixel
+    pitch relative to the section's own extent keeps both readable.
+    """
+    if len(xy) < 2:
+        return 4.0
+    span = max(np.ptp(xy[:, 0]), np.ptp(xy[:, 1]), 1.0)
+    # Roughly one marker per grid step, in points squared, for a ~1.35in panel.
+    return float(np.clip((97.0 / span) ** 2 * 1.6, 0.35, 12.0))
+
+
+def _categorical_palette(n: int) -> List[str]:
+    """
+    Distinct colours for cluster labels.
+
+    tab20 in its native order alternates light and dark within a hue, so
+    adjacent cluster numbers get near-identical colours. Taking the dark
+    entries first keeps the first ten clusters -- the ones that hold most of
+    the tissue -- clearly apart.
+    """
+    tab20 = mpl.colormaps["tab20"].colors
+    ordered = list(tab20[0::2]) + list(tab20[1::2])
+    if n <= len(ordered):
+        return [mpl.colors.to_hex(c) for c in ordered[:n]]
+    extra = mpl.colormaps["tab20b"].colors
+    return [mpl.colors.to_hex(c) for c in (ordered + list(extra))[:n]]
+
+
 def plot_ion_images(
     adata,
     metabolite: str,

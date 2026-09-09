@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 
 import anndata as ad
 import numpy as np
@@ -309,3 +310,52 @@ class TestLiveServices:
         assert len(sets) > 50
         assert "ABC transporters" not in sets
         assert any("Arginine" in name for name in sets)
+
+
+class TestMissingIdentifiers:
+    """
+    Half a panel never resolves to a KEGG identifier, so the missing half is
+    the normal case rather than an edge case.
+
+    Under pandas 2 a missing value survived ``astype(str)`` as the literal
+    string "nan" and the code downstream never noticed. Under pandas 3 the
+    same call keeps NA as NA, and the first thing to touch it was
+    ``kegg.upper()`` on a float. This pins the behaviour on both.
+    """
+
+    @staticmethod
+    def _mapping(monkeypatch, rows):
+        frame = pd.DataFrame(rows)
+
+        def fake_map(names, **kwargs):
+            return frame
+
+        monkeypatch.setattr(mt, "map_compound_ids", fake_map)
+        monkeypatch.setattr("mortis.pathway.map_compound_ids", fake_map)
+        return frame
+
+    def test_unmapped_compounds_do_not_crash_the_join(self, monkeypatch):
+        adata = ad.AnnData(np.random.default_rng(0).random((10, 3), dtype=np.float32))
+        adata.var_names = ["Taurine", "Creatine", "Nothing"]
+        self._mapping(monkeypatch, [
+            {"query": "Taurine", "hmdb": "HMDB0000251", "kegg": "C00245", "matched": True},
+            {"query": "Creatine", "hmdb": "HMDB0000064", "kegg": None, "matched": True},
+            {"query": "Nothing", "hmdb": None, "kegg": float("nan"), "matched": False},
+        ])
+        monkeypatch.setattr(
+            "mortis.pathway.fetch_kegg_pathway_sets",
+            lambda *a, **k: {"Taurine metabolism": ["C00245"]},
+        )
+        result = pd.DataFrame({
+            "metabolite": ["Taurine", "Creatine", "Nothing"],
+            "delta": [0.9, -0.2, 0.1],
+            "pval_adj": [0.01, 0.5, 0.9],
+        })
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            identifiers, pathways = mt.annotate_pathways(adata, result, min_size=1)
+
+        assert list(identifiers["query"]) == ["Taurine", "Creatine", "Nothing"]
+        # The unmapped ones are written as "NA" rather than as a float
+        assert set(adata.var["compound_ids_kegg"]) == {"C00245", "NA"}
+        assert isinstance(pathways, pd.DataFrame)

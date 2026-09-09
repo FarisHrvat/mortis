@@ -402,16 +402,25 @@ def annotate_pathways(
         adata.var_names, cache=cache, timeout=timeout, retries=retries
     )
 
-    lookup = dict(zip(identifiers["query"].astype(str), identifiers["hmdb"].astype(str)))
+    # fillna before astype(str). Under pandas 2 a missing value became the
+    # literal "nan" and everything downstream still saw a string; under pandas 3
+    # astype(str) yields a string column that keeps NA as NA, so the same code
+    # started handing floats to .upper() further down.
+    def _as_text(column: str) -> pd.Series:
+        return identifiers[column].fillna("NA").astype(str).replace("nan", "NA")
+
+    lookup = dict(zip(identifiers["query"].astype(str), _as_text("hmdb")))
     adata.var[f"{key_added}_hmdb"] = [
         lookup.get(str(n), "NA") for n in adata.var_names
     ]
-    kegg_lookup = dict(zip(identifiers["query"].astype(str), identifiers["kegg"].astype(str)))
+    kegg_text = _as_text("kegg")
+    kegg_lookup = dict(zip(identifiers["query"].astype(str), kegg_text))
     adata.var[f"{key_added}_kegg"] = [
         kegg_lookup.get(str(n), "NA") for n in adata.var_names
     ]
 
-    resolved = identifiers[identifiers["kegg"].astype(str).ne("NA")]
+    resolved = identifiers.assign(kegg=kegg_text)
+    resolved = resolved[resolved["kegg"].ne("NA") & resolved["kegg"].ne("")]
     if resolved.empty:
         raise MortisError(
             "No compound name resolved to a KEGG identifier, so no pathway analysis is "
@@ -426,8 +435,8 @@ def annotate_pathways(
     # pathway_ora matches on compound name, so translate the KEGG sets back
     # into the names used in `result`.
     name_for_kegg: Dict[str, List[str]] = {}
-    for query, kegg in zip(resolved["query"].astype(str), resolved["kegg"].astype(str)):
-        name_for_kegg.setdefault(kegg.upper(), []).append(query)
+    for query, kegg in zip(resolved["query"].astype(str), resolved["kegg"]):
+        name_for_kegg.setdefault(str(kegg).upper(), []).append(str(query))
 
     named_sets = {
         pathway: [n for cid in compounds for n in name_for_kegg.get(cid.upper(), [])]

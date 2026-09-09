@@ -15,6 +15,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import anndata as ad  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -830,3 +831,88 @@ class TestEffectForest:
         labels = [t.get_text().replace("\n", "") for t in ax.get_yticklabels()]
         assert labels[-1] == "N1-Acetylspermine"        # |delta| = 0.9
         assert labels[0] == "Arecaidine"                # |delta| = 0.5
+
+
+class TestSpatialPanels:
+    """
+    One panel per section, because sections do not share a coordinate frame.
+
+    Drawing ten sections on one pair of axes produces a cloud that looks like
+    tissue and is not: each was acquired separately and its x and y start
+    wherever the stage happened to be.
+    """
+
+    @staticmethod
+    def _cohort(n_sections=4, per_section=200):
+        rng = np.random.default_rng(0)
+        frames, coords, sections, arms, labels = [], [], [], [], []
+        for i in range(n_sections):
+            xy = rng.integers(0, 20, size=(per_section, 2)).astype(float)
+            xy[:, 0] += i * 100          # each section starts somewhere else
+            coords.append(xy)
+            sections += [f"s{i}"] * per_section
+            arms += ["A" if i < n_sections // 2 else "B"] * per_section
+            labels += list(rng.choice(["core", "rim", "septa"], per_section))
+            frames.append(rng.random((per_section, 5), dtype=np.float32))
+        adata = ad.AnnData(np.vstack(frames))
+        adata.obs["section"] = sections
+        adata.obs["arm"] = arms
+        adata.obs["domain"] = labels
+        adata.obsm["spatial"] = np.vstack(coords)
+        return adata
+
+    @staticmethod
+    def _panels(fig):
+        return [ax for ax in fig.axes if ax.get_visible() and ax.collections]
+
+    def test_one_panel_per_section(self):
+        fig = mt.plot_spatial_panels(self._cohort(), "domain", group_key="arm")
+        assert len(self._panels(fig)) == 4
+
+    def test_arm_named_once_per_block(self):
+        fig = mt.plot_spatial_panels(self._cohort(), "domain", group_key="arm")
+        labelled = [ax.get_ylabel() for ax in self._panels(fig) if ax.get_ylabel()]
+        assert sorted(labelled) == ["A", "B"]
+
+    def test_legend_moves_below_when_the_figure_would_be_too_wide(self):
+        wide = self._cohort(n_sections=10)
+        fig = mt.plot_spatial_panels(wide, "domain", group_key="arm", n_cols=5,
+                                     panel_size=1.5)
+        # 5 x 1.5 + 1.6 is past a text column, so the key goes underneath and
+        # the figure stops being scaled down on the page.
+        assert fig.get_size_inches()[0] < 5 * 1.5 + 1.6
+
+    def test_legend_stays_right_when_it_fits(self):
+        fig = mt.plot_spatial_panels(self._cohort(), "domain", group_key="arm",
+                                     n_cols=2, panel_size=1.2)
+        assert fig.get_size_inches()[0] > 2 * 1.2 + 1.0
+
+    def test_rejects_a_column_that_is_not_there(self):
+        with pytest.raises(InvalidParameterError, match="Did you mean 'domain'"):
+            mt.plot_spatial_panels(self._cohort(), "domian")
+
+
+class TestEmbeddingPlot:
+    def test_needs_an_embedding_and_says_which(self):
+        adata = ad.AnnData(np.random.default_rng(0).random((10, 3), dtype=np.float32))
+        adata.obs["group"] = ["a"] * 5 + ["b"] * 5
+        with pytest.raises(InvalidParameterError, match="run_umap"):
+            mt.plot_embedding(adata, "group")
+
+    def test_colours_match_the_spatial_panels(self):
+        rng = np.random.default_rng(1)
+        adata = ad.AnnData(rng.random((60, 4), dtype=np.float32))
+        adata.obs["section"] = ["s0"] * 30 + ["s1"] * 30
+        adata.obs["domain"] = list(rng.choice(["core", "rim"], 60))
+        adata.obsm["spatial"] = rng.integers(0, 10, size=(60, 2)).astype(float)
+        adata.obsm["X_umap"] = rng.random((60, 2))
+
+        panels = mt.plot_spatial_panels(adata, "domain")
+        embedding = mt.plot_embedding(adata, "domain")
+        # The same domain must be the same colour in both figures, or a reader
+        # comparing them is being misled.
+        panel_colours = {h.get_label(): h.get_markerfacecolor()
+                         for h in panels.legends[0].legend_handles}
+        embed_colours = {h.get_label(): h.get_markerfacecolor()
+                         for h in embedding.axes[0].get_legend().legend_handles}
+        assert panel_colours == embed_colours
