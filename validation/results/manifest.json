@@ -1,7 +1,7 @@
 {
   "manifest_version": 1,
   "analysis": "MORTIS validation on 2026_Frank_solanum_recal",
-  "created": "2026-09-09T10:08:36+00:00",
+  "created": "2026-09-09T15:26:25+00:00",
   "environment": {
     "python": "3.12.13",
     "platform": "macOS-26.6.2-arm64-arm-64bit",
@@ -19,7 +19,7 @@
       "igraph": "1.0.0",
       "harmonypy": "not installed"
     },
-    "git_commit": "356e4374923e9cb3c7ea18d1138adf4fcb1dbba7"
+    "git_commit": "1e227fd008a2ec537af7ab7a293846fd2edc1159"
   },
   "data": {
     "n_obs": 24,
@@ -47,7 +47,7 @@
         "n_pixels_in": "250514",
         "n_samples_out": "24"
       },
-      "at": "2026-09-09T10:08:33+00:00"
+      "at": "2026-09-09T15:26:23+00:00"
     }
   ],
   "results": {
@@ -105,5 +105,5 @@
     "n_ions": "36",
     "fdr": "0.1"
   },
-  "seal_sha256": "1a210839d5c7b57dffd6b0e1aa4df0e92a59dee624535975ffc7af49313b5543"
+  "seal_sha256": "80f080264005f30334df385f6698a635c32cfed43c0c4ccf1ea9a0286cb2c06d"
 }
