@@ -429,7 +429,7 @@ class TestIonImages:
         assert vmax < 1e5, "colour scale was dominated by one outlier pixel"
 
     def test_rejects_bad_input(self, organization_cohort):
-        with pytest.raises(InvalidParameterError, match="not found in adata.var_names"):
+        with pytest.raises(InvalidParameterError, match="is not one of the"):
             mt.plot_ion_images(organization_cohort, "nope", sample_key="section")
         with pytest.raises(InvalidParameterError, match="section_missing"):
             mt.plot_ion_images(organization_cohort, "m000", sample_key="section_missing")
@@ -536,7 +536,7 @@ class TestLabelCollisions:
     before labels were spread.
     """
 
-    def test_coincident_labels_do_not_overlap(self):
+    def test_coincident_metabolites_get_one_label_with_a_count(self):
         merged = pd.DataFrame({
             "metabolite": ["Spermidine", "Putrescine", "Spermine", "Agmatine"],
             "delta_abundance": [0.0, 0.0, 0.0, 0.0],
@@ -546,12 +546,29 @@ class TestLabelCollisions:
             "classification": ["organization only"] * 4,
         })
         ax = mt.plot_abundance_vs_organization(merged, label_top=4).axes[0]
-        annotations = [t for t in ax.texts if t.get_text() in set(merged["metabolite"])]
-        assert len(annotations) == 4
+        # All four sit on one coordinate. Four leader lines to one dot say
+        # nothing about which name belongs to which point, so it becomes one
+        # label that admits how crowded the point is.
+        labels = [txt.get_text() for txt in ax.texts]
+        crowded = [text for text in labels if "+3 more" in text]
+        assert len(crowded) == 1
+        assert crowded[0].startswith("Spermidine")
+        assert not any(text.startswith("Putrescine") for text in labels)
 
-        offsets = [t.get_position() for t in annotations]
-        vertical = sorted(o[1] for o in offsets)
-        assert len(set(vertical)) == 4, "labels share a vertical offset and will overlap"
+    def test_stacked_points_are_declared_on_the_figure(self):
+        merged = pd.DataFrame({
+            "metabolite": [f"m{i}" for i in range(9)],
+            "delta_abundance": [0.0] * 9,
+            "delta_organization": [1.0] * 9,
+            "pval_adj_abundance": [0.9] * 9,
+            "pval_adj_organization": [0.001] * 9,
+            "classification": ["organization only"] * 9,
+        })
+        ax = mt.plot_abundance_vs_organization(merged, label_top=0).axes[0]
+        notes = [txt.get_text() for txt in ax.texts if "marker area" in txt.get_text()]
+        assert notes and "9" in notes[0], (
+            "nine metabolites drawn as one dot with nothing saying so"
+        )
 
     def test_distinct_points_keep_the_default_offset(self):
         merged = pd.DataFrame({
@@ -657,3 +674,43 @@ class TestThemedFigures:
         )
         image = mt.plot_organization_heatmap(org, top_n=5, cmap="viridis").axes[0].images[0]
         assert image.get_cmap().name == "viridis"
+
+
+class TestReproduciblePDFs:
+    """
+    Two runs of the same analysis should produce the same PDF bytes, so that
+    "did anything change?" is a diff rather than a judgement call. The only
+    thing standing in the way is the creation timestamp, which is why
+    SOURCE_DATE_EPOCH is honoured.
+    """
+
+    @staticmethod
+    def _write(tmp_path, name, monkeypatch, epoch=None):
+        import hashlib
+
+        if epoch is None:
+            monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+        else:
+            monkeypatch.setenv("SOURCE_DATE_EPOCH", epoch)
+        target = tmp_path / name
+        target.mkdir()
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+        mt.save_figure(fig, target / "fig", formats=("pdf",),
+                       provenance={"cohort": "demo"}, close=True)
+        return hashlib.sha256((target / "fig.pdf").read_bytes()).hexdigest()
+
+    def test_same_bytes_with_source_date_epoch(self, tmp_path, monkeypatch):
+        first = self._write(tmp_path, "one", monkeypatch, epoch="1700000000")
+        second = self._write(tmp_path, "two", monkeypatch, epoch="1700000000")
+        assert first == second
+
+    def test_nonsense_epoch_is_explained_not_left_to_matplotlib(self, tmp_path, monkeypatch):
+        with pytest.raises(InvalidParameterError, match="whole number of seconds"):
+            self._write(tmp_path, "three", monkeypatch, epoch="not-a-number")
+
+    def test_wall_clock_is_still_the_default(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+        from mortis.viz import _pdf_timestamp
+
+        assert _pdf_timestamp().year >= 2024

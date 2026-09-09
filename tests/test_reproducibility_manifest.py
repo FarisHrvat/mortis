@@ -251,3 +251,62 @@ class TestManifestFile:
         strict = mt.verify_manifest(path, adata=_adata(), strict_environment=True).set_index("check")
         assert lenient.loc["package versions", "status"] == "info"
         assert strict.loc["package versions", "status"] == "fail"
+
+
+class TestHashSeedIndependence:
+    """
+    Two people running the same analysis must get the same fingerprint, and
+    "the same analysis" includes running it in a different Python process.
+
+    Python randomises string hashes per process, so anything that iterates a
+    set on its way to an ordered result quietly reorders itself between runs.
+    That is not a hypothetical: it was how the public-data validation ended up
+    producing a different matrix fingerprint every time while every result CSV
+    stayed identical.
+    """
+
+    SCRIPT = """
+import json, sys
+import anndata as ad, numpy as np
+import mortis as mt
+
+rng = np.random.default_rng(0)
+names = [f"metabolite_{i:03d}" for i in range(40)]
+adata = ad.AnnData(rng.random((200, 40), dtype=np.float32))
+# Deliberately route the panel through a set, the way a shared-annotation
+# intersection would.
+adata.var_names = sorted(set(names))
+adata.obs["section"] = [f"s{i % 8}" for i in range(200)]
+adata.obs["arm"] = ["A" if i % 8 < 4 else "B" for i in range(200)]
+adata.obsm["spatial"] = rng.random((200, 2)) * 100
+
+pb = mt.pseudobulk(adata, sample_key="section", carry_obs=["arm"])
+res = mt.differential_abundance(pb, "arm", "A", "B", min_samples=2)
+print(json.dumps({
+    "data": mt.data_fingerprint(adata),
+    "result": mt.result_fingerprint(res),
+    "order": res["metabolite"].tolist(),
+}))
+"""
+
+    def _run(self, tmp_path, seed):
+        import json
+        import os
+        import subprocess
+        import sys
+
+        script = tmp_path / f"run_{seed}.py"
+        script.write_text(self.SCRIPT, encoding="utf-8")
+        env = dict(os.environ, PYTHONHASHSEED=str(seed))
+        out = subprocess.run(
+            [sys.executable, str(script)],
+            capture_output=True, text=True, env=env, check=True,
+        )
+        return json.loads(out.stdout.strip().splitlines()[-1])
+
+    def test_fingerprints_survive_a_different_hash_seed(self, tmp_path):
+        first = self._run(tmp_path, 1)
+        second = self._run(tmp_path, 424242)
+        assert first["data"] == second["data"]
+        assert first["result"] == second["result"]
+        assert first["order"] == second["order"]

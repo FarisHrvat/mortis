@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import warnings
 from datetime import datetime, timezone
@@ -49,7 +50,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .exceptions import InvalidParameterError
+from .exceptions import InvalidParameterError, listing, suggest
 
 __all__ = [
     "set_publication_style",
@@ -289,6 +290,35 @@ def reset_style() -> None:
         mpl.rcdefaults()
 
 
+def _pdf_timestamp() -> datetime:
+    """
+    The creation date to stamp into a PDF.
+
+    A wall-clock timestamp is the one thing that stops two identical runs from
+    producing identical files, which is annoying when you are trying to prove
+    they are identical. Honour SOURCE_DATE_EPOCH the way reproducible-builds
+    tooling does, so ``SOURCE_DATE_EPOCH=0 python analysis.py`` gives
+    byte-stable PDFs; fall back to now when nobody asked.
+
+    A malformed value is refused rather than ignored. Matplotlib reads the same
+    variable on its way into the PDF backend and dies on it with
+    ``invalid literal for int()``, so quietly falling back would only delay the
+    crash and make it harder to place.
+    """
+    stamp = os.environ.get("SOURCE_DATE_EPOCH")
+    if stamp is None:
+        return datetime.now(timezone.utc)
+    try:
+        return datetime.fromtimestamp(int(stamp), tz=timezone.utc)
+    except ValueError:
+        raise InvalidParameterError(
+            f"SOURCE_DATE_EPOCH is set to {stamp!r}, which is not a whole number "
+            f"of seconds since 1970. Set it to an integer (SOURCE_DATE_EPOCH=0 "
+            f"works) to get byte-identical PDFs, or unset it to stamp the "
+            f"current time."
+        ) from None
+
+
 def save_figure(
     fig: plt.Figure,
     path: Union[str, Path],
@@ -311,9 +341,14 @@ def save_figure(
         ``"svg"`` (vector, for further editing), ``"png"`` (raster, for
         drafts and slides), ``"eps"`` (legacy journals).
     provenance : dict, optional
-        Analysis parameters to embed. A short SHA-256 of the JSON is added as
-        ``mortis_hash`` so two figures can be compared at a glance. PDF only;
-        other formats have nowhere to put it.
+        Analysis parameters to embed. A short SHA-256 of the JSON goes in as
+        ``mortis_hash``, so two figures made from the same parameters carry the
+        same tag. It identifies the run, not the pixels. PDF only; the other
+        formats have nowhere to put it.
+
+        The embedded timestamp is taken from ``SOURCE_DATE_EPOCH`` when that
+        environment variable is set, which is what makes byte-identical PDFs
+        possible across runs. Otherwise it is the current time.
     close : bool
         Close the figure afterwards. Useful in loops that would otherwise keep
         every figure in memory.
@@ -353,7 +388,7 @@ def save_figure(
             "Creator": "MORTIS",
             "Subject": payload[:800],
             "Keywords": f"mortis_hash={digest}",
-            "CreationDate": datetime.now(timezone.utc),
+            "CreationDate": _pdf_timestamp(),
         }
 
     written: Dict[str, Path] = {}
@@ -540,6 +575,48 @@ def plot_delta_volcano(
     return fig
 
 
+def _scatter_stacked(ax, frame, x_col, y_col, *, colour, base_size, label,
+                     alpha, zorder):
+    """
+    Draw a scatter that admits when points sit on top of each other.
+
+    Cliff's delta on a small cohort takes very few distinct values -- three
+    sections per arm gives ten -- so a whole panel can land on a handful of
+    coordinates and the figure shows a dozen dots while the legend claims two
+    hundred. Collapse exact duplicates and scale the marker area by the count.
+    Nudging the points apart would be easier and would be a lie about where
+    they are.
+
+    Returns the largest number of points sharing one coordinate, so the caller
+    can say so on the figure.
+    """
+    counts = frame.groupby([x_col, y_col], sort=True).size().reset_index(name="n")
+    ax.scatter(
+        counts[x_col], counts[y_col], c=colour,
+        s=base_size * np.sqrt(counts["n"]), linewidths=0, alpha=alpha,
+        label=f"{label} (n={len(frame)})", zorder=zorder,
+        rasterized=len(counts) > 5000,
+    )
+    return int(counts["n"].max())
+
+
+def _note_stacking(ax, most: int, corner: str = "right") -> None:
+    """
+    Small print along the bottom when more than one point shares a marker.
+
+    ``corner`` picks the side, because the legend is not always in the same
+    place and the note landing under it helps nobody.
+    """
+    if most <= 1:
+        return
+    x = 0.99 if corner == "right" else 0.01
+    ax.text(
+        x, 0.01, f"marker area \u221d metabolites at that point (up to {most})",
+        transform=ax.transAxes, ha=corner, va="bottom",
+        fontsize=mpl.rcParams["font.size"] - 3, color=_ink(), alpha=0.6,
+    )
+
+
 def plot_abundance_vs_organization(
     merged: pd.DataFrame,
     delta_threshold: float = 0.474,
@@ -582,18 +659,27 @@ def plot_abundance_vs_organization(
         "abundance only": PALETTE["abundance"],
         "neither": PALETTE["neutral"],
     }
+    # Cliff's delta on a small cohort takes very few distinct values -- with
+    # three sections per arm there are only ten -- so hundreds of metabolites
+    # can land on a handful of coordinates and the figure shows a dozen dots
+    # where the legend claims two hundred. Collapse exact duplicates and scale
+    # the marker area by how many sit there. Moving the points apart would be
+    # easier to draw and would be a lie about where they are.
+    stacked = 0
     # Draw "neither" first so the findings sit on top of the cloud.
     for label in ("neither", "abundance only", "both", "organization only"):
         subset = merged[merged["classification"] == label]
         if subset.empty:
             continue
-        ax.scatter(
-            subset["delta_abundance"], subset["delta_organization"],
-            c=colour_for[label], s=22 if label != "neither" else 12,
-            linewidths=0, alpha=0.9 if label != "neither" else 0.55,
-            label=f"{label} (n={len(subset)})", zorder=3 if label != "neither" else 1,
-            rasterized=len(subset) > 5000,
-        )
+        stacked = max(stacked, _scatter_stacked(
+            ax, subset, "delta_abundance", "delta_organization",
+            colour=colour_for[label],
+            base_size=22 if label != "neither" else 12,
+            label=label,
+            alpha=0.9 if label != "neither" else 0.55,
+            zorder=3 if label != "neither" else 1,
+        ))
+    _note_stacking(ax, stacked)
 
     # Threshold guides sit at 12% opacity. At full strength four dotted lines
     # read as a grid laid over the data rather than as a reference.
@@ -604,12 +690,24 @@ def plot_abundance_vs_organization(
     ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
 
     if label_top > 0:
-        focus = merged[merged["classification"] == "organization only"].head(label_top)
-        _annotate_spread(
-            ax,
-            list(zip(focus["delta_abundance"], focus["delta_organization"])),
-            [str(m)[:22] for m in focus["metabolite"]],
-        )
+        # One label per coordinate, carrying a count when several metabolites
+        # share it. Six separate names pointing at one dot is six leader lines
+        # to the same place, which tells the reader nothing about which is
+        # which; "Spermidine +3 more" at least says how crowded that point is.
+        organization_only = merged[merged["classification"] == "organization only"]
+        points, labels = [], []
+        for (x, y), group in organization_only.groupby(
+            ["delta_abundance", "delta_organization"], sort=False
+        ):
+            name = str(group["metabolite"].iloc[0])[:22]
+            if len(group) > 1:
+                name = f"{name} +{len(group) - 1} more"
+            points.append((x, y))
+            labels.append(name)
+            if len(points) == label_top:
+                break
+        if points:
+            _annotate_spread(ax, points, labels)
 
     ax.set_xlim(-1.08, 1.08)
     ax.set_ylim(-1.08, 1.08)
@@ -662,18 +760,22 @@ def plot_signature_comparison(
         "discordant": PALETTE["up"],
         "weak": PALETTE["neutral"],
     }
+    stacked = 0
     for label in ("weak", "concordant", "discordant"):
         subset = table[table["agreement"] == label]
         if subset.empty:
             continue
-        ax.scatter(
-            subset[x_col], subset[y_col], c=colour_for[label],
-            s=20 if label != "weak" else 11, linewidths=0,
+        stacked = max(stacked, _scatter_stacked(
+            ax, subset, x_col, y_col,
+            colour=colour_for[label],
+            base_size=20 if label != "weak" else 11,
+            label=label,
             alpha=0.9 if label != "weak" else 0.5,
-            label=f"{label} (n={len(subset)})",
             zorder=3 if label != "weak" else 1,
-            rasterized=len(subset) > 5000,
-        )
+        ))
+
+    # Legend sits lower right on this one, so the note goes to the left.
+    _note_stacking(ax, stacked, corner="left")
 
     limit = 1.08
     ax.plot([-limit, limit], [-limit, limit], color=_ink(), linewidth=0.6, alpha=0.2, zorder=0)
@@ -845,13 +947,29 @@ def plot_ion_images(
     matplotlib.figure.Figure
     """
     if "spatial" not in adata.obsm:
-        raise InvalidParameterError("adata.obsm['spatial'] is missing.")
+        raise InvalidParameterError(
+            "Ion images are drawn from adata.obsm['spatial'], which is not set on "
+            "this object. mortis.read_file() fills it in from the 'x' and 'y' "
+            "columns."
+        )
     if metabolite not in adata.var_names:
-        raise InvalidParameterError(f"Metabolite '{metabolite}' not found in adata.var_names.")
+        raise InvalidParameterError(
+            f"{metabolite!r} is not one of the {adata.n_vars} metabolites in this "
+            f"object.{suggest(metabolite, adata.var_names)}"
+        )
     if sample_key not in adata.obs.columns:
-        raise InvalidParameterError(f"'{sample_key}' not found in adata.obs.")
+        raise InvalidParameterError(
+            f"There is no column called {sample_key!r} in adata.obs, so the "
+            f"pixels cannot be split into one panel per section. Columns "
+            f"present: {listing(adata.obs.columns)}."
+            f"{suggest(sample_key, adata.obs.columns)}"
+        )
     if group_key is not None and group_key not in adata.obs.columns:
-        raise InvalidParameterError(f"'{group_key}' not found in adata.obs.")
+        raise InvalidParameterError(
+            f"group_key={group_key!r} is not a column in adata.obs. Pass None to "
+            f"drop the group labels, or use one of: "
+            f"{listing(adata.obs.columns)}.{suggest(group_key, adata.obs.columns)}"
+        )
 
     from scipy.sparse import issparse
 
@@ -965,7 +1083,12 @@ def plot_organization_heatmap(
             f"Metric '{metric}' not in org.layers. Available: {available}."
         )
     if group_key is not None and group_key not in org.obs.columns:
-        raise InvalidParameterError(f"'{group_key}' not found in org.obs.")
+        raise InvalidParameterError(
+            f"group_key={group_key!r} is not a column in org.obs. Sections carry "
+            f"whatever you passed to spatial_organization(carry_obs=...); this "
+            f"object has: {listing(org.obs.columns)}."
+            f"{suggest(group_key, org.obs.columns)}"
+        )
 
     matrix = np.asarray(org.layers[metric], dtype=float)
     names = org.var_names.astype(str).to_numpy()
@@ -1018,13 +1141,19 @@ def plot_organization_heatmap(
         # such as 'medium' when no style has been applied, which would fail here.
         tick_points = float(mpl.rcParams["font.size"]) - 1.0
         pad_points = -(10.0 + 0.62 * tick_points * longest)
+
+        # These used to be rotated 90 degrees to save width. A rotated label is
+        # as tall as it is long, so on a small cohort -- two sections per arm --
+        # "Non Responder" was taller than the band it belonged to and the two
+        # group names printed over each other. Horizontal text is one line tall
+        # whatever it says, and tight_layout finds the room for it.
         start = 0
         for end in list(boundaries) + [len(ordered) - 1]:
             ax.annotate(
                 ordered[start],
                 xy=(0.0, (start + end) / 2), xycoords=ax.get_yaxis_transform(),
                 xytext=(pad_points, 0), textcoords="offset points",
-                rotation=90, va="center", ha="center",
+                va="center", ha="right",
                 fontsize=mpl.rcParams["font.size"] - 1, fontweight="bold",
             )
             start = end + 1

@@ -29,12 +29,12 @@
       "pval_adj": 0.010656758626099676
     },
     {
-      "metabolite": "3,3-Dimethyl-1,2-dithiolane",
+      "metabolite": "(S)-Malate",
       "delta": 0.6805555555555556,
       "pval_adj": 0.045971148824959444
     },
     {
-      "metabolite": "(S)-Malate",
+      "metabolite": "3,3-Dimethyl-1,2-dithiolane",
       "delta": 0.6805555555555556,
       "pval_adj": 0.045971148824959444
     },

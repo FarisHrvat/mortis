@@ -28,8 +28,10 @@ Run it
     python validation/run_validation.py --out validation/results
 
 Everything is cached under ``--cache``, so a second run costs no downloads and
-reproduces bit-for-bit. The manifest written at the end lets anyone check their
-run against ours without either party sharing data.
+reproduces bit-for-bit. The results committed under ``validation/results`` come
+from exactly that command with no extra arguments, so a fresh checkout can diff
+against them. The manifest written at the end lets anyone check their run
+against ours without either party sharing data.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -160,7 +163,11 @@ def common_ions(cache: Path, dataset_ids: List[str], fdr: float, want: int) -> p
             }
         per_dataset[ds] = rows
 
-    shared = set.intersection(*(set(r) for r in per_dataset.values())) if per_dataset else set()
+    # Sorted, not a bare set. Python randomises string hashes per process, so
+    # iterating the intersection directly puts the ions in a different order
+    # every run; the CV ranking below then breaks ties differently and two
+    # identical runs end up with different fingerprints. Found exactly that way.
+    shared = sorted(set.intersection(*(set(r) for r in per_dataset.values()))) if per_dataset else []
 
     # Rank by how much an ion VARIES between sections, not by how bright it is.
     # Intensity-ranked selection returns the housekeeping metabolome: the ions
@@ -177,7 +184,7 @@ def common_ions(cache: Path, dataset_ids: List[str], fdr: float, want: int) -> p
         if values.mean() < floor:
             continue
         spread[ion] = float(values.std() / (values.mean() + 1e-9))   # coefficient of variation
-    chosen = sorted(spread, key=lambda i: -spread[i])[:want]
+    chosen = sorted(spread, key=lambda i: (-spread[i], i))[:want]
     return pd.DataFrame([per_dataset[dataset_ids[0]][ion] for ion in chosen]), per_dataset
 
 
@@ -222,11 +229,20 @@ def build_section(cache: Path, ds: str, ions: pd.DataFrame, per_dataset: dict) -
 # Analysis
 # ---------------------------------------------------------------------------
 
+#: Fixed timestamp stamped into the figure PDFs. Without it every run writes a
+#: different creation date and the PDFs differ byte-for-byte even though the
+#: plots are identical, which makes "diff our results against yours" useless.
+#: Set SOURCE_DATE_EPOCH yourself to override.
+_FIXED_EPOCH = "1735689600"  # 2025-01-01T00:00:00Z
+
+
 def main() -> int:
+    os.environ.setdefault("SOURCE_DATE_EPOCH", _FIXED_EPOCH)
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="validation/results")
     parser.add_argument("--cache", default="validation/cache")
-    parser.add_argument("--sections", type=int, default=16, help="sections per group")
+    parser.add_argument("--sections", type=int, default=12, help="sections per group")
     parser.add_argument("--ions", type=int, default=40)
     parser.add_argument("--fdr", type=float, default=0.1)
     args = parser.parse_args()

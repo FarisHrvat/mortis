@@ -509,9 +509,10 @@ def compare_abundance_and_organization(
     merged["_rank"] = merged["classification"].map(order)
     merged = (
         merged.sort_values(
-            ["_rank", "delta_organization"],
-            ascending=[True, False],
+            ["_rank", "delta_organization", "metabolite"],
+            ascending=[True, False, True],
             key=lambda s: s.abs() if s.name == "delta_organization" else s,
+            kind="stable",
         )
         .drop(columns="_rank")
         .reset_index(drop=True)

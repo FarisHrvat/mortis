@@ -150,3 +150,23 @@ was fixed, and each now has a test that fails on the old code.
 - `save_figure()` used `Path.with_suffix("")`, which eats everything after the
   last dot: `two_axis.dark` quietly became `two_axis`, and `figure_v1.2` would
   have lost its version.
+- Two runs of the same analysis produced different files. Result tables sorted
+  on effect size with no tiebreaker, so equally-ranked metabolites came out in
+  whatever order the sort happened to leave them; and figure PDFs carried the
+  wall-clock time. Ties now break on the compound name, and `SOURCE_DATE_EPOCH`
+  is honoured, so `diff` is a usable way to ask whether anything changed. The
+  public-data validation reproduces byte-for-byte apart from the manifest,
+  which records when the run happened on purpose.
+- Error messages said what was wrong but not what to do about it.
+  `'sample' not found in adata.obs.` is technically accurate and practically
+  useless; it now lists the columns that do exist and, when the name looks like
+  a typo, guesses which one you meant. Several also told you to call
+  `MORTIS.preprocess()`, which is not how the package is imported.
+- `plot_abundance_vs_organization` and `plot_signature_comparison` drew one dot
+  per coordinate, and on a small cohort Cliff's delta takes so few distinct
+  values that a whole panel collapses onto a handful of points. The figure
+  showed twelve dots while the legend said 160. Marker area now scales with how
+  many metabolites share a position, and the figure says so.
+- Group labels on `plot_organization_heatmap` were rotated, so on a two-section
+  arm the text was taller than its own band and the group names printed over
+  each other.

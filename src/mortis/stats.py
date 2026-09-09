@@ -454,8 +454,16 @@ def differential_abundance(
         # An interval excluding zero is the small-n statement worth making.
         result["ci_excludes_zero"] = (low > 0) | (high < 0)
 
+    # Sort on |delta|, but break ties on the name. Without the tiebreaker the
+    # order of equally-ranked metabolites depends on pandas' sort internals,
+    # which is enough to make two identical runs produce non-identical CSVs.
     result = (
-        result.reindex(result["delta"].abs().sort_values(ascending=False).index)
+        result.sort_values(
+            ["delta", "metabolite"],
+            ascending=[False, True],
+            key=lambda s: s.abs() if s.name == "delta" else s,
+            kind="stable",
+        )
         .reset_index(drop=True)
     )
     result.attrs["group1"], result.attrs["group2"] = group1, group2
@@ -571,6 +579,8 @@ def paired_differential_abundance(
                 _, p_varying = stats.wilcoxon(change[:, varying], axis=0, zero_method="wilcox")
                 pvals[varying] = np.nan_to_num(np.asarray(p_varying, dtype=np.float64), nan=1.0)
             except ValueError:
+                # Too few non-zero pairs for the test to be defined. The p = 1
+                # default set above is exactly what we want in that case.
                 pass
     pvals_adj = multipletests(pvals, method="fdr_bh")[1]
 
@@ -591,8 +601,16 @@ def paired_differential_abundance(
         "pval_adj": pvals_adj,
         "n_pairs": n_pairs,
     })
+    # Sort on |delta|, but break ties on the name. Without the tiebreaker the
+    # order of equally-ranked metabolites depends on pandas' sort internals,
+    # which is enough to make two identical runs produce non-identical CSVs.
     result = (
-        result.reindex(result["delta"].abs().sort_values(ascending=False).index)
+        result.sort_values(
+            ["delta", "metabolite"],
+            ascending=[False, True],
+            key=lambda s: s.abs() if s.name == "delta" else s,
+            kind="stable",
+        )
         .reset_index(drop=True)
     )
     result.attrs["time1"], result.attrs["time2"] = time1, time2

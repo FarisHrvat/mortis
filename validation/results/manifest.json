@@ -1,25 +1,25 @@
 {
   "manifest_version": 1,
   "analysis": "MORTIS validation on 2026_Frank_solanum_recal",
-  "created": "2026-07-24T11:47:49+00:00",
+  "created": "2026-09-09T10:08:36+00:00",
   "environment": {
-    "python": "3.11.15",
-    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.13",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
     "packages": {
-      "mortis-spatial": "0.5.0",
-      "numpy": "2.4.3",
-      "scipy": "1.17.1",
-      "pandas": "2.3.3",
-      "anndata": "0.12.10",
-      "scanpy": "1.11.5",
-      "scikit-learn": "1.8.0",
-      "statsmodels": "0.14.6",
-      "numba": "0.65.0",
-      "leidenalg": "0.11.0",
+      "mortis-spatial": "0.1.0",
+      "numpy": "2.5.3",
+      "scipy": "1.18.1",
+      "pandas": "3.0.5",
+      "anndata": "0.13.3.post0",
+      "scanpy": "1.12.4",
+      "scikit-learn": "1.9.0",
+      "statsmodels": "0.15.0",
+      "numba": "0.67.0",
+      "leidenalg": "0.12.0",
       "igraph": "1.0.0",
-      "harmonypy": "0.2.0"
+      "harmonypy": "not installed"
     },
-    "git_commit": "fb57e84c1aebf53d51a3fcb5958df57c68d7a8b3"
+    "git_commit": "356e4374923e9cb3c7ea18d1138adf4fcb1dbba7"
   },
   "data": {
     "n_obs": 24,
@@ -47,7 +47,7 @@
         "n_pixels_in": "250514",
         "n_samples_out": "24"
       },
-      "at": "2026-07-24T11:47:47+00:00"
+      "at": "2026-09-09T10:08:33+00:00"
     }
   ],
   "results": {
@@ -68,7 +68,7 @@
         "pval",
         "pval_adj"
       ],
-      "sha256": "e1c8dd0807da8ecfb1e6f4e28d0ca844d74ad378be8a271b2e4be1c7b98ae41d"
+      "sha256": "b8f4506e6db7cb6e5f19a910703770aed820460b0fd3f8a8cc5c218481daf791"
     },
     "organization": {
       "n_rows": 36,
@@ -84,7 +84,7 @@
         "pval",
         "pval_adj"
       ],
-      "sha256": "a3be6fbccb7198c12e3764c8640ab63011c21f6810f38b873a927ae7d7c9e77c"
+      "sha256": "bb6d645531a701f30602c4568217478a19d0ac74684d7f4282ea503a6c5796d4"
     },
     "two_axis": {
       "n_rows": 36,
@@ -96,7 +96,7 @@
         "pval_adj_abundance",
         "pval_adj_organization"
       ],
-      "sha256": "0abb3f3c9c235e63db7426a69c50ec3895b92616827199303e25fbe0520b0376"
+      "sha256": "41de44a177ec4254e0332212c9593ef5559a74a5b90a5c9cf87b2d22e01c3a6b"
     }
   },
   "notes": "Public METASPACE study, top vs bottom stem sections. Grouping taken from dataset names; see sections.csv for the metadata disagreement.",
@@ -105,5 +105,5 @@
     "n_ions": "36",
     "fdr": "0.1"
   },
-  "seal_sha256": "a6c47d9fcebcfa1bf47a52d1f7f7b8a7f7200beccb737e3fd6fa320183b32fff"
+  "seal_sha256": "1a210839d5c7b57dffd6b0e1aa4df0e92a59dee624535975ffc7af49313b5543"
 }
