@@ -175,7 +175,10 @@ def map_compound_ids(
     """
     names = [str(n) for n in names]
     if not names:
-        raise InvalidParameterError("names must be a non-empty sequence.")
+        raise InvalidParameterError(
+            "names is empty, so there is nothing to look up. Pass adata.var_names, "
+            "or the subset of compounds you want identifiers for."
+        )
 
     directory = _cache_dir(cache)
     frames = []

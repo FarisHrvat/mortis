@@ -64,7 +64,7 @@ def make_writable(adata: ad.AnnData) -> ad.AnnData:
 
 
 def _read_tabular(file_path: Path) -> ad.AnnData:
-    """Parse a CSV or XLSX file into an AnnData object using high-performance engines."""
+    """Parse a CSV or XLSX file into an AnnData object."""
     try:
         if file_path.suffix.lower() == ".csv":
             try:

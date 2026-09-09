@@ -151,7 +151,7 @@ class TestFindMarkers:
 
     def test_invalid_method_raises(self, preprocessed_adata):
         adata = cluster(preprocessed_adata.copy(), resolution=0.5)
-        with pytest.raises(InvalidParameterError, match="method must be"):
+        with pytest.raises(InvalidParameterError, match="Unknown method"):
             find_markers(adata, method="bad_method")
 
 
@@ -184,11 +184,11 @@ class TestCompareGroups:
         assert (results["pval_adj"].diff().dropna() >= 0).all()
 
     def test_invalid_groupby_raises(self, preprocessed_adata):
-        with pytest.raises(InvalidParameterError, match="not found in adata.obs"):
+        with pytest.raises(InvalidParameterError, match="no column called"):
             compare_groups(preprocessed_adata, "nonexistent", "A", "B")
 
     def test_invalid_group_raises(self, preprocessed_adata):
-        with pytest.raises(InvalidParameterError, match="not found"):
+        with pytest.raises(InvalidParameterError, match="No pixels are labelled"):
             compare_groups(preprocessed_adata, "condition", "A", "C")
 
     def test_insufficient_samples_raises(self):

@@ -1,5 +1,5 @@
 site_name: MORTIS
-site_description: High-performance downstream analysis for spatial metabolomics (imaging mass spectrometry), built on AnnData/scanpy.
+site_description: Downstream analysis for spatial metabolomics (imaging mass spectrometry), on top of AnnData and scanpy.
 site_url: https://farishrvat.github.io/mortis/
 repo_name: FarisHrvat/mortis
 repo_url: https://github.com/FarisHrvat/mortis

@@ -62,7 +62,7 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
-from .exceptions import InvalidParameterError
+from .exceptions import InvalidParameterError, listing
 
 __all__ = [
     "classify_compounds",
@@ -402,7 +402,9 @@ def classification_report(
     """
     if key not in adata.var.columns:
         raise InvalidParameterError(
-            f"'{key}' not found in adata.var. Run mortis.classify_compounds(adata) first."
+            f"There is no {key!r} column in adata.var to group compounds by. "
+            f"Run mortis.classify_compounds(adata) to add it. Columns present: "
+            f"{listing(adata.var.columns)}."
         )
     counts = adata.var[key].value_counts()
     report = (
@@ -460,11 +462,19 @@ def class_enrichment(
     """
     if key not in adata.var.columns:
         raise InvalidParameterError(
-            f"'{key}' not found in adata.var. Run mortis.classify_compounds(adata) first."
+            f"There is no {key!r} column in adata.var to group compounds by. "
+            f"Run mortis.classify_compounds(adata) to add it. Columns present: "
+            f"{listing(adata.var.columns)}."
         )
     for column in ("metabolite", effect_col):
         if column not in result.columns:
-            raise InvalidParameterError(f"'result' is missing required column '{column}'.")
+            raise InvalidParameterError(
+                f"The result table has no {column!r} column. This function expects "
+                f"the output of mortis.differential_abundance() or "
+                f"mortis.compare_groups(); pass effect_col= if your effect size "
+                f"sits under a different name. Columns present: "
+                f"{listing(result.columns)}."
+            )
 
     classes = adata.var[key].astype(str)
     lookup = dict(zip(adata.var_names.astype(str), classes))
@@ -571,9 +581,19 @@ def pathway_ora(
     """
     for column in ("metabolite", effect_col):
         if column not in result.columns:
-            raise InvalidParameterError(f"'result' is missing required column '{column}'.")
+            raise InvalidParameterError(
+                f"The result table has no {column!r} column. This function expects "
+                f"the output of mortis.differential_abundance() or "
+                f"mortis.compare_groups(); pass effect_col= if your effect size "
+                f"sits under a different name. Columns present: "
+                f"{listing(result.columns)}."
+            )
     if not metabolite_sets:
-        raise InvalidParameterError("metabolite_sets must be a non-empty dict.")
+        raise InvalidParameterError(
+            "metabolite_sets is empty, so every test would have zero members. "
+            "Build it from mortis.annotate_pathways(), or pass your own "
+            "{set_name: [compound, ...]} mapping."
+        )
     if fdr_threshold is not None and "pval_adj" not in result.columns:
         raise InvalidParameterError(
             "fdr_threshold was given but 'result' has no 'pval_adj' column."
@@ -638,7 +658,9 @@ def pathway_ora(
             report.loc[mask, "pval"].to_numpy(), method="fdr_bh"
         )[1]
 
-    report = report.sort_values(["direction", "pval"]).reset_index(drop=True)
+    report = report.sort_values(
+        ["direction", "pval", "pathway"], kind="stable"
+    ).reset_index(drop=True)
     print(
         f"[MORTIS] Pathway ORA: {report['pathway'].nunique()} pathway(s) tested against "
         f"{len(background)} measured compounds, "

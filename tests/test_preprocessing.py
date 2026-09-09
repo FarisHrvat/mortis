@@ -93,7 +93,7 @@ class TestFilterBackground:
         assert clean[0].n_vars == 0
 
     def test_zero_cutoff_raises(self, paired_adata):
-        with pytest.raises(InvalidParameterError, match="cutoff must be > 0"):
+        with pytest.raises(InvalidParameterError, match="has to be positive"):
             filter_background([paired_adata], cutoff=0, mode="sample")
 
     def test_invalid_mode_raises(self, paired_adata):

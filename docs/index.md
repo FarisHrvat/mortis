@@ -10,7 +10,7 @@ hide:
 # MORTIS
 
 <p class="tagline">
-High-performance downstream analysis for spatial metabolomics (imaging mass
+Downstream analysis for spatial metabolomics (imaging mass
 spectrometry) — from raw instrument export to publication-ready figures,
 in one consistent Python API built on <strong>AnnData</strong> and
 <strong>scanpy</strong>.

@@ -17,12 +17,12 @@ dist/
 venv/
 env/
 
-# Editors / OS
+# Editors / OS / local tooling (all of these hold machine-specific paths)
 .vscode/
-.DS_Store
-
-# Local Claude Code dev-preview config (machine-specific absolute paths)
+.idea/
 .claude/
+.cursor/
+.DS_Store
 
 # Notebooks
 .ipynb_checkpoints/

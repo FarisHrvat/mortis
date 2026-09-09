@@ -160,7 +160,7 @@ class TestMapCompoundIds:
         assert len(offline) == 2
 
     def test_rejects_empty_input(self, offline, cache):
-        with pytest.raises(InvalidParameterError, match="non-empty"):
+        with pytest.raises(InvalidParameterError, match="names is empty"):
             mt.map_compound_ids([], cache=cache)
 
     def test_bad_json_raises_network_error(self, monkeypatch, cache):

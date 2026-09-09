@@ -248,7 +248,7 @@ class TestPathwayORA:
 
     def test_rejects_empty_sets(self, setup):
         result, _ = setup
-        with pytest.raises(InvalidParameterError, match="non-empty"):
+        with pytest.raises(InvalidParameterError, match="metabolite_sets is empty"):
             mt.pathway_ora(result, {})
 
     def test_empty_report_has_full_schema(self, setup):

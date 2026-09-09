@@ -302,7 +302,13 @@ def plot_embedding_grid(
     if missing:
         print(f"[MORTIS] Warning: skipping {len(missing)} metabolites not found: {missing[:5]}")
     if not found:
-        raise ValueError("No valid metabolites found in adata.var_names.")
+        from .exceptions import InvalidParameterError, suggest
+
+        raise InvalidParameterError(
+            f"None of the {len(metabolites)} names you passed are in "
+            f"adata.var_names, so there is nothing to draw."
+            f"{suggest(metabolites[0], adata.var_names)}"
+        )
 
     coords = adata.obsm["spatial"]
     layer = "log1p" if "log1p" in adata.layers else None
@@ -360,7 +366,8 @@ def plot_umap(
     from .exceptions import NoEmbeddingError
     if "X_umap" not in adata.obsm:
         raise NoEmbeddingError(
-            "UMAP embedding not found. Run MORTIS.run_umap(adata) first."
+            "There is no UMAP embedding in adata.obsm['X_umap'] to draw. Run "
+            "mortis.run_umap(adata) first."
         )
 
     spot_size = _get_spot_size(adata, _pop_spot_size_kwarg(kwargs))
@@ -422,7 +429,8 @@ def plot_markers(
 
     if "rank_genes_groups" not in adata.uns:
         raise NoClustersError(
-            "Marker results not found. Run MORTIS.find_markers(adata) first."
+            "No marker results on this object. Run mortis.find_markers(adata) "
+            "first; it stores what this plot reads."
         )
     n_clusters = adata.obs[cluster_key].nunique() if cluster_key in adata.obs else 1
     fs = figsize or (max(8, n_top * n_clusters * 0.4), 5)
@@ -562,13 +570,20 @@ def plot_heatmap(
     """Heatmap of mean metabolite intensities across groups."""
     import scanpy as sc
 
-    from .exceptions import InvalidParameterError
+    from .exceptions import InvalidParameterError, listing, suggest
 
     if groupby not in adata.obs.columns:
-        raise InvalidParameterError(f"'{groupby}' not found in adata.obs. ")
+        raise InvalidParameterError(
+            f"There is no column called {groupby!r} in adata.obs, so the heatmap "
+            f"has no rows to average over. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(groupby, adata.obs.columns)}"
+        )
     found = [m for m in metabolites if m in adata.var_names]
     if not found:
-        raise InvalidParameterError("None of the provided metabolites were found in adata.var_names.")
+        raise InvalidParameterError(
+            f"None of the {len(metabolites)} names you passed are in "
+            f"adata.var_names.{suggest(metabolites[0], adata.var_names)}"
+        )
 
     kwargs.setdefault("show", False)
     kwargs.setdefault("cmap", cmap)
@@ -603,15 +618,22 @@ def plot_violin(
     """Violin plots of metabolite intensity distributions per group."""
     import scanpy as sc
 
-    from .exceptions import InvalidParameterError
+    from .exceptions import InvalidParameterError, listing, suggest
 
     if groupby not in adata.obs.columns:
-        raise InvalidParameterError(f"'{groupby}' not found in adata.obs.")
+        raise InvalidParameterError(
+            f"There is no column called {groupby!r} in adata.obs, so there is "
+            f"nothing to split the violins by. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(groupby, adata.obs.columns)}"
+        )
 
     metabolites = [metabolites] if isinstance(metabolites, str) else metabolites
     found = [m for m in metabolites if m in adata.var_names]
     if not found:
-        raise InvalidParameterError("None of the provided metabolites were found in adata.var_names.")
+        raise InvalidParameterError(
+            f"None of the {len(metabolites)} names you passed are in "
+            f"adata.var_names.{suggest(metabolites[0], adata.var_names)}"
+        )
 
     kwargs.setdefault("show", False)
 
@@ -653,11 +675,21 @@ def plot_cluster_composition(
     **kwargs
 ) -> plt.Figure:
     """Stacked bar chart showing cluster composition per condition or sample."""
-    from .exceptions import InvalidParameterError, NoClustersError
+    from .exceptions import InvalidParameterError, NoClustersError, listing, suggest
+
     if cluster_key not in adata.obs.columns:
-        raise NoClustersError(f"Cluster key '{cluster_key}' not found. ")
+        raise NoClustersError(
+            f"No cluster labels called {cluster_key!r} in adata.obs. Run "
+            f"mortis.cluster(adata) first, or pass the name you used. Columns "
+            f"present: {listing(adata.obs.columns)}."
+            f"{suggest(cluster_key, adata.obs.columns)}"
+        )
     if groupby not in adata.obs.columns:
-        raise InvalidParameterError(f"'{groupby}' not found in adata.obs.")
+        raise InvalidParameterError(
+            f"There is no column called {groupby!r} in adata.obs to put on the "
+            f"x-axis. Columns present: {listing(adata.obs.columns)}."
+            f"{suggest(groupby, adata.obs.columns)}"
+        )
 
     ct = pd.crosstab(adata.obs[groupby], adata.obs[cluster_key])
     if normalize:

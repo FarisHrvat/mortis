@@ -1,9 +1,48 @@
 """
 MORTIS Exceptions
 =================
-All custom exceptions raised by MORTIS, with clear, user-friendly messages
-that explain exactly what went wrong and how to fix it.
+The error types MORTIS raises, plus two small helpers (:func:`suggest` and
+:func:`listing`) used to build the messages.
+
+The rule the messages follow: say what was wrong with the call, say what the
+data actually contains, and where a typo is plausible, guess the intended
+name. A user who mistypes a column should not have to open a REPL to find out
+what the columns are called.
 """
+
+import difflib
+from typing import Iterable
+
+
+def listing(options: Iterable, limit: int = 12) -> str:
+    """Render valid names for an error message, truncated so it stays readable.
+
+    A 400-metabolite panel printed in full is not an error message, it is a
+    wall, so anything past ``limit`` becomes a count.
+    """
+    names = [str(o) for o in options]
+    if not names:
+        return "none"
+    shown = ", ".join(repr(n) for n in names[:limit])
+    if len(names) > limit:
+        shown += f", ... ({len(names)} in total)"
+    return shown
+
+
+def suggest(value, options: Iterable, limit: int = 3) -> str:
+    """Guess what the user meant, as a sentence ready to append to a message.
+
+    Returns an empty string when nothing is close, so it can be dropped into
+    an f-string unconditionally.
+    """
+    close = difflib.get_close_matches(
+        str(value), [str(o) for o in options], n=limit, cutoff=0.6
+    )
+    if not close:
+        return ""
+    if len(close) == 1:
+        return f" Did you mean {close[0]!r}?"
+    return " Did you mean " + " or ".join(repr(c) for c in close) + "?"
 
 
 class PseudoreplicationWarning(UserWarning):

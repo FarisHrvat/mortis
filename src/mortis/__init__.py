@@ -1,30 +1,39 @@
 """
 MORTIS
 ======
-High-performance downstream analysis for spatial metabolomics (imaging
-mass spectrometry), built on AnnData/scanpy.
+Downstream analysis for spatial metabolomics (imaging mass spectrometry),
+on top of AnnData and scanpy.
+
+The short version of what it is for: an imaging run gives you tens of
+thousands of pixels per section, but a study has a handful of patients. Tests
+that treat pixels as replicates will report differences that are not there.
+Everything here that makes a claim about a group does it at the sample level.
 
 Typical workflow
 ----------------
 >>> import mortis as mt
 >>>
->>> # 1. Load data
+>>> # 1. Load and clean
 >>> adatas = mt.load_from_folder("./data")
->>> mt.check_rois(adatas)
+>>> clean, stats = mt.filter_background(adatas, cutoff=1.5, mode="sample")
+>>> adata = mt.merge_samples(clean, sample_col="section")
+>>> adata = mt.preprocess(adata)
 >>>
->>> # 2. Filter background & Preprocess
->>> clean, stats = mt.filter_background(adatas, cutoff=1.5, mode='sample')
->>> adata = mt.preprocess(clean[0])
->>>
->>> # 3. Cluster & Visualize
+>>> # 2. Look at it
 >>> adata = mt.cluster(adata)
->>> mt.plot_umap(adata, color='cluster')
->>> mt.plot_spatial(adata, color='cluster')
+>>> mt.plot_spatial(adata, color="cluster")
 >>>
->>> # 4. Spatial Statistics & Killer Features
->>> adata, morans = mt.spatial_autocorrelation(adata)
->>> interactome = mt.metabolite_colocalization(adata)
->>> mt.plot_colocalization_network(interactome)
+>>> # 3. Test at the level of the patient, not the pixel
+>>> pb = mt.pseudobulk(adata, sample_key="section", carry_obs=["response"])
+>>> abundance = mt.differential_abundance(pb, "response", "R", "NR")
+>>>
+>>> # 4. Then ask whether the arrangement changed, not just the amount
+>>> org = mt.spatial_organization(adata, sample_key="section",
+...                               carry_obs=["response"])
+>>> layout = mt.differential_spatial_organization(org, "response", "R", "NR")
+>>>
+>>> # 5. Write down what was run, so the numbers can be checked later
+>>> mt.export_manifest(adata, "run/manifest.json")
 """
 
 from __future__ import annotations
@@ -354,7 +363,7 @@ __all__ = [
     "save_results",
     "save_adata",
 
-    # Killer Features (Analysis)
+    # Spatial structure
     "spatially_weighted_nmf",
     "spatial_gradient",
     "metabolite_colocalization",
@@ -372,7 +381,7 @@ __all__ = [
     "plot_cluster_composition",
     "plot_morans",
 
-    # Killer Features (Plotting)
+    # Spatial structure plots
     "plot_spatial_gradient",
     "plot_colocalization_network",
 ]

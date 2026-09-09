@@ -38,6 +38,8 @@ from .exceptions import (
     NoEmbeddingError,
     NotPreprocessedError,
     PseudoreplicationWarning,
+    listing,
+    suggest,
 )
 from .preprocessing import _N_JOBS
 
@@ -90,26 +92,40 @@ def _purge_legacy_cache(adata: ad.AnnData) -> None:
 def _check_preprocessed(adata: ad.AnnData) -> None:
     if not adata.uns.get("preprocessed_steps"):
         raise NotPreprocessedError(
-            "This AnnData has not been preprocessed. "
-            "Run MORTIS.preprocess(adata) before calling analysis functions."
+            "This object has not been preprocessed, so intensities are still on "
+            "the raw acquisition scale and any test run on them would mostly be "
+            "measuring total ion current. Run mortis.preprocess(adata) first, or "
+            "tic_normalize() and log1p_transform() by hand if you want the steps "
+            "separately."
         )
 
 def _check_clusters(adata: ad.AnnData, key: str) -> None:
     if key not in adata.obs.columns:
         raise NoClustersError(
-            f"Cluster labels '{key}' not found in adata.obs. "
-            "Run MORTIS.cluster(adata) first."
+            f"No cluster labels called {key!r} in adata.obs. Run "
+            f"mortis.cluster(adata) to make them, or pass the name you actually "
+            f"used. Columns present: {listing(adata.obs.columns)}."
+            f"{suggest(key, adata.obs.columns)}"
         )
 
 def _check_neighbors(adata: ad.AnnData) -> None:
     if "neighbors" not in adata.uns:
         raise NoEmbeddingError(
-            "Neighbour graph not found. Run MORTIS.run_neighbors(adata) first."
+            "There is no expression-space neighbour graph on this object, and "
+            "this step needs one. Run mortis.run_neighbors(adata). If you meant "
+            "the spatial graph instead, that one is built by "
+            "mortis.spatial_neighbors(adata) and lives in adata.obsp."
         )
 
 def _check_spatial(adata: ad.AnnData) -> None:
     if "spatial" not in adata.obsm:
-        raise MissingSpatialError("adata.obsm['spatial'] is missing.")
+        raise MissingSpatialError(
+            "This object has no pixel coordinates in adata.obsm['spatial'], so "
+            "nothing spatial can be computed from it. Loading through "
+            "mortis.read_file() fills them in from the 'x' and 'y' columns; if "
+            "you built the object yourself, set "
+            "adata.obsm['spatial'] = adata.obs[['x', 'y']].to_numpy(float)."
+        )
 
 # ---------------------------------------------------------------------------
 # Clustering
@@ -171,8 +187,12 @@ def cluster_nmf(
     copy: bool = False,
     **kwargs
 ) -> Tuple[ad.AnnData, pd.DataFrame]:
-    """Non-negative Matrix Factorisation (NMF) clustering with NVIDIA GPU Dispatch."""
-    if n_components < 2: raise InvalidParameterError("n_components must be ≥ 2.")
+    """Non-negative matrix factorisation. Uses cuML if it is installed, scikit-learn otherwise."""
+    if n_components < 2:
+        raise InvalidParameterError(
+            f"n_components must be at least 2 for a factorisation to mean "
+            f"anything, got {n_components}."
+        )
     if copy: adata = adata.copy()
 
     X = _get_X(adata)
@@ -195,7 +215,7 @@ def cluster_nmf(
             W = model.components_.get().astype(np.float32)
             gpu_success = True
         except ImportError:
-            pass
+            pass  # no cuml on this machine; the scikit-learn path below runs
 
     if not gpu_success:
         from sklearn.decomposition import NMF
@@ -443,7 +463,11 @@ def find_markers(
     n_top: int = 20, copy: bool = False, **kwargs
 ) -> Tuple[ad.AnnData, pd.DataFrame]:
     valid_methods = {"wilcoxon", "t-test", "logreg"}
-    if method not in valid_methods: raise InvalidParameterError(f"method must be in {valid_methods}.")
+    if method not in valid_methods:
+        raise InvalidParameterError(
+            f"Unknown method {method!r}. Pick one of "
+            f"{listing(sorted(valid_methods))}.{suggest(method, valid_methods)}"
+        )
     _check_clusters(adata, cluster_key)
     _check_preprocessed(adata)
     if copy: adata = adata.copy()
@@ -525,14 +549,31 @@ def compare_groups(
             PseudoreplicationWarning,
             stacklevel=2,
         )
-    if groupby not in adata.obs.columns: raise InvalidParameterError(f"'{groupby}' not found in adata.obs.")
+    if groupby not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {groupby!r} in adata.obs, so there is "
+            f"nothing to group the pixels by. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(groupby, adata.obs.columns)}"
+        )
     available = adata.obs[groupby].unique().tolist()
     for g in (group1, group2):
-        if g not in available: raise InvalidParameterError(f"Group '{g}' not found.")
+        if g not in available:
+            raise InvalidParameterError(
+                f"No pixels are labelled {g!r} in adata.obs[{groupby!r}]. The "
+                f"labels in that column are: {listing(available)}."
+                f"{suggest(g, available)}"
+            )
 
     if copy: adata = adata.copy()
     mask1, mask2 = adata.obs[groupby].values == group1, adata.obs[groupby].values == group2
-    if mask1.sum() < 3 or mask2.sum() < 3: raise InsufficientSamplesError("Need ≥ 3 pixels per group.")
+    if mask1.sum() < 3 or mask2.sum() < 3:
+        raise InsufficientSamplesError(
+            f"A rank test needs at least 3 pixels on each side, and this split "
+            f"gives {int(mask1.sum())} for {group1!r} and {int(mask2.sum())} for "
+            f"{group2!r}. Check that you are grouping on the column you meant, "
+            f"and that background pixels have not already been filtered out of "
+            f"one of the groups."
+        )
 
     X = _get_X(adata)
     X1, X2 = X[mask1], X[mask2]
@@ -555,7 +596,7 @@ def compare_groups(
         "metabolite": adata.var_names, "mean_group1": mean1, "mean_group2": mean2,
         "log2fc": log2fc, "cohen_d": cohen_d, "statistic": stat_arr,
         "pval": pvals, "pval_adj": pvals_adj, "significant": pvals_adj < 0.05,
-    }).sort_values("pval_adj").reset_index(drop=True)
+    }).sort_values(["pval_adj", "metabolite"], kind="stable").reset_index(drop=True)
 
     adata.uns["compare_groups"] = {"groupby": groupby, "group1": group1, "group2": group2, "method": method, "results": results_df}
     print(f"[MORTIS] {group1} vs {group2}: {results_df['significant'].sum()}/{adata.n_vars} significant (FDR<0.05)")
@@ -567,9 +608,20 @@ def multi_group_test(
     valid_methods = {"kruskal", "anova"}
     if method not in valid_methods:
         raise InvalidParameterError(f"method must be one of {valid_methods}, got '{method}'.")
-    if groupby not in adata.obs.columns: raise InvalidParameterError(f"'{groupby}' not found in adata.obs.")
+    if groupby not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {groupby!r} in adata.obs, so there is "
+            f"nothing to group the pixels by. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(groupby, adata.obs.columns)}"
+        )
     groups = adata.obs[groupby].unique().tolist()
-    if len(groups) < 2: raise InvalidParameterError("Need ≥ 2 groups.")
+    if len(groups) < 2:
+        raise InvalidParameterError(
+            f"adata.obs[{groupby!r}] holds a single value ({groups[0]!r}), so "
+            f"there is only one group and nothing to compare it against. If you "
+            f"subset the object earlier, the other groups were probably dropped "
+            f"then."
+        )
     if copy: adata = adata.copy()
 
     X = _get_X(adata)
@@ -590,7 +642,7 @@ def multi_group_test(
     results_df = pd.DataFrame({
         "metabolite": adata.var_names, "statistic": stat_arr, "pval": pvals,
         "pval_adj": pvals_adj, "significant": pvals_adj < 0.05, "eta_squared": eta_sq,
-    }).sort_values("pval_adj").reset_index(drop=True)
+    }).sort_values(["pval_adj", "metabolite"], kind="stable").reset_index(drop=True)
 
     adata.uns["multi_group_test"] = {"groupby": groupby, "method": method, "groups": groups, "results": results_df}
     print(f"[MORTIS] Multi-group test ({method}): {results_df['significant'].sum()}/{adata.n_vars} significant (FDR<0.05)")
@@ -925,7 +977,12 @@ def local_moran(adata: ad.AnnData, metabolite: str, n_neighbors: int = 6, batch_
         lisa_type``.
     """
     _check_spatial(adata)
-    if metabolite not in adata.var_names: raise InvalidParameterError(f"Metabolite '{metabolite}' not found.")
+    if metabolite not in adata.var_names:
+        raise InvalidParameterError(
+            f"{metabolite!r} is not one of the {adata.n_vars} metabolites in this "
+            f"object.{suggest(metabolite, adata.var_names)} Names are matched "
+            f"exactly, so trailing spaces and case differences count."
+        )
     if copy: adata = adata.copy()
 
     coords, n = np.asarray(adata.obsm["spatial"], dtype=np.float64), adata.n_obs
@@ -992,7 +1049,11 @@ def getis_ord_gi(
     """
     _check_spatial(adata)
     if metabolite not in adata.var_names:
-        raise InvalidParameterError(f"Metabolite '{metabolite}' not found.")
+        raise InvalidParameterError(
+            f"{metabolite!r} is not one of the {adata.n_vars} metabolites in this "
+            f"object.{suggest(metabolite, adata.var_names)} Names are matched "
+            f"exactly, so trailing spaces and case differences count."
+        )
     if copy: adata = adata.copy()
 
     coords = np.asarray(adata.obsm["spatial"], dtype=np.float64)
@@ -1100,7 +1161,12 @@ def neighborhood_enrichment(
         call time, so this parameter is not just cosmetic.
     """
     _check_clusters(adata, cluster_key)
-    if "spatial_connectivities" not in adata.obsp: raise InvalidParameterError("Run MORTIS.spatial_neighbors first.")
+    if "spatial_connectivities" not in adata.obsp:
+        raise InvalidParameterError(
+            "This step counts cluster adjacencies over the spatial graph, and "
+            "the graph has not been built yet. Run "
+            "mortis.spatial_neighbors(adata) first."
+        )
     if copy: adata = adata.copy()
 
     prior_n_threads = nb.get_num_threads()
@@ -1468,10 +1534,21 @@ def unmix_pixels(
 # ---------------------------------------------------------------------------
 
 def subset_obs(adata: ad.AnnData, obs_col: str, value: Union[str, List[str]], copy: bool = True) -> ad.AnnData:
-    if obs_col not in adata.obs.columns: raise InvalidParameterError(f"'{obs_col}' not found.")
+    if obs_col not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {obs_col!r} in adata.obs. Columns "
+            f"present: {listing(adata.obs.columns)}."
+            f"{suggest(obs_col, adata.obs.columns)}"
+        )
     value = [value] if isinstance(value, str) else value
     mask = adata.obs[obs_col].isin(value)
-    if mask.sum() == 0: raise InvalidParameterError("No pixels found.")
+    if mask.sum() == 0:
+        present = adata.obs[obs_col].unique().tolist()
+        raise InvalidParameterError(
+            f"No pixel in adata.obs[{obs_col!r}] carries any of {list(value)}, so "
+            f"the subset would be empty. That column holds: {listing(present)}."
+            f"{suggest(value[0], present)}"
+        )
     result = adata[mask]
     return result.copy() if copy else result
 
@@ -1490,7 +1567,12 @@ def merge_samples(adatas: List[ad.AnnData], sample_labels: Optional[List[str]] =
     return merged
 
 def split_by_obs(adata: ad.AnnData, obs_col: str, copy: bool = True) -> Dict[str, ad.AnnData]:
-    if obs_col not in adata.obs.columns: raise InvalidParameterError(f"'{obs_col}' not found.")
+    if obs_col not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {obs_col!r} in adata.obs to split on. "
+            f"Columns present: {listing(adata.obs.columns)}."
+            f"{suggest(obs_col, adata.obs.columns)}"
+        )
     return {str(val): (adata[adata.obs[obs_col] == val].copy() if copy else adata[adata.obs[obs_col] == val]) for val in sorted(adata.obs[obs_col].unique())}
 
 # ---------------------------------------------------------------------------
@@ -1536,7 +1618,7 @@ def spatially_weighted_nmf(
             W_comp = model.components_.get().astype(np.float32)
             gpu_success = True
         except ImportError:
-            pass
+            pass  # no cuml on this machine; the scikit-learn path below runs
 
     if not gpu_success:
         from sklearn.decomposition import NMF
@@ -1565,7 +1647,12 @@ def spatial_gradient(
     batch_key: str = "sample", bins: int = 15, max_dist: float = 1000.0
 ) -> pd.DataFrame:
     _check_spatial(adata)
-    if target_col not in adata.obs.columns: raise InvalidParameterError(f"'{target_col}' not found.")
+    if target_col not in adata.obs.columns:
+        raise InvalidParameterError(
+            f"There is no column called {target_col!r} in adata.obs, so there is "
+            f"no reference region to measure distance from. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(target_col, adata.obs.columns)}"
+        )
 
     coords, X, distances = adata.obsm["spatial"], _get_X(adata), np.full(adata.n_obs, np.inf)
 
@@ -1679,7 +1766,12 @@ def metabolite_colocalization(
     images. *Bioinformatics* 2020;36(10):3215-3224.
     https://doi.org/10.1093/bioinformatics/btaa085
     """
-    if "morans_i" not in adata.var: raise InvalidParameterError("Run MORTIS.spatial_autocorrelation first.")
+    if "morans_i" not in adata.var:
+        raise InvalidParameterError(
+            "Colocalization is computed on the most spatially structured "
+            "metabolites, which are ranked by Moran's I, and that column is not "
+            "in adata.var yet. Run mortis.spatial_autocorrelation(adata) first."
+        )
     valid_metrics = {"pearson", "cosine", "cosine_median"}
     if metric not in valid_metrics:
         raise InvalidParameterError(f"metric must be one of {valid_metrics}, got '{metric}'.")

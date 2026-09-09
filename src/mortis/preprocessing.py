@@ -31,6 +31,8 @@ from .exceptions import (
     MissingROIError,
     MissingSpatialError,
     NoEmbeddingError,
+    listing,
+    suggest,
 )
 
 _N_JOBS = int(os.environ.get("MORTIS_N_JOBS", os.cpu_count() or 1))
@@ -117,11 +119,22 @@ def _col_means_masked(X, mask: np.ndarray) -> np.ndarray:
 def _check_roi(adata: ad.AnnData) -> None:
     for col in ("is_tissue", "is_background"):
         if col not in adata.obs.columns:
-            raise MissingROIError("adata.obs is missing ROI columns.")
+            raise MissingROIError(
+                f"Background filtering compares tissue against off-tissue pixels, "
+                f"and adata.obs has no {col!r} column to tell them apart. Either "
+                f"draw the regions with mortis.draw_ROIs(adata), or load the "
+                f"tissue and background exports as a pair so the labels are set "
+                f"for you. Columns present: {listing(adata.obs.columns)}."
+            )
 
 def _check_spatial(adata: ad.AnnData) -> None:
     if "spatial" not in adata.obsm:
-        raise MissingSpatialError("adata.obsm['spatial'] is missing.")
+        raise MissingSpatialError(
+            "This object has no pixel coordinates in adata.obsm['spatial']. "
+            "mortis.read_file() fills them in from the 'x' and 'y' columns; if "
+            "you built the object yourself, set "
+            "adata.obsm['spatial'] = adata.obs[['x', 'y']].to_numpy(float)."
+        )
 
 def _record_step(adata: ad.AnnData, step: str) -> None:
     steps = adata.uns.setdefault("preprocessed_steps", [])
@@ -137,9 +150,17 @@ def filter_background(
     cutoff: float = 1.5,
     mode: str = "sample",
 ) -> Tuple[List[ad.AnnData], List[dict]]:
-    if cutoff <= 0: raise InvalidParameterError("cutoff must be > 0.")
+    if cutoff <= 0:
+        raise InvalidParameterError(
+            f"cutoff is a multiple of the background mean, so it has to be "
+            f"positive; got {cutoff}. Values near 1.0 keep almost everything, "
+            f"values near 3.0 keep only clearly on-tissue pixels."
+        )
     if mode not in ("sample", "group"):
-        raise InvalidParameterError(f"mode must be 'sample' or 'group', got '{mode}'.")
+        raise InvalidParameterError(
+            f"mode must be 'sample' (one threshold per section) or 'group' (one "
+            f"threshold shared across the list), got {mode!r}."
+        )
     for adata in adatas: _check_roi(adata)
 
     pseudo = 1e-9
@@ -294,8 +315,13 @@ def run_pca(
     copy: bool = False,
     **kwargs
 ) -> ad.AnnData:
-    """Principal Component Analysis with automatic GPU hardware acceleration."""
-    if adata.n_vars < 2: raise InvalidParameterError("Need at least 2 metabolites for PCA.")
+    """Principal component analysis. Uses cuML if it is installed, scikit-learn otherwise."""
+    if adata.n_vars < 2:
+        raise InvalidParameterError(
+            f"PCA needs at least 2 metabolites to have an axis to rotate, and "
+            f"this object has {adata.n_vars}. If a filtering step ran earlier, "
+            f"it was probably stricter than intended."
+        )
     if copy: adata = adata.copy()
 
     n_comps = min(n_comps, min(adata.n_obs, adata.n_vars) - 1)
@@ -334,7 +360,11 @@ def correct_batches(
     the data -- ComBat's design matrix would be singular and it would crash.
     """
     if batch_key not in adata.obs:
-        raise InvalidParameterError(f"'{batch_key}' not found in adata.obs")
+        raise InvalidParameterError(
+            f"There is no column called {batch_key!r} in adata.obs, so ComBat has "
+            f"no batches to correct. Columns present: "
+            f"{listing(adata.obs.columns)}.{suggest(batch_key, adata.obs.columns)}"
+        )
     if copy: adata = adata.copy()
 
     # Drop covariates that can't actually be protected.
