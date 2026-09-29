@@ -23,21 +23,33 @@ save_spatial_data(adatas, output_dir, prefix)
 
 from __future__ import annotations
 
+import csv
 import re
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import anndata as ad
 import numpy as np
 import pandas as pd
 
-from .exceptions import FileFormatError, MissingROIError
+from .exceptions import FileFormatError, InvalidParameterError, MissingROIError, listing
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-_SUPPORTED_EXTENSIONS = {".h5ad", ".csv", ".xlsx"}
+_SUPPORTED_EXTENSIONS = {
+    ".h5ad",
+    ".csv", ".tsv", ".txt", ".tab",      # delimiter is sniffed, not assumed
+    ".xlsx", ".xlsm", ".xls",
+    ".parquet", ".pq",
+    ".rds",                               # needs pyreadr, see _read_rds
+}
+
+#: Delimiters worth trying when a text export does not say which it used.
+#: Semicolon first after comma because that is what a European locale writes
+#: when the decimal separator is a comma.
+_DELIMITERS = (",", ";", "\t", "|")
 
 
 def make_writable(adata: ad.AnnData) -> ad.AnnData:
@@ -63,14 +75,214 @@ def make_writable(adata: ad.AnnData) -> ad.AnnData:
     return adata
 
 
-def _read_tabular(file_path: Path) -> ad.AnnData:
-    """Parse a CSV or XLSX file into an AnnData object."""
+def _sniff_delimiter(file_path: Path) -> str:
+    """Work out which delimiter a text export used.
+
+    Instrument software disagrees: SCiLS writes tabs, a European Excel writes
+    semicolons, METASPACE writes commas. csv.Sniffer is the first try, and
+    when it cannot decide we pick whichever candidate splits the header and
+    the first data row into the same number of fields, most fields winning.
+    """
+    with file_path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+        sample = handle.read(64 * 1024)
+    if not sample.strip():
+        raise FileFormatError(f"'{file_path.name}' is empty.")
+
     try:
-        if file_path.suffix.lower() == ".csv":
+        return csv.Sniffer().sniff(sample, delimiters="".join(_DELIMITERS)).delimiter
+    except csv.Error:
+        pass
+
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:2]
+    best, best_fields = None, 1
+    for candidate in _DELIMITERS:
+        counts = [len(next(csv.reader([ln], delimiter=candidate))) for ln in lines]
+        if counts and len(set(counts)) == 1 and counts[0] > best_fields:
+            best, best_fields = candidate, counts[0]
+    if best is None:
+        raise FileFormatError(
+            f"Could not work out the delimiter in '{file_path.name}'. Tried "
+            f"comma, semicolon, tab and pipe, and none of them split the "
+            f"header and the first row into the same number of columns. If it "
+            f"uses something else, read it with pandas and hand the frame to "
+            f"mortis.from_dataframe()."
+        )
+    return best
+
+
+def _read_text_table(file_path: Path) -> pd.DataFrame:
+    """Read a delimited text export, sniffing the delimiter and the decimals."""
+    sep = _sniff_delimiter(file_path)
+    frame = pd.read_csv(file_path, sep=sep, encoding="utf-8", engine="python")
+    # A European export writes "12,5" for twelve and a half, which pandas reads
+    # as text. Left alone it would coerce to NaN and land in the matrix as a
+    # zero, so look for it and re-read with the matching decimal mark.
+    if _looks_like_comma_decimals(frame):
+        frame = pd.read_csv(file_path, sep=sep, decimal=",",
+                            encoding="utf-8", engine="python")
+    return frame
+
+
+_COMMA_DECIMAL = re.compile(r"^\s*-?\d{1,3}(?:\.\d{3})*,\d+\s*$")
+
+
+def _looks_like_comma_decimals(frame: pd.DataFrame) -> bool:
+    """True when a text column is really numbers written the European way."""
+    for column in frame.columns:
+        values = frame[column]
+        # pandas 2 calls a text column 'object', pandas 3 calls it 'str'.
+        if pd.api.types.is_numeric_dtype(values):
+            continue
+        sample = values.dropna().astype(str).head(20)
+        if len(sample) and sample.map(lambda v: bool(_COMMA_DECIMAL.match(v))).all():
+            return True
+    return False
+
+
+def _read_rds(file_path: Path) -> pd.DataFrame:
+    """Read an R .rds holding a data frame, via pyreadr."""
+    try:
+        import pyreadr
+    except ImportError as exc:
+        raise ImportError(
+            "Reading .rds files needs pyreadr, which is not part of the "
+            "default install:\n\n    pip install 'mortis-spatial[rds]'\n\n"
+            "Alternatively, save the object from R as a csv or parquet, which "
+            "MORTIS reads without an extra dependency."
+        ) from exc
+    try:
+        result = pyreadr.read_r(str(file_path))
+    except Exception as exc:
+        raise FileFormatError(
+            f"pyreadr could not read '{file_path.name}'. It handles a data "
+            f"frame saved with saveRDS(); an S4 object, a Seurat object or a "
+            f"list will not come through.\nOriginal error: {exc}"
+        ) from exc
+    frames = [v for v in result.values() if isinstance(v, pd.DataFrame)]
+    if not frames:
+        raise FileFormatError(
+            f"'{file_path.name}' holds no data frame. saveRDS() of a matrix or "
+            "a list gives something pyreadr cannot turn into a table; convert "
+            "it to a data.frame in R first."
+        )
+    return frames[0]
+
+
+#: Column names different exporters use for the pixel coordinates.
+_X_ALIASES = ("x", "X", "x_pos", "xpos", "x_coord", "column", "col", "Column")
+_Y_ALIASES = ("y", "Y", "y_pos", "ypos", "y_coord", "row", "Row")
+
+
+def _normalise_coordinate_names(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename whatever the exporter called the coordinates to 'x' and 'y'.
+
+    SCiLS writes 'x'/'y', METASPACE writes 'x'/'y', but a plain image export
+    often writes 'Row'/'Column' and an R pipeline tends to write 'X'/'Y'.
+    Matching case-insensitively saves the user a rename they should not have
+    had to think about.
+    """
+    if "x" in df.columns and "y" in df.columns:
+        return df
+    lowered = {str(c).lower(): c for c in df.columns}
+    rename = {}
+    for target, aliases in (("x", _X_ALIASES), ("y", _Y_ALIASES)):
+        if target in df.columns:
+            continue
+        for alias in aliases:
+            found = lowered.get(alias.lower())
+            if found is not None and found not in rename:
+                rename[found] = target
+                break
+    return df.rename(columns=rename) if rename else df
+
+
+def from_dataframe(
+    df: pd.DataFrame,
+    x: str = "x",
+    y: str = "y",
+    sample: Optional[str] = None,
+) -> ad.AnnData:
+    """
+    Build an AnnData from a table you have already read yourself.
+
+    The escape hatch for a format MORTIS does not read: load it with whatever
+    library does, hand the frame over here, and the rest of the package works
+    as usual. Every column that is not a coordinate is treated as a compound.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        One row per pixel. Needs the two coordinate columns; everything else
+        is taken as intensities.
+    x, y : str
+        Names of the coordinate columns. Default ``'x'`` and ``'y'``.
+    sample : str, optional
+        Written to ``adata.obs['sample']`` so merged cohorts keep track of
+        where a pixel came from.
+
+    Returns
+    -------
+    anndata.AnnData
+        With coordinates in ``.obsm['spatial']`` and compounds as
+        ``.var_names``.
+
+    Raises
+    ------
+    InvalidParameterError
+        If a coordinate column is missing, or nothing is left to treat as a
+        compound.
+
+    Examples
+    --------
+    >>> frame = pd.read_stata("export.dta")
+    >>> adata = mt.from_dataframe(frame, x="X", y="Y")
+    """
+    missing = [c for c in (x, y) if c not in df.columns]
+    if missing:
+        raise InvalidParameterError(
+            f"Coordinate column(s) {missing} are not in this frame. Columns "
+            f"present: {listing(df.columns)}. Pass the names you use, for "
+            f"example from_dataframe(df, x='Row', y='Column')."
+        )
+    compounds = [c for c in df.columns if c not in (x, y)]
+    if not compounds:
+        raise InvalidParameterError(
+            "This frame has the two coordinate columns and nothing else, so "
+            "there are no intensities to analyse."
+        )
+    obs = pd.DataFrame(
+        {"x": df[x].to_numpy(dtype=np.float32), "y": df[y].to_numpy(dtype=np.float32)},
+        index=[f"{int(a)}_{int(b)}" for a, b in zip(df[x], df[y])],
+    )
+    if sample is not None:
+        obs["sample"] = sample
+    adata = ad.AnnData(
+        X=df[compounds].to_numpy(dtype=np.float32),
+        obs=obs,
+        var=pd.DataFrame(index=[str(c) for c in compounds]),
+    )
+    adata.obs_names_make_unique()
+    adata.obsm["spatial"] = obs[["x", "y"]].to_numpy(dtype=np.float32)
+    return adata
+
+
+def _read_tabular(file_path: Path) -> ad.AnnData:
+    """Parse a delimited text, Excel, parquet or RDS file into an AnnData."""
+    suffix = file_path.suffix.lower()
+    try:
+        if suffix in {".csv", ".tsv", ".txt", ".tab"}:
+            df = _read_text_table(file_path)
+        elif suffix in {".parquet", ".pq"}:
             try:
-                df = pd.read_csv(file_path, engine="pyarrow")
-            except ImportError:
-                df = pd.read_csv(file_path)
+                df = pd.read_parquet(file_path)
+            except ImportError as exc:
+                raise ImportError(
+                    "Reading parquet needs pyarrow, which is not part of the "
+                    "default install:\n\n    pip install "
+                    "'mortis-spatial[fast-io]'"
+                ) from exc
+        elif suffix == ".rds":
+            df = _read_rds(file_path)
         else:
             try:
                 # python-calamine is a fast optional reader; fall back to
@@ -78,12 +290,16 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
                 df = pd.read_excel(file_path, engine="calamine")
             except ImportError:
                 df = pd.read_excel(file_path, engine="openpyxl")
+    except (FileFormatError, ImportError):
+        raise
     except Exception as exc:
         raise FileFormatError(
-            f"Could not read '{file_path.name}'. "
-            f"Make sure the file is a valid CSV or Excel file.\n"
-            f"Original error: {exc}"
+            f"Could not read '{file_path.name}'. MORTIS accepts "
+            f"{sorted(_SUPPORTED_EXTENSIONS)}, and the file has to be a table "
+            f"with one row per pixel.\nOriginal error: {exc}"
         ) from exc
+
+    df = _normalise_coordinate_names(df)
 
     missing = [c for c in ("x", "y") if c not in df.columns]
     if missing:
@@ -107,7 +323,7 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
     y_vals = obs_df["y"].astype(int).values
     obs_df.index = [f"{x}_{y}" for x, y in zip(x_vals, y_vals)]
 
-    X = df[metabolite_cols].apply(pd.to_numeric, errors='coerce').fillna(0).to_numpy(dtype=np.float32)
+    X = _intensities(df, metabolite_cols, file_path)
     var_df = pd.DataFrame(index=metabolite_cols)
     var_df.index.name = None
 
@@ -115,6 +331,37 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
     adata.obsm["spatial"] = obs_df[["x", "y"]].to_numpy(dtype=np.float32)
     adata.uns["source_file"] = file_path.name
     return adata
+
+
+def _intensities(df: pd.DataFrame, columns: List[str], file_path: Path) -> np.ndarray:
+    """Turn the compound columns into a float32 matrix, loudly.
+
+    Blanks are a genuine zero, so those are filled. Text that is not a number
+    is not: coercing it to zero quietly would hand back a matrix full of
+    absent compounds that were only ever a parsing mistake, and nothing
+    downstream could tell the difference.
+    """
+    block = df[columns]
+    coerced = block.apply(pd.to_numeric, errors="coerce")
+    non_blank = block.apply(lambda col: col.astype(str).str.strip() != "")
+    unparseable = coerced.isna() & block.notna() & non_blank
+    if unparseable.to_numpy().any():
+        per_column = unparseable.sum()
+        worst = per_column[per_column > 0].sort_values(ascending=False)
+        examples = []
+        for name in list(worst.index)[:3]:
+            bad = block.loc[unparseable[name], name]
+            if len(bad):
+                examples.append(f"{name!r} has {int(worst[name])}, such as {bad.iloc[0]!r}")
+        raise FileFormatError(
+            f"'{file_path.name}' has values in its compound columns that are "
+            f"not numbers: {'; '.join(examples)}. MORTIS will not read those "
+            f"as zero, because an absent compound and an unreadable one mean "
+            f"different things. Common causes are a decimal comma that did "
+            f"not survive the export, a thousands separator, or a text label "
+            f"like 'n.d.' or 'below LOD' sitting in a numeric column."
+        )
+    return coerced.fillna(0).to_numpy(dtype=np.float32)
 
 
 def _read_h5ad(file_path: Path) -> ad.AnnData:

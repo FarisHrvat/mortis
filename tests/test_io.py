@@ -8,9 +8,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mortis.exceptions import FileFormatError, MissingROIError
+from mortis.exceptions import FileFormatError, InvalidParameterError, MissingROIError
 from mortis.io import (
     check_rois,
+    from_dataframe,
     load_from_folder,
     read_metabolomics_data,
     save_spatial_data,
@@ -98,9 +99,9 @@ class TestReadMetabolomicsData:
             read_metabolomics_data(str(tmp_path / "nonexistent.csv"))
 
     def test_unsupported_extension_raises(self, tmp_path):
-        p = tmp_path / "data.parquet"
+        p = tmp_path / "data.mzml"
         p.write_text("dummy")
-        with pytest.raises(FileFormatError, match="Unsupported"):
+        with pytest.raises(FileFormatError, match="Unsupported file extension"):
             read_metabolomics_data(str(p))
 
     def test_missing_xy_columns_raises(self, tmp_path):
@@ -205,3 +206,74 @@ class TestSaveSpatialData:
         save_spatial_data([adata], output_dir=str(new_dir))
         assert new_dir.exists()
 
+
+
+class TestDelimiterSniffing:
+    """
+    Facilities do not agree on a delimiter. SCiLS writes tabs, a European
+    Excel writes semicolons and a comma decimal mark, METASPACE writes commas.
+    The reader works it out instead of making the user re-export.
+    """
+
+    def _frame(self):
+        rng = np.random.default_rng(0)
+        frame = pd.DataFrame(np.abs(rng.normal(50, 10, (12, 3))).round(3),
+                             columns=["Taurine", "Creatine", "Choline"])
+        frame.insert(0, "y", np.tile(np.arange(4), 3))
+        frame.insert(0, "x", np.repeat(np.arange(3), 4))
+        return frame
+
+    @pytest.mark.parametrize("sep,name", [
+        (",", "comma.csv"), (";", "semi.csv"), ("\t", "tab.txt"),
+        ("|", "pipe.txt"), ("\t", "tabbed.tsv"),
+    ])
+    def test_reads_whatever_the_delimiter_is(self, tmp_path, sep, name):
+        path = tmp_path / name
+        self._frame().to_csv(path, index=False, sep=sep)
+        adata = read_metabolomics_data(str(path))
+        assert adata.shape == (12, 3)
+        assert list(adata.var_names) == ["Taurine", "Creatine", "Choline"]
+
+    def test_european_decimal_comma_parses_as_numbers(self, tmp_path):
+        path = tmp_path / "euro.csv"
+        self._frame().to_csv(path, index=False, sep=";", decimal=",")
+        adata = read_metabolomics_data(str(path))
+        assert adata.X.dtype == np.float32
+        assert adata.X.sum() > 0          # not parsed as text and zeroed
+
+    def test_row_and_column_are_accepted_as_coordinates(self, tmp_path):
+        path = tmp_path / "rc.csv"
+        self._frame().rename(columns={"x": "Row", "y": "Column"}).to_csv(path, index=False)
+        adata = read_metabolomics_data(str(path))
+        assert "spatial" in adata.obsm
+
+    def test_unreadable_delimiter_says_what_was_tried(self, tmp_path):
+        path = tmp_path / "odd.csv"
+        path.write_text("x~y~Taurine\n1~2~3\n", encoding="utf-8")
+        with pytest.raises(FileFormatError, match="comma, semicolon, tab and pipe"):
+            read_metabolomics_data(str(path))
+
+
+class TestFromDataFrame:
+    """The escape hatch for a format MORTIS does not read."""
+
+    def test_builds_an_object_from_a_frame(self):
+        frame = pd.DataFrame({"x": [0, 1], "y": [0, 0], "Taurine": [1.0, 2.0]})
+        adata = from_dataframe(frame)
+        assert adata.shape == (2, 1)
+        assert "spatial" in adata.obsm
+
+    def test_custom_coordinate_columns(self):
+        frame = pd.DataFrame({"Row": [0, 1], "Col": [0, 0], "Taurine": [1.0, 2.0]})
+        adata = from_dataframe(frame, x="Row", y="Col")
+        assert adata.n_obs == 2
+
+    def test_missing_coordinates_names_the_columns_present(self):
+        frame = pd.DataFrame({"a": [1], "b": [2]})
+        with pytest.raises(InvalidParameterError, match="Coordinate column"):
+            from_dataframe(frame)
+
+    def test_no_compounds_is_refused(self):
+        frame = pd.DataFrame({"x": [0], "y": [0]})
+        with pytest.raises(InvalidParameterError, match="no intensities"):
+            from_dataframe(frame)

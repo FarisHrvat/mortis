@@ -49,6 +49,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib import font_manager
 
 from .exceptions import InvalidParameterError, listing, suggest
 
@@ -70,6 +71,18 @@ __all__ = [
 
 #: Colours are chosen to stay distinguishable in greyscale and under the common
 #: forms of colour-vision deficiency: they differ in lightness, not only in hue.
+#: Figure formats MORTIS writes. Vector first: a journal wants the vector
+#: file, and a raster one is for a slide or a preprint server that refuses
+#: anything else.
+_VECTOR_FORMATS = ("pdf", "svg", "eps", "ps")
+_RASTER_FORMATS = ("png", "jpg", "jpeg", "tiff", "tif", "webp")
+_SAVE_FORMATS = frozenset(_VECTOR_FORMATS + _RASTER_FORMATS)
+
+#: matplotlib names a couple of formats differently from the extension people
+#: expect on the file.
+_EXTENSION = {"jpeg": "jpg", "tif": "tiff"}
+
+
 PALETTE = {
     "up": "#B2182B",            # higher in group 1   (RdBu-11)
     "down": "#2166AC",          # higher in group 2   (RdBu-11)
@@ -179,8 +192,12 @@ def set_publication_style(
         Real LaTeX is markedly slower per figure, so it is off by default,
         turn it on for the final render.
     font_family : str
-        ``"sans-serif"`` (Helvetica/Arial-like, the journal default) or
-        ``"serif"`` (Times-like, matching most LaTeX manuscripts).
+        ``"sans-serif"`` (Helvetica/Arial-like, the journal default),
+        ``"serif"`` (Times-like, matching most LaTeX manuscripts),
+        ``"monospace"``, or the name of a font installed on this machine,
+        for example ``"Arial"`` or ``"Helvetica Neue"``. A named font that
+        is not installed raises, rather than letting matplotlib fall back to
+        DejaVu Sans and hand you figures that differ between machines.
     base_size : float
         Base font size in points. 8 pt suits a single-column figure at final
         print size; raise it for slides.
@@ -201,10 +218,21 @@ def set_publication_style(
     """
     if base_size <= 0:
         raise InvalidParameterError(f"base_size must be > 0, got {base_size}.")
-    if font_family not in ("sans-serif", "serif"):
-        raise InvalidParameterError(
-            f"font_family must be 'sans-serif' or 'serif', got '{font_family}'."
-        )
+    generic = font_family in ("sans-serif", "serif", "monospace")
+    if not generic:
+        # A named family, "Arial" or "Helvetica Neue" or whatever the journal
+        # asks for. Check it is actually installed, because matplotlib's own
+        # behaviour is to warn once and silently draw DejaVu Sans, which means
+        # a figure set that looks right locally and wrong on another machine.
+        available = {f.name for f in font_manager.fontManager.ttflist}
+        if font_family not in available:
+            raise InvalidParameterError(
+                f"No font called {font_family!r} is installed, so matplotlib "
+                f"would quietly fall back to DejaVu Sans and your figures "
+                f"would not match. Installed families close to that name: "
+                f"{listing(sorted(n for n in available if font_family.lower()[:4] in n.lower()) or sorted(available), limit=10)}."
+                f"{suggest(font_family, available)}"
+            )
     if theme not in ("print", "light", "dark"):
         raise InvalidParameterError(
             f"theme must be 'print', 'light' or 'dark', got '{theme}'."
@@ -232,7 +260,7 @@ def set_publication_style(
         "svg.fonttype": "none",   # SVG text stays text, not paths
 
         "text.usetex": use_latex,
-        "font.family": font_family,
+        "font.family": font_family if generic else [font_family],
         "font.size": base_size,
         "axes.titlesize": base_size + 1,
         "axes.labelsize": base_size,
@@ -325,6 +353,8 @@ def save_figure(
     formats: Sequence[str] = ("pdf",),
     provenance: Optional[Dict[str, Any]] = None,
     close: bool = False,
+    dpi: Optional[int] = None,
+    transparent: bool = False,
 ) -> Dict[str, Path]:
     """
     Write a figure in one or more formats, with provenance in the PDF metadata.
@@ -337,9 +367,20 @@ def save_figure(
         Output path. Any extension is replaced by each requested format, so
         ``"fig1"`` and ``"fig1.pdf"`` behave the same.
     formats : sequence of str
-        Any of ``"pdf"`` (vector, editable text, the one to submit),
-        ``"svg"`` (vector, for further editing), ``"png"`` (raster, for
-        drafts and slides), ``"eps"`` (legacy journals).
+        Vector: ``"pdf"`` (editable text, the one to submit), ``"svg"`` (for
+        further editing), ``"eps"`` and ``"ps"`` (legacy journals).
+        Raster: ``"png"``, ``"jpg"``, ``"tiff"`` and ``"webp"``. TIFF is
+        written with lossless LZW compression, which is what journals asking
+        for TIFF expect; JPEG is written at quality 95 and has no
+        transparency.
+    dpi : int, optional
+        Resolution for the raster formats. Defaults to whatever the active
+        style set, which is 300 after
+        :func:`set_publication_style`. Ignored by the vector formats, which
+        have no resolution.
+    transparent : bool
+        Draw the figure background transparent. Ignored for JPEG, which has
+        no alpha channel and would come out on black.
     provenance : dict, optional
         Analysis parameters to embed. A short SHA-256 of the JSON goes in as
         ``mortis_hash``, so two figures made from the same parameters carry the
@@ -363,19 +404,34 @@ def save_figure(
     >>> mt.save_figure(fig, "figures/fig2", formats=("pdf", "png"),
     ...                provenance={"cohort": "vedolizumab", "seed": 0})
     """
-    valid = {"pdf", "svg", "png", "eps"}
-    formats = tuple(formats)
-    unknown = [f for f in formats if f not in valid]
+    formats = tuple(str(f).lower().lstrip(".") for f in formats)
+    unknown = [f for f in formats if f not in _SAVE_FORMATS]
     if unknown:
-        raise InvalidParameterError(f"Unknown format(s) {unknown}. Available: {sorted(valid)}.")
+        raise InvalidParameterError(
+            f"Unknown figure format(s) {unknown}. MORTIS writes "
+            f"{listing(sorted(_SAVE_FORMATS))}."
+            f"{suggest(unknown[0], _SAVE_FORMATS)}"
+        )
     if not formats:
-        raise InvalidParameterError("At least one format is required.")
+        raise InvalidParameterError(
+            "At least one format is required, for example formats=('pdf', 'png')."
+        )
+    if dpi is not None and dpi <= 0:
+        raise InvalidParameterError(
+            f"dpi has to be positive, got {dpi}. 300 is the usual submission "
+            "figure, 600 for line art, 1200 where a journal asks for it."
+        )
+    if dpi is None and any(f in _RASTER_FORMATS for f in formats):
+        # rcParams["savefig.dpi"] is the string "figure" by default, meaning
+        # "whatever the figure itself is set to", so it cannot just be cast.
+        configured = mpl.rcParams.get("savefig.dpi")
+        dpi = int(fig.dpi) if configured in (None, "figure") else int(configured)
 
     # Only strip a trailing extension when it is one of ours. Path.with_suffix("")
     # would take everything after the last dot, so "figure_v1.2" or
     # "two_axis.dark" would silently lose part of the name.
     base = Path(path)
-    if base.suffix.lower().lstrip(".") in valid:
+    if base.suffix.lower().lstrip(".") in _SAVE_FORMATS:
         base = base.with_suffix("")
     base.parent.mkdir(parents=True, exist_ok=True)
 
@@ -395,11 +451,21 @@ def save_figure(
     for fmt in formats:
         # Append rather than with_suffix(), which would replace a dotted
         # part of the stem such as the "dark" in "two_axis.dark".
-        out = base.parent / f"{base.name}.{fmt}"
+        out = base.parent / f"{base.name}.{_EXTENSION.get(fmt, fmt)}"
+        options: Dict[str, Any] = {"format": fmt, "transparent": transparent}
+        if fmt in _RASTER_FORMATS:
+            options["dpi"] = dpi
+        if fmt in {"jpg", "jpeg"}:
+            # JPEG has no alpha channel, so a transparent figure would come
+            # out on black. matplotlib only honours facecolor here.
+            options["transparent"] = False
+            options["pil_kwargs"] = {"quality": 95}
+        if fmt == "tiff" or fmt == "tif":
+            # LZW is lossless and is what the journals that ask for TIFF want.
+            options["pil_kwargs"] = {"compression": "tiff_lzw"}
         if fmt == "pdf" and metadata is not None:
-            fig.savefig(out, format="pdf", metadata=metadata)
-        else:
-            fig.savefig(out, format=fmt)
+            options["metadata"] = metadata
+        fig.savefig(out, **options)
         written[fmt] = out
 
     if close:

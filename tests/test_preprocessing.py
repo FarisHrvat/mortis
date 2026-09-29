@@ -16,6 +16,7 @@ from mortis.preprocessing import (
     _numba_thread_limit,
     filter_background,
     log1p_transform,
+    median_normalize,
     preprocess,
     run_neighbors,
     run_pca,
@@ -290,3 +291,39 @@ class TestNumbaThreadLimit:
             assert numba.get_num_threads() == _SKLEARN_THREAD_LIMIT
         assert numba.get_num_threads() == prior
 
+
+class TestReadOnlyInput:
+    """
+    anndata can hand back a read-only .X, from a backed file or a
+    memory-mapped array. The normalisation steps write in place, so they have
+    to notice and copy rather than raise.
+    """
+
+    def _frozen(self):
+        X = np.abs(np.random.default_rng(0).normal(5, 1, (30, 6))).astype(np.float32)
+        X.flags.writeable = False
+        obs = pd.DataFrame({"x": np.arange(30), "y": np.zeros(30)},
+                           index=[f"p{i}" for i in range(30)])
+        adata = ad.AnnData(X=X, obs=obs, var=pd.DataFrame(index=[f"m{i}" for i in range(6)]))
+        adata.obsm["spatial"] = obs[["x", "y"]].to_numpy(dtype=np.float32)
+        return adata
+
+    def test_log1p_copies_instead_of_raising(self):
+        adata = self._frozen()
+        log1p_transform(adata)
+        assert np.isfinite(adata.X).all()
+
+    def test_tic_normalize_copies_instead_of_raising(self):
+        adata = self._frozen()
+        tic_normalize(adata)
+        assert np.isfinite(adata.X).all()
+
+    def test_median_normalize_copies_instead_of_raising(self):
+        adata = self._frozen()
+        median_normalize(adata)
+        assert np.isfinite(adata.X).all()
+
+    def test_preprocess_runs_end_to_end_on_read_only_input(self):
+        adata = self._frozen()
+        result = preprocess(adata)
+        assert "X_pca" in result.obsm

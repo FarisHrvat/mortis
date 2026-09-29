@@ -110,6 +110,18 @@ def _to_dense(X) -> np.ndarray:
     arr = np.asarray(X)
     return arr.astype(np.float32, copy=False)
 
+
+def _to_dense_writable(X) -> np.ndarray:
+    """Dense float32 that we are allowed to write into.
+
+    astype(copy=False) hands back the caller's own array when it is already
+    float32, and that array can be read-only: anndata serves one straight out
+    of the file in backed mode, and a memory-mapped or shared array behaves
+    the same way. An in-place ufunc on it raises instead of normalising.
+    """
+    arr = _to_dense(X)
+    return arr if arr.flags.writeable else arr.copy()
+
 def _col_means_masked(X, mask: np.ndarray) -> np.ndarray:
     mask_sum = max(mask.sum(), 1)
     if issparse(X):
@@ -275,7 +287,7 @@ def tic_normalize(
         X = X.multiply((target / row_sums).astype(np.float32)[:, None]).tocsr()
         adata.X = X
     else:
-        X = _to_dense(adata.X)
+        X = _to_dense_writable(adata.X)
         row_sums = X.sum(axis=1, keepdims=True)
         row_sums[row_sums == 0] = 1.0
         target = target_sum if target_sum is not None else np.median(row_sums)
@@ -307,7 +319,7 @@ def median_normalize(
         of per-pixel medians across the dataset.
     """
     if copy: adata = adata.copy()
-    X = _to_dense(adata.X)
+    X = _to_dense_writable(adata.X)
 
     row_medians = np.empty(X.shape[0], dtype=np.float32)
     for i in range(X.shape[0]):
@@ -352,7 +364,7 @@ def log1p_transform(adata: ad.AnnData, copy: bool = False) -> ad.AnnData:
         np.log1p(X.data, out=X.data)
         adata.X = X
     else:
-        X = _to_dense(adata.X)
+        X = _to_dense_writable(adata.X)
         np.log1p(X, out=X)
         adata.X = X
     _record_step(adata, "log1p")

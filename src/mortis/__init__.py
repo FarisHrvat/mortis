@@ -137,6 +137,7 @@ from .interactive import (
 # I/O
 from .io import (
     check_rois,
+    from_dataframe,
     load_annotation_scores,
     load_from_folder,
     make_writable,
@@ -246,6 +247,7 @@ __all__ = [
 
     # I/O
     "read_metabolomics_data",
+    "from_dataframe",
     "make_writable",
     "load_from_folder",
     "load_annotation_scores",

@@ -40,8 +40,10 @@ MORTIS asks both, and asks them at the level where the statistics actually hold:
   abundance test and to bulk metabolomics entirely.
 - **Cohorts, not sections.** Compare two drugs, or the same patients before and
   after treatment, and ask whether a signature persists, reorganises, or flips.
-- **Figures and receipts.** Vector PDFs whose text stays editable, plus a sealed
-  manifest a reviewer can check your re-run against without you sending them a
+- **Figures and receipts.** Vector PDF, SVG and EPS whose text stays editable,
+  plus PNG, JPEG and TIFF at whatever DPI the journal asks for. Fonts, sizes,
+  colours and DPI are all yours to set. Every figure can carry a sealed
+  manifest a reviewer checks your re-run against, without you sending them a
   single byte of patient data.
 
 ## What it is not
@@ -58,8 +60,12 @@ It is not built for a single section. Most of what it adds is about comparing
 groups of patients, and on one section a good deal of it will refuse to run
 rather than give you a p-value that counts pixels as replicates.
 
-It does not read raw vendor formats. Convert to imzML or a feature table
-first.
+It does not read raw vendor formats or imzML. It starts from a peak-picked
+table: `.csv`, `.tsv`, `.txt`, `.xlsx`, `.parquet`, `.rds` or `.h5ad`. The
+delimiter and the decimal mark are worked out from the file, so a
+semicolon-and-comma export out of a European Excel reads without editing.
+For anything else, read it with whatever library does and hand the frame to
+`mt.from_dataframe()`.
 
 ## Install
 

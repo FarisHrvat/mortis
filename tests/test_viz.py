@@ -175,8 +175,41 @@ class TestExport:
 
     def test_rejects_unknown_format(self, tmp_path, result):
         fig = mt.plot_effect_size(result, top_n=5)
-        with pytest.raises(InvalidParameterError, match="Unknown format"):
-            mt.save_figure(fig, tmp_path / "fig", formats=("tiff",))
+        with pytest.raises(InvalidParameterError, match="Unknown figure format"):
+            mt.save_figure(fig, tmp_path / "fig", formats=("bmp",))
+
+    @pytest.mark.parametrize("fmt,extension", [
+        ("pdf", "pdf"), ("svg", "svg"), ("eps", "eps"),
+        ("png", "png"), ("jpg", "jpg"), ("jpeg", "jpg"),
+        ("tiff", "tiff"), ("tif", "tiff"),
+    ])
+    def test_writes_every_supported_format(self, tmp_path, result, fmt, extension):
+        fig = mt.plot_effect_size(result, top_n=5)
+        written = mt.save_figure(fig, tmp_path / "fig", formats=(fmt,))
+        assert written[fmt].name == f"fig.{extension}"
+        assert written[fmt].stat().st_size > 0
+
+    def test_dpi_changes_the_raster_size(self, tmp_path, result):
+        fig = mt.plot_effect_size(result, top_n=5)
+        low = mt.save_figure(fig, tmp_path / "low", formats=("png",), dpi=72)["png"]
+        high = mt.save_figure(fig, tmp_path / "high", formats=("png",), dpi=300)["png"]
+        assert high.stat().st_size > low.stat().st_size
+
+    def test_dpi_must_be_positive(self, tmp_path, result):
+        fig = mt.plot_effect_size(result, top_n=5)
+        with pytest.raises(InvalidParameterError, match="dpi has to be positive"):
+            mt.save_figure(fig, tmp_path / "fig", formats=("png",), dpi=0)
+
+    def test_vector_output_keeps_its_text_as_text(self, tmp_path, result):
+        # The house style sets svg.fonttype="none", which is what keeps a
+        # label editable in Illustrator instead of becoming outlines.
+        mt.set_publication_style(theme="print")
+        try:
+            fig = mt.plot_effect_size(result, top_n=5)
+            out = mt.save_figure(fig, tmp_path / "fig", formats=("svg",))["svg"]
+            assert "<text" in out.read_text(encoding="utf-8")
+        finally:
+            mt.reset_style()
 
 
 # ---------------------------------------------------------------------------

@@ -77,7 +77,10 @@ dev = [
     "pytest>=7.0", "pytest-cov", "ruff", "build", "esda", "libpysal",
     "pyyaml>=6.0", "leidenalg>=0.10.0", "python-igraph>=0.10.0",
 ]
+# parquet needs pyarrow; the calamine reader is a faster path for .xlsx.
 fast-io = ["pyarrow", "python-calamine"]
+# .rds files, for anyone coming from an R pipeline (Cardinal, Seurat exports).
+rds = ["pyreadr>=0.5.0"]
 image-network = ["networkx", "adjustText"]
 
 [project.scripts]

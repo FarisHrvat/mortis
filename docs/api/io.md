@@ -1,5 +1,42 @@
 # I/O
 
+## Formats
+
+| Extension | Notes |
+|---|---|
+| `.csv`, `.tsv`, `.txt`, `.tab` | Delimiter is sniffed: comma, semicolon, tab or pipe. A comma decimal mark is detected and re-read. |
+| `.xlsx`, `.xlsm`, `.xls` | Uses `python-calamine` when installed, `openpyxl` otherwise. |
+| `.parquet`, `.pq` | Needs `pip install "mortis-spatial[fast-io]"`. |
+| `.rds` | An R `data.frame` saved with `saveRDS()`. Needs `pip install "mortis-spatial[rds]"`. |
+| `.h5ad` | AnnData, the format MORTIS writes. |
+
+Coordinates may be called `x`/`y`, `X`/`Y`, `Row`/`Column`, `x_pos`/`y_pos` or
+`x_coord`/`y_coord`. Anything else, rename the columns or use
+[`from_dataframe()`](#from_dataframe).
+
+A compound column that holds text MORTIS cannot parse as a number is an error,
+not a zero. An absent compound and an unreadable one mean different things, and
+a file full of quietly zeroed intensities looks exactly like real data.
+
+---
+
+## `from_dataframe`
+
+```python
+mt.from_dataframe(df, x: str = "x", y: str = "y", sample: str | None = None) -> anndata.AnnData
+```
+
+The escape hatch for a format MORTIS does not read. Load it with whatever
+library does, hand over the frame, and the rest of the package works as usual.
+Every column that is not a coordinate is treated as a compound.
+
+```python
+import pandas as pd
+adata = mt.from_dataframe(pd.read_stata("export.dta"), x="X", y="Y")
+```
+
+---
+
 ## `read_metabolomics_data`
 
 ```python
