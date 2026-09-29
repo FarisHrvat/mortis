@@ -2,7 +2,7 @@
 Tests for chemical-class assignment and enrichment.
 
 The compound names in ``REAL_NAMES`` are taken verbatim from a facility MSI
-export, because that is the naming the classifier actually has to survive —
+export, because that is the naming the classifier actually has to survive,
 a curated list of textbook metabolite names would not exercise the cases that
 break rule-based classifiers.
 """
@@ -306,3 +306,4 @@ class TestReferenceTable:
         """(+)-, (2R,3S)- and friends must not block a match."""
         adata = mt.classify_compounds(_adata(["(+)-Cholesterol", "(2R,3S)-Glucose"]))
         assert adata.var["chemical_class"].astype(str).tolist() == ["Sterol", "Carbohydrate"]
+

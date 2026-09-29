@@ -6,7 +6,7 @@ need a separate import.
 
 | Exception | When raised | How to fix |
 |---|---|---|
-| [`MortisError`](#mortiserror) | Base class for all MORTIS errors | — |
+| [`MortisError`](#mortiserror) | Base class for all MORTIS errors |, |
 | [`MissingROIError`](#missingroierror) | ROI labels missing from `.obs` | Run [`draw_ROIs()`](roi.md#draw_rois) or load paired tissue/background files |
 | [`MissingSpatialError`](#missingspatialerror) | No `adata.obsm['spatial']` | Ensure `x`/`y` columns exist in your file |
 | [`NotPreprocessedError`](#notpreprocessederror) | Analysis called before preprocessing | Run [`preprocess()`](preprocessing.md#preprocess) first |
@@ -111,8 +111,9 @@ what values are accepted.
 
 ## `FileFormatError`
 
-Raised when a file can't be parsed — an unrecognized extension, or
+Raised when a file can't be parsed, an unrecognized extension, or
 missing required columns (`x`, `y`, at least one metabolite column).
 
 **Fix:** verify your file's extension is `.h5ad`/`.csv`/`.xlsx` and that
 it has the required columns.
+

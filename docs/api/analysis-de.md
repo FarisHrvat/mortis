@@ -1,4 +1,4 @@
-# Analysis — Differential Expression
+# Analysis. Differential Expression
 
 ## `find_markers`
 
@@ -31,7 +31,7 @@ mt.save_results(markers, "markers.csv")
 ```
 
 <div class="mortis-img-grid" markdown>
-<figure markdown>![Marker dotplot](../assets/img/marker_dotplot_488IMb.png)<figcaption><code>plot_markers()</code> — dot size = fraction expressing, colour = mean expression</figcaption></figure>
+<figure markdown>![Marker dotplot](../assets/img/marker_dotplot_488IMb.png)<figcaption><code>plot_markers()</code>, dot size = fraction expressing, colour = mean expression</figcaption></figure>
 <figure markdown>![Marker heatmap](../assets/img/marker_heatmap_488IMb.png)<figcaption><code>plot_heatmap()</code> on the same markers, grouped by cluster</figcaption></figure>
 </div>
 
@@ -51,12 +51,12 @@ correction (Benjamini-Hochberg).
 
 | Parameter | Default | Description |
 |---|---|---|
-| `groupby` | — | Column in `adata.obs` defining the groups (e.g. `"condition"`, `"cluster"`) |
+| `groupby` |, | Column in `adata.obs` defining the groups (e.g. `"condition"`, `"cluster"`) |
 | `method` | `"wilcoxon"` | `"wilcoxon"`/`"mannwhitney"` (equivalent) or `"ttest"` |
 
 **Returns:** `(AnnData, DataFrame)` with columns `metabolite`,
 `mean_group1`, `mean_group2`, `log2fc`, `cohen_d`, `statistic`, `pval`,
-`pval_adj`, `significant` (FDR < 0.05) — sorted by `pval_adj`.
+`pval_adj`, `significant` (FDR < 0.05), sorted by `pval_adj`.
 
 **Raises:** [`InsufficientSamplesError`](exceptions.md#insufficientsampleserror)
 (need ≥ 3 pixels/group); [`InvalidParameterError`](exceptions.md#invalidparametererror)
@@ -71,7 +71,7 @@ mt.plot_volcano(results, group1="healthy", group2="tumour", show_table=True)
 
 **Verified numerically identical** to calling
 `scipy.stats.mannwhitneyu` + `statsmodels.stats.multitest.multipletests`
-directly on the same data — see
+directly on the same data, see
 [`tests/test_correctness_vs_reference.py`](https://github.com/FarisHrvat/mortis/blob/main/tests/test_correctness_vs_reference.py).
 
 <div class="mortis-figure" markdown>
@@ -87,7 +87,7 @@ directly on the same data — see
 mt.multi_group_test(adata, groupby: str, method: str = "kruskal", copy: bool = False) -> tuple[anndata.AnnData, pandas.DataFrame]
 ```
 
-Omnibus test across **≥ 2** groups — use this instead of many pairwise
+Omnibus test across **≥ 2** groups, use this instead of many pairwise
 `compare_groups()` calls when comparing more than two conditions.
 
 | Parameter | Default | Description |
@@ -103,3 +103,4 @@ for an unknown `method`/`groupby`, or fewer than 2 groups present.
 ```python
 adata, results = mt.multi_group_test(adata, groupby="tissue_region", method="kruskal")
 ```
+

@@ -1,5 +1,5 @@
 """
-Tests for mortis.preprocess — normalization, filtering, PCA, UMAP, neighbors.
+Tests for mortis.preprocess, normalization, filtering, PCA, UMAP, neighbors.
 """
 
 import anndata as ad
@@ -124,7 +124,7 @@ class TestFilterBackground:
 class TestTicNormalize:
     def test_row_sums_equalized(self, tissue_adata):
         # Default target is the median row sum (not 1.0) so log1p stays
-        # informative — see tic_normalize docstring. The invariant to check
+        # informative, see tic_normalize docstring. The invariant to check
         # is that every row is scaled to the *same* total, not to 1.0.
         result = tic_normalize(tissue_adata.copy())
         row_sums = result.X.sum(axis=1)
@@ -289,3 +289,4 @@ class TestNumbaThreadLimit:
             from mortis.preprocessing import _SKLEARN_THREAD_LIMIT
             assert numba.get_num_threads() == _SKLEARN_THREAD_LIMIT
         assert numba.get_num_threads() == prior
+

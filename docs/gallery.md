@@ -13,10 +13,10 @@ caption links to the function reference.
 ## Spatial maps / ion images
 
 <div class="mortis-img-grid" markdown>
-<figure markdown>![](assets/img/spatial_clusters_488IMb.png){ loading=lazy }<figcaption>[`plot_spatial()`](api/plotting.md#plot_spatial) — categorical (cluster)</figcaption></figure>
-<figure markdown>![](assets/img/spatial_clusters_healthy.png){ loading=lazy }<figcaption>`plot_spatial()` — chemistry clusters</figcaption></figure>
-<figure markdown>![](assets/img/spatial_domains_healthy.png){ loading=lazy }<figcaption>`plot_spatial()` — spatial domains</figcaption></figure>
-<figure markdown>![](assets/img/ion_image_grid_488IMb.png){ loading=lazy }<figcaption>[`plot_embedding_grid()`](api/plotting.md#plot_embedding_grid) — small multiples</figcaption></figure>
+<figure markdown>![](assets/img/spatial_clusters_488IMb.png){ loading=lazy }<figcaption>[`plot_spatial()`](api/plotting.md#plot_spatial), categorical (cluster)</figcaption></figure>
+<figure markdown>![](assets/img/spatial_clusters_healthy.png){ loading=lazy }<figcaption>`plot_spatial()`, chemistry clusters</figcaption></figure>
+<figure markdown>![](assets/img/spatial_domains_healthy.png){ loading=lazy }<figcaption>`plot_spatial()`, spatial domains</figcaption></figure>
+<figure markdown>![](assets/img/ion_image_grid_488IMb.png){ loading=lazy }<figcaption>[`plot_embedding_grid()`](api/plotting.md#plot_embedding_grid), small multiples</figcaption></figure>
 <figure markdown>![](assets/img/hotspot_map_healthy.png){ loading=lazy }<figcaption>Getis-Ord Gi* hotspot classification</figcaption></figure>
 <figure markdown>![](assets/img/diversity_map_healthy.png){ loading=lazy }<figcaption>Per-pixel Shannon diversity</figcaption></figure>
 <figure markdown>![](assets/img/nmf_microenvironments_glass.png){ loading=lazy }<figcaption>NMF microenvironments</figcaption></figure>
@@ -26,9 +26,9 @@ caption links to the function reference.
 ## Embeddings
 
 <div class="mortis-img-grid" markdown>
-<figure markdown>![](assets/img/umap_clusters_488IMb.png){ loading=lazy }<figcaption>[`plot_umap()`](api/plotting.md#plot_umap) — by cluster</figcaption></figure>
-<figure markdown>![](assets/img/umap_condition_groups.png){ loading=lazy }<figcaption>`plot_umap()` — by condition</figcaption></figure>
-<figure markdown>![](assets/img/umap_cluster_groups.png){ loading=lazy }<figcaption>`plot_umap()` — multi-sample cohort</figcaption></figure>
+<figure markdown>![](assets/img/umap_clusters_488IMb.png){ loading=lazy }<figcaption>[`plot_umap()`](api/plotting.md#plot_umap), by cluster</figcaption></figure>
+<figure markdown>![](assets/img/umap_condition_groups.png){ loading=lazy }<figcaption>`plot_umap()`, by condition</figcaption></figure>
+<figure markdown>![](assets/img/umap_cluster_groups.png){ loading=lazy }<figcaption>`plot_umap()`, multi-sample cohort</figcaption></figure>
 </div>
 
 ## Differential expression & markers
@@ -37,7 +37,7 @@ caption links to the function reference.
 <figure markdown>![](assets/img/marker_dotplot_488IMb.png){ loading=lazy }<figcaption>[`plot_markers()`](api/plotting.md#plot_markers)</figcaption></figure>
 <figure markdown>![](assets/img/marker_heatmap_488IMb.png){ loading=lazy }<figcaption>[`plot_heatmap()`](api/plotting.md#plot_heatmap)</figcaption></figure>
 <figure markdown>![](assets/img/volcano_responder_vs_nonresponder.png){ loading=lazy }<figcaption>[`plot_volcano()`](api/plotting.md#plot_volcano)</figcaption></figure>
-<figure markdown>![](assets/img/de_heatmap_groups.png){ loading=lazy }<figcaption>`plot_heatmap()` — group comparison</figcaption></figure>
+<figure markdown>![](assets/img/de_heatmap_groups.png){ loading=lazy }<figcaption>`plot_heatmap()`, group comparison</figcaption></figure>
 <figure markdown>![](assets/img/de_violin_groups.png){ loading=lazy }<figcaption>[`plot_violin()`](api/plotting.md#plot_violin)</figcaption></figure>
 </div>
 
@@ -53,5 +53,6 @@ caption links to the function reference.
 
 <div class="mortis-img-grid" markdown>
 <figure markdown>![](assets/img/cluster_composition_glass.png){ loading=lazy }<figcaption>[`plot_cluster_composition()`](api/plotting.md#plot_cluster_composition)</figcaption></figure>
-<figure markdown>![](assets/img/cluster_composition_groups.png){ loading=lazy }<figcaption>`plot_cluster_composition()` — multi-sample cohort</figcaption></figure>
+<figure markdown>![](assets/img/cluster_composition_groups.png){ loading=lazy }<figcaption>`plot_cluster_composition()`, multi-sample cohort</figcaption></figure>
 </div>
+

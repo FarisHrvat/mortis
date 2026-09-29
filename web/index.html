@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MORTIS — cohort-scale spatial metabolomics</title>
+<title>MORTIS, cohort-scale spatial metabolomics</title>
 <meta name="description" content="A Python toolkit for spatial metabolomics: patient-level statistics, differential spatial organization, and publication figures with editable-vector PDF export." />
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -11,8 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
 <style>
 /* ─────────────────────────────────────────────────────────────
-   Tokens. Palette is the package's own figure palette — the
-   RdBu diverging scheme this field reads by default — so the
+   Tokens. Palette is the package's own figure palette, the
+   RdBu diverging scheme this field reads by default, so the
    site and the figures it documents share one identity.
    ───────────────────────────────────────────────────────────── */
 :root {
@@ -26,7 +26,7 @@
   --signal:     #01665e;
   --accent:     var(--signal);
   --code-bg:    #f4f1ec;
-  --shadow:     0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
+  --shadow:     0 1px 2px rgba(16,22,28.06), 0 8px 28px rgba(16,22,28.07);
 
   --serif: "IBM Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
   --sans:  "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -48,18 +48,18 @@
     --nonresp:    #6ba3d6;
     --signal:     #5fb3a8;
     --code-bg:    #121a21;
-    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
+    --shadow:     0 1px 2px rgba(0,0,0.4), 0 10px 34px rgba(0,0,0.35);
   }
 }
 :root[data-theme="dark"] {
   --ink:#eceae5; --ground:#0c1116; --ground-alt:#121a21; --rule:#24303a; --muted:#8a939d;
   --responder:#e2665c; --nonresp:#6ba3d6; --signal:#5fb3a8; --code-bg:#121a21;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.35);
+  --shadow: 0 1px 2px rgba(0,0,0.4), 0 10px 34px rgba(0,0,0.35);
 }
 :root[data-theme="light"] {
   --ink:#10161c; --ground:#fbfaf7; --ground-alt:#f2efe9; --rule:#ddd8cf; --muted:#6a7078;
   --responder:#b2182b; --nonresp:#2166ac; --signal:#01665e; --code-bg:#f4f1ec;
-  --shadow: 0 1px 2px rgba(16,22,28,.06), 0 8px 28px rgba(16,22,28,.07);
+  --shadow: 0 1px 2px rgba(16,22,28.06), 0 8px 28px rgba(16,22,28.07);
 }
 
 *,*::before,*::after { box-sizing: border-box; }
@@ -94,7 +94,7 @@ img { max-width: 100%; height: auto; display: block; }
 .mark { width: 1.15rem; height: auto; display: block; color: var(--signal); }
 .topnav { display: flex; gap: 1.35rem; align-items: center; font-size: .82rem; }
 .topnav a { color: var(--muted); text-decoration: none; transition: color .2s; }
-.topnav a:hover, .topnav a:focus-visible { color: var(--ink); }
+.topnav a:hover.topnav a:focus-visible { color: var(--ink); }
 @media (max-width: 720px) { .topnav a[data-optional] { display: none; } }
 .themetoggle { background: none; border: 1px solid var(--rule); color: var(--muted); cursor: pointer;
   font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; padding: .3rem .6rem; border-radius: 2px; }
@@ -107,13 +107,13 @@ img { max-width: 100%; height: auto; display: block; }
 .section--plain { border-top: none; }
 .section--tint { background: var(--ground-alt); }
 .prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1.1rem; }
-/* Justified, but never hyphenated — a word broken across lines with a dash
+/* Justified, but never hyphenated, a word broken across lines with a dash
    reads as a typo. text-wrap:pretty keeps the rag sane without one. */
-.prose p, .step p, figcaption { text-align: justify; hyphens: none; -webkit-hyphens: none;
+.prose p.step p, figcaption { text-align: justify; hyphens: none; -webkit-hyphens: none;
   text-wrap: pretty; overflow-wrap: break-word; }
 .prose .eyebrow { text-align: left; }
 /* Justification needs room. Below this the gaps between words get ugly. */
-@media (max-width: 760px) { .prose p, .step p, figcaption { text-align: left; } }
+@media (max-width: 760px) { .prose p.step p, figcaption { text-align: left; } }
 .eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase;
   color: var(--muted); display: flex; align-items: center; gap: .95rem; }
 /* 2px, not 1px: a hairline rule and small caps alias into each other on
@@ -313,13 +313,13 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
 .pin__layer { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0;
   transition: opacity .55s ease, transform .55s ease; transform: scale(.985); }
 .pin__layer.is-live { opacity: 1; transform: none; }
-.pin__layer img, .pin__layer canvas { max-height: 100%; max-width: 100%; width: auto; height: auto; }
+.pin__layer img.pin__layer canvas { max-height: 100%; max-width: 100%; width: auto; height: auto; }
 
 /* ── Motion ───────────────────────────────────────────────── */
 /* Scroll-linked, not scroll-triggered: --enter runs 0 to 1 as an element
    crosses the viewport, so motion tracks the scrollbar rather than firing
    once. Falls back to the plain reveal if the driver never runs. */
-.reveal { opacity: 0; transform: translateY(22px); transition: opacity .8s cubic-bezier(.2,.6,.2,1), transform .8s cubic-bezier(.2,.6,.2,1); }
+.reveal { opacity: 0; transform: translateY(22px); transition: opacity .8s cubic-bezier(.2.6.2,1), transform .8s cubic-bezier(.2.6.2,1); }
 [data-enter] { --enter: 0; opacity: calc(.25 + .75 * var(--enter));
   transform: translateY(calc((1 - var(--enter)) * 26px)); transition: none; }
 .section > .wrap > .prose > h2 { --enter: 1; }
@@ -384,7 +384,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
       <h1>The same amount,<br /><em>arranged differently.</em></h1>
       <p class="hero__sub">
         Imaging mass spectrometry tells you where a metabolite is, then most analyses throw
-        that away and ask only how much. MORTIS tests both — at the patient level, where the
+        that away and ask only how much. MORTIS tests both, at the patient level, where the
         statistics are actually valid.
       </p>
       <div class="hero__cta">
@@ -412,7 +412,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
       </p>
       <p>
         Here is what that costs, measured. Six simulated patients, three per arm, 500 pixels each,
-        200 metabolites — and <strong>no group difference at all</strong>, only the ordinary
+        200 metabolites, and <strong>no group difference at all</strong>, only the ordinary
         variation between patients:
       </p>
     </div>
@@ -435,7 +435,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
     <div class="prose reveal" style="margin-top:2.4rem">
       <p>
         This is not a subtle statistical preference. It is the difference between a result and an
-        artefact, and it is documented for imaging mass spectrometry specifically — a published
+        artefact, and it is documented for imaging mass spectrometry specifically, a published
         pixel-level t-test reporting <code>P = 9.6 × 10⁻⁷</code> where the correct patient-level
         test gives <code>P = 0.78</code>.
       </p>
@@ -454,7 +454,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
       <p class="eyebrow">What imaging can see that bulk cannot</p>
       <h2>Two sections. Identical total signal.</h2>
       <p class="lede">
-        Abundance testing asks whether there is more of something — the question bulk
+        Abundance testing asks whether there is more of something, which is the question bulk
         metabolomics already answers. Run it on imaging data and you have paid for spatial
         resolution to discard it.
       </p>
@@ -477,7 +477,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
             <p class="eyebrow">Step one</p>
             <h3>Measure how much.</h3>
             <p><code>pseudobulk()</code> collapses every pixel in a section to one profile per
-               patient. Twelve sections, twelve numbers per metabolite — the unit the statistics
+               patient. Twelve sections, twelve numbers per metabolite, the unit the statistics
                are actually valid at.</p>
             <p>Spermidine comes back identical in both arms. Cliff's δ = 0.00. A bulk experiment
                would stop here and report nothing.</p>
@@ -486,7 +486,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
             <p class="eyebrow">Step two</p>
             <h3>Then measure how it sits.</h3>
             <p><code>spatial_organization()</code> collapses the same sections to <em>arrangement</em>
-               instead — Moran's I, normalised entropy, Gi* hotspot fraction, Gini. One number per
+               instead. Moran's I, normalised entropy, Gi* hotspot fraction, Gini. One number per
                section per metabolite, scale-free so a big biopsy cannot outscore a small one.</p>
             <p>Every responder concentrates spermidine into a focus. Every non-responder spreads it.
                δ = 1.00, FDR = 0.002.</p>
@@ -524,7 +524,7 @@ footer { border-top: 1px solid var(--rule); padding-block: 3.2rem 4rem; }
         This needs <strong>six sections per group</strong>. Measured, not assumed: on a benchmark
         with three planted organization-only differences among thirty metabolites, effect size
         alone over-called at every cohort size, while effect size plus FDR gave exactly three true
-        and zero false positives from n = 6 upward — and nothing at all below it. A Mann-Whitney
+        and zero false positives from n = 6 upward, and nothing at all below it. A Mann-Whitney
         comparison of five against five bottoms out at <code>p = 0.0079</code>, which cannot
         survive multiple-testing correction. Below six, an empty result is the correct answer.
       </p>
@@ -556,7 +556,7 @@ adatas       = mt.<span class="tok-f">load_from_folder</span>(<span class="tok-s
 clean, stats = mt.<span class="tok-f">filter_background</span>(adatas, cutoff=<span class="tok-s">1.5</span>)
 adata        = mt.<span class="tok-f">preprocess</span>(mt.<span class="tok-f">merge_samples</span>(clean))
 
-<span class="tok-c"># Collapse pixels to patients — never test pixels across patients</span>
+<span class="tok-c"># Collapse pixels to patients, never test pixels across patients</span>
 pb  = mt.<span class="tok-f">pseudobulk</span>(adata, sample_key=<span class="tok-s">"patient"</span>)
 org = mt.<span class="tok-f">spatial_organization</span>(adata, sample_key=<span class="tok-s">"section"</span>)
 
@@ -568,7 +568,7 @@ both = mt.<span class="tok-f">compare_abundance_and_organization</span>(ab, do)
 <span class="tok-c"># Identifiers and pathways, in one call</span>
 ids, paths = mt.<span class="tok-f">annotate_pathways</span>(adata, ab)
 
-<span class="tok-c"># Figures — vector PDF, text stays editable</span>
+<span class="tok-c"># Figures, vector PDF, text stays editable</span>
 mt.<span class="tok-f">set_publication_style</span>(latex=<span class="tok-s">True</span>)
 fig = mt.<span class="tok-f">plot_abundance_vs_organization</span>(both)
 mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3"</span>, provenance={<span class="tok-s">"cohort"</span>: <span class="tok-s">"vedo"</span>, <span class="tok-s">"seed"</span>: <span class="tok-s">0</span>})</code></pre>
@@ -583,7 +583,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
       <h2>What each call gives you back.</h2>
       <p class="lede">
         The quickstart above is the whole analysis in twenty lines. This is the same
-        run opened up — what goes in, what comes out, and what you do with it next.
+        run opened up, what goes in, what comes out, and what you do with it next.
       </p>
     </div>
     <div class="cells reveal" id="walk" data-fill data-enter></div>
@@ -611,7 +611,7 @@ mt.<span class="tok-f">save_figure</span>(fig, <span class="tok-s">"figures/fig3
         <p>
           Checksums are one-way. Nothing in the file can be turned back into an intensity,
           so it is safe to attach to a submission for a cohort that can never leave the
-          institution — which is the situation clinical imaging data is always in.
+          institution, which is the situation clinical imaging data is always in.
         </p>
       </div>
       <div class="reveal" data-delay="1">
@@ -635,7 +635,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
       <p class="eyebrow">Output</p>
       <h2>Figures you can hand to a co-author.</h2>
       <p class="lede">
-        PDF text stays text — embedded TrueType with a character map, so a collaborator can
+        PDF text stays text, embedded TrueType with a character map, so a collaborator can
         retype a label in Illustrator and a reviewer can search the file. Only dense scatter
         interiors are rasterised; axes and labels never are.
       </p>
@@ -656,7 +656,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
       <h2>A public study, start to finish, using nothing else.</h2>
       <p class="lede">
         Everything above is a claim about the package. This is the package run against
-        openly available data by a script anyone can execute — no simulation, no private
+        openly available data by a script anyone can execute, no simulation, no private
         cohort, no other tool in the pipeline.
       </p>
       <p>
@@ -675,14 +675,14 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
         <h3 style="font-family:var(--serif);font-size:1.6rem;font-weight:300">
           A method that finds everything is worth nothing.</h3>
         <p>
-          <strong>Positive control — tomato versus pepper tissue.</strong> Two different
+          <strong>Positive control, tomato versus pepper tissue.</strong> Two different
           plants. A working method has to find something, and it does: four ions separate
           them at FDR &lt; 0.05 across 24 sections, led by
           <code>N1,N12-Diacetylspermine</code> (δ = +0.89) and <code>L-Proline</code>
           (δ = +0.83).
         </p>
         <p>
-          <strong>Underpowered control — position within homo-grafts.</strong> Holding
+          <strong>Underpowered control, position within homo-grafts.</strong> Holding
           species constant leaves only three sections per arm, below the six-per-arm floor
           MORTIS documents. It returns <strong>nothing</strong>, which is the correct
           answer rather than a disappointing one.
@@ -698,7 +698,7 @@ report = mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"mani
           Two further things worth reporting rather than hiding: five sections carry
           <code>condition</code> metadata that contradicts their own name, so grouping
           follows the name; and <strong>zero</strong> ions differ on spatial organization
-          here — an honest null on this tissue.
+          here, an honest null on this tissue.
         </p>
       </div>
       <figure class="figure">
@@ -738,7 +738,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
       </p>
     </div>
     <div class="apibar reveal">
-      <input class="apisearch" id="apiSearch" type="search" placeholder="Search 100 functions — try 'pseudobulk' or 'spatial'" aria-label="Search the API reference" />
+      <input class="apisearch" id="apiSearch" type="search" placeholder="Search 100 functions, try 'pseudobulk' or 'spatial'" aria-label="Search the API reference" />
       <span id="apiCount" class="chip" style="cursor:default" aria-live="polite"></span>
     </div>
     <div id="apiChips" class="apibar reveal" style="margin-top:-.6rem"></div>
@@ -761,7 +761,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
     <div class="prose reveal" style="margin-top:2.4rem">
       <p>
         Spatial statistics stream over metabolite tiles, so a cohort that used to need 4.3 GB of
-        working memory now needs 0.99 GB and runs twice as fast — with bit-identical checksums.
+        working memory now needs 0.99 GB and runs twice as fast, with bit-identical checksums.
         Sparse and disk-backed matrices give the same answers as dense ones, and tile size is a
         memory dial that never changes a result.
       </p>
@@ -857,7 +857,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
   };
 
   /* An irregular section, not a rectangle: a circle perturbed by a few low
-     harmonics, with an inner zone and a lumen through the middle — the same
+     harmonics, with an inner zone and a lumen through the middle, the same
      geometry the documented demo sections use. */
   const cx = COLS / 2, cy = ROWS / 2;
   const phase = [Math.random()*6.28, Math.random()*6.28, Math.random()*6.28];
@@ -921,7 +921,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
     }
     if (head < ROWS * COLS) {                       // the laser position
       const hr = Math.floor(head / COLS), hc = head % COLS;
-      ctx.fillStyle = "rgba(234,227,210,.9)";
+      ctx.fillStyle = "rgba(234,227,210.9)";
       ctx.fillRect(PAD, PAD + hr * ch, (hc + 1) * cw, Math.max(1, ch * 0.16));
     }
   }
@@ -979,7 +979,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
   /* Step one: per-section abundance, drawn so the two arms land on top of
      each other. The point of the panel is that nothing separates them. */
   const barCv = document.getElementById("bars"), bctx = barCv.getContext("2d");
-  const abundance = [[1.02, .97, 1.05, .99, 1.01, .96], [1.00, 1.03, .98, 1.02, .97, 1.01]];
+  const abundance = [[1.02.97, 1.05.99, 1.01.96], [1.00, 1.03.98, 1.02.97, 1.01]];
   const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   function drawBars() {
@@ -1028,10 +1028,10 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
     ["Clean", "background out", "Fold-change filtering, annotation score, DrugBank compounds."],
     ["Normalise", "TIC or median", "Median is more robust when a few ions dominate the pixel total."],
     ["Embed", "PCA · UMAP", "Harmony or ComBat when batches are genuinely confounded."],
-    ["Segment", "niches", "Leiden on a spatially smoothed embedding — contiguous domains."],
+    ["Segment", "niches", "Leiden on a spatially smoothed embedding, contiguous domains."],
     ["Pseudobulk", "pixels → patients", "The step that makes everything after it valid."],
     ["Test", "Cliff's δ", "Effect size first; at n = 4 a rank p-value cannot go below 0.029."],
-    ["Organise", "how, not how much", "Moran's I, entropy, hotspot fraction, Gini — per section."],
+    ["Organise", "how, not how much", "Moran's I, entropy, hotspot fraction, Gini, per section."],
     ["Compare", "across cohorts", "Does the signature persist, reorganise, or flip?"],
     ["Annotate", "KEGG", "Names → HMDB/KEGG → pathways, cached, in one call."],
     ["Figure", "vector PDF", "Editable text, embedded provenance, LaTeX optional."],
@@ -1053,7 +1053,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
     ["morans", "plot_morans", "Most spatially structured metabolites."],
     ["signature", "plot_signature_comparison", "Two cohorts against each other, with ρ."],
     ["class_enrichment", "plot_class_enrichment", "Class effects, with compound counts."],
-    ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR — three channels."],
+    ["pathway", "plot_pathway_dotplot", "Enrichment, hits and FDR, three channels."],
   ];
   document.getElementById("gallery").innerHTML = GALLERY.map(([f, n, d]) =>
     `<div class="stage"><div class="figure__frame">
@@ -1193,7 +1193,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
             <div class="fn__body">
               <div class="fn__sig">${esc(it.sig)}</div>
               ${it.params.length ? `<div class="tablewrap"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th></tr></thead><tbody>
-                ${it.params.map((p) => `<tr><td>${esc(p.name)}</td><td>${esc(p.type || "—")}</td><td>${esc(p.default || "required")}</td></tr>`).join("")}
+                ${it.params.map((p) => `<tr><td>${esc(p.name)}</td><td>${esc(p.type || ", ")}</td><td>${esc(p.default || "required")}</td></tr>`).join("")}
               </tbody></table></div>` : ""}
             </div>
           </div>`).join("")}
@@ -1221,7 +1221,7 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
       });
     });
     const total = data.reduce((a, g) => a + g.items.length, 0);
-    search.placeholder = `Search ${total} functions — try “pseudobulk” or “spatial”`;
+    search.placeholder = `Search ${total} functions, try “pseudobulk” or “spatial”`;
     render();
   }).catch(() => { out.innerHTML = `<p class="lede">The API index could not be loaded.</p>`; });
 
@@ -1233,3 +1233,4 @@ mt.<span class="tok-f">verify_manifest</span>(<span class="tok-s">"validation/re
 </script>
 </body>
 </html>
+

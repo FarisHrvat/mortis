@@ -11,7 +11,7 @@ cannot drift from the code. The page shows whatever is actually importable, and
 CI regenerates this on every deploy, so a renamed argument shows up in the docs
 the same day it lands.
 
-The one thing that is maintained by hand is ``GROUPS`` below — the stage each
+The one thing that is maintained by hand is ``GROUPS`` below, the stage each
 function belongs to, because "which part of the pipeline is this" is editorial
 and not something a signature knows. Anything exported but missing from a group
 is reported loudly rather than dropped, so new functions cannot quietly go
@@ -136,7 +136,7 @@ def main() -> int:
         for name in names:
             fn = getattr(mt, name, None)
             if fn is None:
-                print(f"  ! {name} is in a group but not exported — skipped")
+                print(f"  ! {name} is in a group but not exported, skipped")
                 continue
             documented.add(name)
             try:
@@ -167,9 +167,10 @@ def main() -> int:
     out.write_text(json.dumps(index, indent=1), encoding="utf-8")
     total = sum(len(g["items"]) for g in index)
     print(f"wrote {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out} "
-          f"— {total} functions across {len(index)} stages")
+          f",  {total} functions across {len(index)} stages")
     return 1 if missing else 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

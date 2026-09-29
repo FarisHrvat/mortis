@@ -159,7 +159,7 @@ class TestNoStaleMatrixCache:
 
 class TestDeterminism:
     """
-    Same seed must give the same numbers — on a rerun, and on a machine with a
+    Same seed must give the same numbers, on a rerun, and on a machine with a
     different core count. ``neighborhood_enrichment`` failed the second half:
     ``np.random.seed`` inside an ``@njit(parallel=True)`` function seeds only
     one worker thread, so results tracked the host's CPU count.
@@ -289,7 +289,7 @@ class TestThreadRequestsAreClamped:
     """
     Numba fixes its thread ceiling at import from the core count, and
     ``set_num_threads`` raises above it. Asking for more threads than the
-    machine has is a wish, not an error, so it gets clamped — this used to
+    machine has is not an error, so it gets clamped. That used to
     crash every CI runner with fewer cores than the test asked for.
     """
 
@@ -335,7 +335,7 @@ class TestCrossVersionWriting:
     A file written on one machine has to be re-saveable on another. Newer pandas
     returns nullable StringArray for text columns and anndata refuses to write
     those without an opt-in, so an object that round-tripped through a recent
-    environment could not be saved by an older one — which is exactly the
+    environment could not be saved by an older one, which is exactly the
     situation a container or a cluster node creates. Found by the Docker build.
     """
 
@@ -375,3 +375,4 @@ class TestCrossVersionWriting:
     def test_save_adata_normalises_first(self, tmp_path):
         mt.save_adata(self._string_dtype_adata(), str(tmp_path / "a.h5ad"))
         assert (tmp_path / "a.h5ad").exists()
+

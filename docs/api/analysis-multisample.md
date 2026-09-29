@@ -1,4 +1,4 @@
-# Analysis — Multi-sample & Enrichment
+# Analysis. Multi-sample & Enrichment
 
 ## Multi-sample data management
 
@@ -9,7 +9,7 @@ mt.subset_obs(adata, obs_col: str, value: str | list[str], copy: bool = True) ->
 ```
 
 Subset to one or more values of any `adata.obs` column (not just
-"sample" despite similarly-named tools elsewhere — this works on
+"sample" despite similarly-named tools elsewhere. This works on
 `condition`, `cluster`, `patient`, anything).
 
 **Raises:** [`InvalidParameterError`](exceptions.md#invalidparametererror)
@@ -46,7 +46,7 @@ merged = mt.merge_samples(adatas, sample_labels=["P1", "P2", "P3"], join="outer"
 mt.split_by_obs(adata, obs_col: str, copy: bool = True) -> dict[str, anndata.AnnData]
 ```
 
-Inverse of `merge_samples` — splits one `AnnData` into a
+Inverse of `merge_samples`, splits one `AnnData` into a
 `{value: AnnData}` dict by any obs column.
 
 ```python
@@ -107,7 +107,7 @@ mt.lipid_class_summary(adata, groupby: str | None = None) -> pandas.DataFrame
 ```
 
 Classifies metabolites by lipid-class name prefix (PC, PE, TG, SM, Cer,
-LPC, FA, CE, ...) and reports per-class metabolite counts and mean
+LPC, FA, CE...) and reports per-class metabolite counts and mean
 intensity, optionally split by `groupby`.
 
 ```python
@@ -136,7 +136,7 @@ mt.plot_spatial(adata, color="shannon_diversity", cmap="magma")
 
 <div class="mortis-figure" markdown>
 ![Diversity map](../assets/img/diversity_map_healthy.png)
-<figcaption>Per-pixel Shannon diversity — regions of even, "unremarkable" chemistry (high diversity, bright) vs. regions dominated by a few metabolites (low diversity, dark)</figcaption>
+<figcaption>Per-pixel Shannon diversity, regions of even, "unremarkable" chemistry (high diversity, bright) vs. regions dominated by a few metabolites (low diversity, dark)</figcaption>
 </div>
 
 ### `cluster_diversity`
@@ -146,7 +146,7 @@ mt.cluster_diversity(adata, cluster_key: str = "cluster", groupby: str = "sample
 ```
 
 Region-level heterogeneity: diversity of cluster/domain **composition**
-within each group (e.g. per sample) — how mixed vs. homogeneous each
+within each group (e.g. per sample), how mixed vs. homogeneous each
 sample's tissue-domain makeup is.
 
 **Raises:** [`NoClustersError`](exceptions.md#noclusterserror);
@@ -163,7 +163,7 @@ mt.unmix_pixels(adata, reference_spectra: dict[str, dict[str, float]], copy: boo
 ```
 
 Non-negative least squares (NNLS) unmixing against a library of known
-reference spectra — recovers, per pixel, the non-negative mixing
+reference spectra, recovers, per pixel, the non-negative mixing
 fractions that best reconstruct its intensities as a combination of the
 references. MSI pixels routinely contain mixed signal from more than
 one underlying tissue/cell population, so this is a standard MSI-native
@@ -177,8 +177,8 @@ if `reference_spectra` is empty or shares no metabolites with `adata`.
 
 ```python
 references = {
-    "epithelium": {"met_a": 1.0, "met_b": 0.2, ...},
-    "stroma": {"met_a": 0.1, "met_b": 0.9, ...},
+    "epithelium": {"met_a": 1.0, "met_b": 0.2...},
+    "stroma": {"met_a": 0.1, "met_b": 0.9...},
 }
 adata = mt.unmix_pixels(adata, references)
 mt.plot_spatial(adata, color="fraction_epithelium")
@@ -192,7 +192,7 @@ mt.plot_spatial(adata, color="fraction_epithelium")
 mt.run_paga(adata, cluster_key: str = "cluster", copy: bool = False) -> anndata.AnnData
 ```
 
-PAGA (partition-based graph abstraction) — coarse connectivity between
+PAGA (partition-based graph abstraction), coarse connectivity between
 clusters, useful for understanding gradual metabolic transitions
 between tissue regions.
 
@@ -223,3 +223,4 @@ Full `AnnData` (UMAP, clusters, layers, `.uns`) → `.h5ad`.
 mt.save_results(markers, "results/markers.csv")
 mt.save_adata(adata, "results/patient1_processed.h5ad")
 ```
+

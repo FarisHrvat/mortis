@@ -3,7 +3,7 @@ Tests for cross-cohort and longitudinal signature comparison.
 
 These functions produce a single headline number that a reader will quote, so
 the tests are built around the three regimes that number is meant to
-distinguish — persists, reorganises, flips — using signatures constructed to
+distinguish, persists, reorganises, flips, using signatures constructed to
 sit unambiguously in each.
 """
 
@@ -190,7 +190,7 @@ def test_end_to_end_from_real_pipeline():
         )
 
     # Only 8 of 40 metabolites carry planted signal; the other 32 contribute
-    # random ranks. So |rho| is capped well below 1 here by construction —
+    # random ranks. So |rho| is capped well below 1 here by construction,
     # roughly the signal fraction. What matters is the sign and that the
     # discordant/concordant split flips cleanly, not the magnitude.
     rho_same, table_same = mt.cross_cohort_profile(cohort(10), cohort(11))
@@ -202,3 +202,4 @@ def test_end_to_end_from_real_pipeline():
     assert rho_opposite < -0.4, "an inverted planted signature should anti-correlate"
     strong_opposite = table_opposite[table_opposite["agreement"] != "weak"]
     assert (strong_opposite["agreement"] == "discordant").mean() > 0.8
+

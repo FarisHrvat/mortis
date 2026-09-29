@@ -1,7 +1,7 @@
-# Analysis — Validation & QC
+# Analysis. Validation & QC
 
-These functions answer "did that actually work?" — for clustering
-choices and for batch correction — instead of assuming it did.
+These functions answer "did that actually work?", for clustering
+choices and for batch correction, instead of assuming it did.
 
 ## `cluster_validation`
 
@@ -39,7 +39,7 @@ mt.compare_clusterings(labels_a, labels_b) -> dict[str, float]
 ```
 
 Adjusted Rand Index (ARI) and Adjusted Mutual Information (AMI) between
-two cluster label arrays of the same pixels — e.g. checking resolution
+two cluster label arrays of the same pixels, e.g. checking resolution
 stability, or comparing two samples' cluster assignments. Both scores
 are `1.0` for identical labelings and ~`0` for random/independent ones;
 unlike raw accuracy, both are invariant to how cluster IDs are permuted.
@@ -64,7 +64,7 @@ mt.batch_mixing_score(
 ```
 
 LISI (Local Inverse Simpson's Index; Korsunsky et al. 2019, the Harmony
-paper) — verifies whether batch correction ([`run_harmony()`](preprocessing.md#run_harmony),
+paper), verifies whether batch correction ([`run_harmony()`](preprocessing.md#run_harmony),
 [`correct_batches()`](preprocessing.md#correct_batches)) **actually
 worked**, rather than assuming it did.
 
@@ -88,9 +88,10 @@ print("after harmony:", adata.obs["lisi_score"].mean())
 On the real 14-sample Responder/Non-Responder cohort (see the
 [Cohort Comparison tutorial](../tutorials/04-cohort-comparison.md)):
 mean LISI went from **2.13 → 2.69** out of a maximum of 14 (one score
-per batch) after Harmony — real improvement, not a dramatic one,
+per batch) after Harmony, real improvement, not a dramatic one,
 exactly the kind of honest number you should expect to see and should
 report rather than assume.
 
 See [Batch Correction & Verifying It Worked](../concepts/batch-correction.md)
 for the full picture.
+

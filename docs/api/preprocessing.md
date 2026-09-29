@@ -19,11 +19,11 @@ by `cutoff`x.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `adatas` | `list[AnnData]` | — | Must have `is_tissue`/`is_background` in `.obs` (see [ROI Selection](roi.md)) |
-| `cutoff` | `float` | `1.5` | Minimum tissue/background fold-change to keep a metabolite. Typical range: 1.5 (lenient) – 3.0 (strict) |
-| `mode` | `str` | `"sample"` | `"sample"` — fold-change computed per sample independently. `"group"` — pooled across all samples first |
+| `adatas` | `list[AnnData]` |, | Must have `is_tissue`/`is_background` in `.obs` (see [ROI Selection](roi.md)) |
+| `cutoff` | `float` | `1.5` | Minimum tissue/background fold-change to keep a metabolite. Typical range: 1.5 (lenient) - 3.0 (strict) |
+| `mode` | `str` | `"sample"` | `"sample"`, fold-change computed per sample independently. `"group"`, pooled across all samples first |
 
-**Returns:** `(list[AnnData], list[dict])` — tissue-only `AnnData` per
+**Returns:** `(list[AnnData], list[dict])`, tissue-only `AnnData` per
 sample, and a QC stats dict per sample (feed directly to
 [`plot_qc()`](plotting.md#plot_qc)).
 
@@ -44,9 +44,9 @@ mt.plot_qc(stats[0], clean[0], sample_name="Patient 1")
 mt.tic_normalize(adata, target_sum: float | None = None, copy: bool = False) -> anndata.AnnData
 ```
 
-Total Ion Current normalization — every pixel is scaled so its row sum
+Total Ion Current normalization, every pixel is scaled so its row sum
 matches a common target. Default target is the **median row sum across
-all pixels** (not `1.0` — see [Choosing a Normalization Method](../concepts/normalization.md)
+all pixels** (not `1.0`, see [Choosing a Normalization Method](../concepts/normalization.md)
 for why).
 
 ```python
@@ -75,7 +75,7 @@ adata = mt.median_normalize(adata)
 mt.log1p_transform(adata, copy: bool = False) -> anndata.AnnData
 ```
 
-`log(1 + x)` variance-stabilizing transform — compresses the dynamic
+`log(1 + x)` variance-stabilizing transform, compresses the dynamic
 range so a handful of extreme values don't dominate downstream PCA.
 
 ## `scale`
@@ -85,7 +85,7 @@ mt.scale(adata, max_value: float = 10.0, copy: bool = False) -> anndata.AnnData
 ```
 
 Zero-mean, unit-variance scaling per metabolite, clipped to `max_value`.
-Stores the pre-scale values in `adata.layers['log1p']` — used
+Stores the pre-scale values in `adata.layers['log1p']`, used
 automatically by marker discovery, differential expression, and
 plotting functions so results/figures are reported in interpretable
 units, not z-scores.
@@ -112,8 +112,8 @@ PCA dimensionality reduction → `adata.obsm['X_pca']`.
 if fewer than 2 metabolites remain.
 
 !!! tip "Speed"
-    The CPU path respects `MORTIS_N_JOBS` (see [Performance & Threading](../concepts/performance.md))
-    — set it before starting Python, not after.
+    The CPU path respects `MORTIS_N_JOBS` (see [Performance & Threading](../concepts/performance.md)).
+    Set it before starting Python, not after.
 
 ## `run_neighbors`
 
@@ -129,7 +129,7 @@ Computes the kNN graph in PCA space, required before clustering/UMAP.
 **Raises:** [`NoEmbeddingError`](exceptions.md#noembeddingerror) if
 `adata.obsm['X_pca']` doesn't exist yet.
 
-!!! tip "The first call in a process is slow — this is normal"
+!!! tip "The first call in a process is slow, and that is normal"
     See [Performance & Threading](../concepts/performance.md#2-the-first-run_neighborsrun_umap-call-in-a-process-is-slow-for-an-unrelated-reason)
     for why: it's a one-time Numba compilation cost, not a bug.
 
@@ -184,11 +184,11 @@ mt.run_harmony(
 ```
 
 Batch correction via [Harmony](https://doi.org/10.1038/s41592-019-0619-0)
-(Korsunsky et al. 2019, *Nature Methods*) — corrects the PCA embedding
+(Korsunsky et al. 2019, *Nature Methods*), corrects the PCA embedding
 rather than the expression matrix. Generally faster and more robust
 than ComBat with many batches/samples.
 
-!!! important "The corrected embedding is separate — point downstream steps at it"
+!!! important "The corrected embedding is separate, point downstream steps at it"
     Harmony's output is stored under a **new** key (default
     `X_pca_harmony`), not overwritten onto `X_pca`:
     ```python
@@ -203,7 +203,7 @@ for an unrecognized `batch_key`.
 
 **Citation:** Korsunsky I, et al. Fast, sensitive and accurate
 integration of single-cell data with Harmony. *Nature Methods*, 2019,
-16:1289–1296.
+16:1289-1296.
 
 ---
 
@@ -227,3 +227,4 @@ adata = mt.preprocess(adata)                                    # defaults
 adata = mt.preprocess(adata, normalize_method="median", n_pcs=30)
 adata = mt.preprocess(adata, do_tic=False)                       # already normalized upstream
 ```
+

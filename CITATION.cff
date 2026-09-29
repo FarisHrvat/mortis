@@ -13,7 +13,7 @@ authors:
   - given-names: Faris
     family-names: Hrvat
     email: farishrvatit@gmail.com
-    # Add your ORCID once you have one (https://orcid.org) — it is what makes
+    # Add your ORCID once you have one (https://orcid.org). It is what makes
     # a software citation trackable in the academic indices.
     # orcid: "https://orcid.org/0000-0000-0000-0000"
 repository-code: "https://github.com/FarisHrvat/mortis"
@@ -22,8 +22,8 @@ abstract: >-
   A Python package for downstream analysis of spatial metabolomics data
   (MALDI-MSI, DESI and related imaging mass spectrometry). It tests at the
   patient level rather than the pixel level, measures differential spatial
-  organization — whether a metabolite is arranged differently between groups
-  independently of how much of it there is — compares cohorts and timepoints,
+  organization, whether a metabolite is arranged differently between groups
+  independently of how much of it there is, compares cohorts and timepoints,
   and exports publication figures alongside a sealed manifest that lets a
   reviewer verify an analysis reproduces without access to the underlying data.
 keywords:
@@ -35,3 +35,4 @@ keywords:
   - reproducibility
   - bioinformatics
   - anndata
+

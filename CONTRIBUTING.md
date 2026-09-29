@@ -1,7 +1,7 @@
 # Contributing
 
 Thanks for looking. This is a scientific package, which means a bug here does
-not crash — it prints a number that is wrong, and somebody puts that number in a
+not crash. It prints a number that is wrong, and somebody puts that number in a
 paper. Most of what follows exists because of that.
 
 ## Setting up
@@ -34,7 +34,7 @@ The rule: **a test for a bug fix has to fail on the code before the fix.**
 
 If it passes both before and after, it is not testing what you think it is. When
 the four defects in `test_reproducibility.py` were fixed, the new tests were run
-against the old code first — 9 of 18 failed, which is how anyone knows they mean
+against the old code first, 9 of 18 failed, which is how anyone knows they mean
 something.
 
 Some practical consequences:
@@ -43,8 +43,8 @@ Some practical consequences:
   property of the bytes in the file, so the test looks for `/FontFile2` in the
   PDF and round-trips it through `pdftotext`. Asserting that an rcParam was set
   proves nothing about the file a co-author opens.
-- **Look at figures.** Three real bugs — clipped axis labels, a title landing on
-  the panel labels, and a legend sitting on top of the bars — passed every
+- **Look at figures.** Three real bugs: clipped axis labels, a title landing on
+  the panel labels, and a legend sitting on top of the bars, passed every
   assertion and were found by rendering a PNG and looking at it.
 - **Network tests are opt-in.** `tests/test_pathway.py` runs offline against
   captured payloads. The live-service tests need `MORTIS_TEST_NETWORK=1`, so
@@ -68,11 +68,11 @@ does not invent results.
 Comments explain **why**, not what. The code already says what.
 
 ```python
-# Bad — restates the line below it
+# Bad, restates the line below it
 # Set the number of threads
 nb.set_num_threads(n)
 
-# Good — says the thing you cannot see
+# Good, says the thing you cannot see
 # Numba fixes its ceiling at import from the core count, so asking for more
 # than the machine has raises rather than just using what is available.
 nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
@@ -81,7 +81,7 @@ nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
 Please avoid marketing voice. "Seamless integration", "intelligently detects"
 and "ultra-fast" have all been removed from this codebase once already and none
 of them told a reader anything actionable. Plain sentences, and a joke now and
-then is fine — the package is named after rigor mortis.
+then is fine, the package is named after rigor mortis.
 
 Document limits where they exist. `classify_compounds` says out loud that it
 leaves ~55% of an untargeted panel unclassified, and
@@ -94,8 +94,8 @@ checked.
 **Never commit patient data.** `test_data/` is gitignored and stays that way.
 Derived figures are fine; the arrays that made them are not.
 
-`validation/` runs on public METASPACE data. If you extend it, keep it that way
-— the point is that anybody can run it.
+`validation/` runs on public METASPACE data. If you extend it, keep it that
+way, so that anybody can run it.
 
 ## Docs
 
@@ -107,16 +107,17 @@ python web/build_api.py
 ```
 
 CI regenerates it on every deploy, and fails if an exported function is missing
-from a group in `web/build_api.py` — which is how new functions avoid quietly
+from a group in `web/build_api.py`, which is how new functions avoid quietly
 going undocumented.
 
 ## Releasing
 
-1. Update `CHANGELOG.md` — real sentences, not a list of commit subjects.
+1. Update `CHANGELOG.md`, real sentences, not a list of commit subjects.
 2. Bump `version` in `pyproject.toml` and `CITATION.cff`.
 3. Tag it. The publish workflow does the rest.
 
 ## Anything else
 
-Open an issue. A failing snippet and the output you expected is plenty — no
+Open an issue. A failing snippet and the output you expected is plenty, no
 template to fill in.
+

@@ -17,14 +17,14 @@ pytest tests/ -v
 ruff check .
 ```
 
-Both must pass — CI runs the same checks (`.github/workflows/test.yml`)
-across Python 3.10–3.12 on Ubuntu and macOS.
+Both must pass. CI runs the same checks (`.github/workflows/test.yml`)
+across Python 3.10-3.12 on Ubuntu and macOS.
 
 ## What the test suite covers
 
-- **Unit tests** (`tests/test_*.py`) — every public function's normal
+- **Unit tests** (`tests/test_*.py`): every public function's normal
   behavior, edge cases, and error conditions.
-- **Correctness verification** (`tests/test_correctness_vs_reference.py`) —
+- **Correctness verification** (`tests/test_correctness_vs_reference.py`),
   the custom spatial statistics (Moran's I, Geary's C, Getis-Ord Gi*)
   cross-checked against [esda/PySAL](https://pysal.org/esda/), an
   independent published implementation. The "thin wrapper" functions
@@ -47,7 +47,7 @@ edit files under `docs/`.
 
 !!! warning "Never commit raw patient data"
     `.gitignore` already excludes `*.h5ad`, the large example `.xlsx`
-    files, and the `Responder`/`Non Responder` folders — these are
+    files, and the `Responder`/`Non Responder` folders. These are
     private clinical data and must never be pushed to the repository,
     even though it's currently private. Only **derived** plots/results
     (e.g. `docs/assets/img/*.png`) generated from that data are
@@ -55,7 +55,7 @@ edit files under `docs/`.
 
 ## Code style
 
-- `ruff` handles linting; there's no separate formatter configuration —
+- `ruff` handles linting; there's no separate formatter configuration,
   match the existing terse style (`if x: y` single-line guard clauses
   are used deliberately throughout and are excluded from `E701` in
   `pyproject.toml`).
@@ -70,7 +70,7 @@ edit files under `docs/`.
 
 Releases publish automatically via GitHub Actions when a tag matching
 `v*` is pushed (`.github/workflows/publish.yml`), using PyPI's Trusted
-Publishing (OIDC) — no API tokens involved:
+Publishing (OIDC), no API tokens involved:
 
 ```bash
 # after bumping the version in pyproject.toml
@@ -82,3 +82,4 @@ This requires registering the repo + workflow once at
 [pypi.org/manage/account/publishing](https://pypi.org/manage/account/publishing/)
 before the first release. See the workflow file for the exact steps, or
 `python -m build && twine upload dist/*` for a one-off manual release.
+

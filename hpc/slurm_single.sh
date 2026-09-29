@@ -15,7 +15,7 @@ set -euo pipefail
 CONFIG="${1:-analysis.yaml}"
 
 # Thread limits BEFORE python starts. BLAS reads these once, when its pool
-# initialises on `import numpy` — set them afterwards and they are ignored,
+# initialises on `import numpy`, set them afterwards and they are ignored,
 # silently, while your job quietly oversubscribes the node.
 CPUS="${SLURM_CPUS_PER_TASK:-1}"
 export OMP_NUM_THREADS="$CPUS"
@@ -50,3 +50,4 @@ PY
 if [[ -f "$RESULTS/manifest.json" ]]; then
     mortis verify "$RESULTS/manifest.json" --data "$RESULTS/pseudobulk.h5ad" || true
 fi
+

@@ -2,7 +2,7 @@ name: Docker
 
 # The Dockerfile is a claim that the package installs cleanly from nothing on a
 # machine that is not mine. Building it on every push is the only way that claim
-# stays true — an image that has not been built since it was written is a
+# stays true, an image that has not been built since it was written is a
 # guess.
 
 on:
@@ -102,3 +102,4 @@ jobs:
           owner=$(stat -c '%u' work/results/differential_abundance.csv)
           echo "output uid: $owner (runner uid: $(id -u))"
           test "$owner" = "$(id -u)"
+

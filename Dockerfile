@@ -6,7 +6,7 @@
 #
 # Pass --user whenever a volume is mounted. Without it the container writes as
 # its own user, which either cannot write to your directory or leaves you files
-# you do not own — the two ways container output ruins an afternoon. The image
+# you do not own, the two ways container output ruins an afternoon. The image
 # is built to run as an arbitrary uid so that flag always works.
 #
 # Two stages, because building the wheels needs a compiler and running them
@@ -40,7 +40,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 FROM python:3.11-slim AS runtime
 
-# libgomp is the one shared library the wheels genuinely need at run time —
+# libgomp is the one shared library the wheels genuinely need at run time,
 # numba and scikit-learn link OpenMP. HDF5 comes bundled inside the h5py
 # wheel, so there is no system hdf5 package to keep in step with it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -67,3 +67,4 @@ RUN python -c "import mortis, mortis.cli; print('MORTIS', mortis.__version__, 'o
 
 ENTRYPOINT ["mortis"]
 CMD ["--help"]
+

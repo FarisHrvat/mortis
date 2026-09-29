@@ -173,7 +173,7 @@ class TestProvenance:
     def test_a_recorded_object_can_still_be_saved(self, tmp_path):
         """
         Regression: provenance used to be stored as a list of dicts, which HDF5
-        cannot represent — so recording a step quietly broke write_h5ad() on the
+        cannot represent, so recording a step quietly broke write_h5ad() on the
         very object it was recorded on. Found by the CLI, which saves its
         pseudobulk output.
         """
@@ -310,3 +310,4 @@ print(json.dumps({
         assert first["data"] == second["data"]
         assert first["result"] == second["result"]
         assert first["order"] == second["order"]
+

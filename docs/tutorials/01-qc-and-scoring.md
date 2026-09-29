@@ -2,7 +2,7 @@
 
 <span class="mortis-badge beginner">Follow along even if this is your first MORTIS analysis</span>
 
-**Data:** a paired tissue/background export — one `.xlsx` file for the
+**Data:** a paired tissue/background export, one `.xlsx` file for the
 tissue region, one for the background region, both from the same
 acquisition. This is one of the most common facility export formats.
 
@@ -26,7 +26,7 @@ adata_b.obs["is_background"] = True
     setting `is_tissue`/`is_background` for you. We're doing it manually
     here just to show what's happening underneath.
 
-## Background filtering — and a real QC failure
+## Background filtering, and a real QC failure
 
 ```python
 merged = ad.concat([adata_t, adata_b], join="outer", fill_value=0.0)
@@ -41,13 +41,13 @@ mt.plot_qc(stats[0], clean[0], sample_name="Sample 488IMb")
 **Every single metabolite was removed.** Before assuming something's
 wrong with MORTIS, look at what the report is actually showing: the
 signal-vs-noise scatter (top right) shows every point sitting exactly
-on the diagonal — mean tissue intensity **equals** mean background
+on the diagonal, mean tissue intensity **equals** mean background
 intensity, for every metabolite. That's not "close to 1x fold change,"
 it's **exactly** 1.0000 for every single metabolite, which is normal
 biological/technical noise never producing.
 
 We checked, and it turned out the two source files were **byte-for-byte
-identical** (confirmed with a checksum) — almost certainly a copy-paste
+identical** (confirmed with a checksum), almost certainly a copy-paste
 mistake when the export was prepared, not a MORTIS bug. This is worth
 knowing because it's a realistic failure mode:
 
@@ -65,7 +65,7 @@ pipeline on real data.
 ## Merging in a separate annotation-score table
 
 This facility's export doesn't embed annotation confidence scores in
-the tissue/background files — they're in a separate feature table:
+the tissue/background files, they're in a separate feature table:
 
 ```python
 adata = adata_t.copy()
@@ -80,7 +80,7 @@ adata = mt.filter_by_score(adata, min_score=0.3)
 ```
 
 Only about a third of the metabolite columns in the raw export had a
-confident annotation at all — this is completely normal for untargeted
+confident annotation at all. This is completely normal for untargeted
 MSI; a large fraction of detected ions are never matched to a database
 compound with high confidence.
 
@@ -116,13 +116,14 @@ mt.plot_embedding_grid(adata, markers["metabolite"].head(4).tolist(), ncols=2)
 ## What would I change for my own data?
 
 - If your tissue/background pair is genuinely different (the normal
-  case), skip straight from loading to `filter_background()` — the
+  case), skip straight from loading to `filter_background()`, the
   identical-files issue here was specific to this example dataset.
 - If your `.h5ad` already came from METASPACE/SCiLS, it likely already
-  has `adata.var['score']` populated — skip `load_annotation_scores()`
+  has `adata.var['score']` populated, skip `load_annotation_scores()`
   entirely and go straight to `filter_by_score()`.
 - Try `min_score=0.5` or `0.8` if you want only high-confidence/library-match
   metabolites, at the cost of fewer metabolites surviving.
 
-**Next:** [Tutorial 2 — Single-Sample Deep Dive](02-single-sample-deep-dive.md)
+**Next:** [Tutorial 2. Single-Sample Deep Dive](02-single-sample-deep-dive.md)
 (spatial statistics, hotspot detection, colocalization).
+

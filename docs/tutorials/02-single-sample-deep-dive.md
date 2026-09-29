@@ -4,7 +4,7 @@
 
 **Data:** a METASPACE-annotated `.h5ad` sample (already has
 `adata.var['score']` populated, and `is_tissue`-style ROI flags built
-in) — a healthy tissue section, ~8,000 tissue pixels x ~4,000 metabolites.
+in), a healthy tissue section, ~8,000 tissue pixels x ~4,000 metabolites.
 
 ## Loading and score filtering
 
@@ -31,15 +31,15 @@ adata = mt.spatial_domains(adata, resolution=0.6, alpha=0.6)
 ```
 
 <div class="mortis-img-grid" markdown>
-<figure markdown>![Chemistry clusters](../assets/img/spatial_clusters_healthy.png)<figcaption><code>cluster()</code> — noticeably speckled; two physically distant pixels with similar chemistry land in the same cluster</figcaption></figure>
-<figure markdown>![Spatial domains](../assets/img/spatial_domains_healthy.png)<figcaption><code>spatial_domains()</code>, same sample — visibly more spatially contiguous, though not perfectly clean</figcaption></figure>
+<figure markdown>![Chemistry clusters](../assets/img/spatial_clusters_healthy.png)<figcaption><code>cluster()</code>, noticeably speckled; two physically distant pixels with similar chemistry land in the same cluster</figcaption></figure>
+<figure markdown>![Spatial domains](../assets/img/spatial_domains_healthy.png)<figcaption><code>spatial_domains()</code>, same sample, visibly more spatially contiguous, though not perfectly clean</figcaption></figure>
 </div>
 
-!!! note "This is a real, honest comparison — not a cherry-picked one"
+!!! note "This is a real, honest comparison, not a cherry-picked one"
     Notice the spatial-domains map still has speckle at tissue edges.
     `alpha=0.6` is a moderate smoothing strength; increasing it (or
     `n_neighbors`) trades residual noise for coarser domain boundaries.
-    There's no universally "correct" setting — try a few and look.
+    There's no universally "correct" setting, try a few and look.
 
 ## Which metabolites are spatially organized at all?
 
@@ -54,7 +54,7 @@ mt.plot_morans(morans, n_top=20)
 </div>
 
 Over 75% of annotated metabolites show statistically significant
-spatial structure in this sample — not unusual for real tissue, where
+spatial structure in this sample, not unusual for real tissue, where
 almost everything has *some* spatial organization; the interesting
 question is usually *which* pattern, not *whether there's a pattern at
 all*.
@@ -86,7 +86,7 @@ print(enrich.sort_values("zscore", ascending=False).head(5))
 2          3         3      2736   310.29       155.7     0.0
 ```
 The diagonal entries (cluster `X` next to cluster `X`) dominating the
-top of this table is expected and healthy — it means each cluster is
+top of this table is expected and healthy, because it means each cluster is
 internally spatially contiguous (real tissue regions), not scattered
 noise pretending to be a cluster.
 
@@ -115,16 +115,17 @@ mt.plot_spatial(adata, color="shannon_diversity", cmap="magma")
 
 ## What would I change for my own data?
 
-- Try both `spatial_domains()` and `spatial_domains_kmeans()` — the
+- Try both `spatial_domains()` and `spatial_domains_kmeans()`: the
   latter lets you specify an exact number of domains instead of tuning
   `resolution`.
 - If `getis_ord_gi`/`local_moran` disagree meaningfully on a
-  metabolite, that's informative — it usually means the metabolite has
+  metabolite, that's informative, and usually means the metabolite has
   real spatial *outliers*, not just clean hot/cold regions (see
   [Spatial Statistics Explained](../concepts/spatial-statistics.md)).
 - `metabolite_colocalization(metric="cosine")` is worth trying if your
-  ion images are sparse (mostly zero) with a clear on/off pattern —
+  ion images are sparse (mostly zero) with a clear on/off pattern,
   it's less sensitive to that than Pearson correlation.
 
-**Next:** [Tutorial 3 — Large-Scale Microenvironments](03-large-scale-microenvironments.md)
+**Next:** [Tutorial 3. Large-Scale Microenvironments](03-large-scale-microenvironments.md)
 (NMF at 30,000-pixel scale).
+

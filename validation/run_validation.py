@@ -4,8 +4,8 @@ End-to-end validation of MORTIS on public data.
 
 Downloads a published, openly available imaging mass spectrometry study from
 METASPACE, reconstructs pixel matrices from the ion images, and runs the whole
-analysis — cleaning, pseudobulk, patient-level testing, spatial organization,
-cross-group comparison, figures and a verification manifest — using nothing but
+analysis, cleaning, pseudobulk, patient-level testing, spatial organization,
+cross-group comparison, figures and a verification manifest, using nothing but
 MORTIS and its declared dependencies.
 
 The study
@@ -94,7 +94,7 @@ def find_sections(cache: Path) -> pd.DataFrame:
     Every section in the study, with the group label it belongs to.
 
     The group is taken from the **dataset name**, not the ``condition``
-    metadata field. Those two disagree for several sections — for instance
+    metadata field. Those two disagree for several sections, for instance
     ``tomato-tomato-bottom1_sl4a`` carries ``condition = "top"``. The name
     states the anatomical position explicitly and is what the submitters used
     consistently, so it wins; the disagreement is counted and reported rather
@@ -119,7 +119,7 @@ def find_sections(cache: Path) -> pd.DataFrame:
         # a pepper rootstock, so the section ABOVE the junction is tomato
         # tissue and the section BELOW it is pepper. Which means "top vs
         # bottom" on a hetero-graft is a species contrast wearing a position
-        # label — the single most important thing to get right about this study.
+        # label, the single most important thing to get right about this study.
         parts = re.split(r"[-_]", name.lower())
         species = [p for p in parts if p in ("tomato", "pepper")]
         scion = species[0] if species else None
@@ -256,7 +256,7 @@ def main() -> int:
     import mortis as mt
 
     print("=" * 74)
-    print("MORTIS validation — public METASPACE study", PROJECT)
+    print("MORTIS validation, public METASPACE study", PROJECT)
     print("=" * 74)
 
     sections = find_sections(cache)
@@ -269,9 +269,9 @@ def main() -> int:
     print(f"  graft types: {dict(Counter(sections['graft']))}")
 
     # Two contrasts, deliberately:
-    #   species  — tomato vs pepper tissue. Different plants, so a method that
+    #   species, tomato vs pepper tissue. Different plants, so a method that
     #              works must find something. A positive control.
-    #   position — top vs bottom within HOMO-grafts only, where both sections
+    #   position, top vs bottom within HOMO-grafts only, where both sections
     #              are the same species and position is the only thing varying.
     #              The honest version of the question the labels invite.
     balanced = pd.concat([
@@ -426,3 +426,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

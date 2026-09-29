@@ -4,7 +4,7 @@ Tests for differential spatial organization.
 The claim this module makes is specific and falsifiable: it can find a
 metabolite whose *total abundance* is identical between two groups but whose
 *spatial arrangement* differs. ``TestOrganizationOnlySignal`` constructs
-exactly that situation — same mean intensity per section, different pattern —
+exactly that situation, same mean intensity per section, different pattern,
 and asserts that abundance testing misses it while organization testing finds
 it. If that test ever fails, the module has no reason to exist.
 """
@@ -135,7 +135,7 @@ class TestOrganizationOnlySignal:
 
     def test_below_six_per_group_fdr_returns_nothing(self):
         """
-        Not a defect — a property of rank tests at tiny n. Mann-Whitney on 5 vs
+        Not a defect, a property of rank tests at tiny n. Mann-Whitney on 5 vs
         5 bottoms out at p = 0.0079, which cannot survive BH correction across
         30 metabolites even under perfect separation. Pinned here so the
         six-per-group floor documented in compare_abundance_and_organization
@@ -287,3 +287,4 @@ class TestGuards:
         right = pd.DataFrame({"metabolite": ["z"], "delta": [0.5], "pval_adj": [0.1]})
         with pytest.raises(InvalidParameterError, match="No metabolites in common"):
             mt.compare_abundance_and_organization(left, right)
+

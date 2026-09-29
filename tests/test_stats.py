@@ -282,7 +282,7 @@ class TestPairedDifferentialAbundance:
         assert int((res["pval_adj"] < 0.05).sum()) <= 1
 
     def test_direction_convention(self):
-        """Positive delta means higher at time2 — the later timepoint."""
+        """Positive delta means higher at time2, the later timepoint."""
         adata = _longitudinal(n_patients=6, effect=5.0, seed=12)
         pb = mt.pseudobulk(adata, sample_key="sample_id")
         forward = mt.paired_differential_abundance(pb, "patient", "week", "W0", "W14").set_index("metabolite")
@@ -304,3 +304,4 @@ class TestPairedDifferentialAbundance:
         pb = mt.pseudobulk(adata, sample_key="sample_id")
         with pytest.raises(InsufficientSamplesError, match="min_pairs"):
             mt.paired_differential_abundance(pb, "patient", "week", "W0", "W14", min_pairs=3)
+

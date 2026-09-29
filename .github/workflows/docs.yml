@@ -1,9 +1,9 @@
 name: Deploy Docs
 
 # Two sites, one deployment:
-#   /            the landing page in web/ — the guided tour, the figure
+#   /            the landing page in web/, the guided tour, the figure
 #                gallery, and the searchable API reference
-#   /reference/  the MkDocs handbook in docs/ — long-form tutorials and
+#   /reference/  the MkDocs handbook in docs/, long-form tutorials and
 #                concept pages
 #
 # The API index is regenerated here from the installed package rather than
@@ -57,7 +57,7 @@ jobs:
           cp -r web/index.html web/api.json web/assets _site/
           cp -r _handbook/. _site/reference/
           # Without .nojekyll, Pages hides any path starting with an
-          # underscore — which is where MkDocs keeps its assets.
+          # underscore, which is where MkDocs keeps its assets.
           touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5
@@ -75,3 +75,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+

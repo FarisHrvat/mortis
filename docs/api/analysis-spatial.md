@@ -1,4 +1,4 @@
-# Analysis — Spatial Statistics
+# Analysis. Spatial Statistics
 
 See also: [Spatial Statistics Explained](../concepts/spatial-statistics.md)
 for a plain-language guide to which statistic answers which question.
@@ -18,16 +18,16 @@ call (both reuse the same spatial weights, so it's cheap to get both).
 - **Moran's I** > 0 → clustered ; ≈ 0 → random ; < 0 → dispersed (checkerboard-like)
 - **Geary's C** < 1 → clustered ; ≈ 1 → random ; > 1 → dispersed
 
-They usually agree on direction but weight things differently — Geary's
+They usually agree on direction but weight things differently. Geary's
 C is more sensitive to sharp *local* discontinuities, Moran's I to the
 *overall* global pattern.
 
 **Returns:** `(AnnData, DataFrame)` with `morans_i`, `z_score`, `pval`,
-`pval_adj`, `geary_c`, `geary_z_score`, `geary_pval`, `geary_pval_adj` —
+`pval_adj`, `geary_c`, `geary_z_score`, `geary_pval`, `geary_pval_adj`,
 sorted by Moran's I descending. Also written to `adata.var`.
 
 **Verified against [esda/PySAL](https://pysal.org/esda/)** (an
-independent published implementation) — see
+independent published implementation), see
 [`tests/test_correctness_vs_reference.py`](https://github.com/FarisHrvat/mortis/blob/main/tests/test_correctness_vs_reference.py).
 
 ```python
@@ -75,12 +75,12 @@ mt.plot_spatial(adata, color="Palmitic acid_lisa_type")
 mt.getis_ord_gi(adata, metabolite: str, n_neighbors: int = 6, batch_key: str = "sample", copy: bool = False) -> tuple[anndata.AnnData, pandas.DataFrame]
 ```
 
-Getis-Ord Gi* hotspot statistic — a per-pixel z-score testing whether a
+Getis-Ord Gi* hotspot statistic, a per-pixel z-score testing whether a
 pixel **and its neighbours together** (self included) form a
 significant hot or cold cluster. The standard "hotspot map" statistic
 in GIS/spatial-epidemiology tooling.
 
-!!! note "Gi* vs. LISA — which one do I want?"
+!!! note "Gi* vs. LISA, which one do I want?"
     `local_moran` (LISA) also flags spatial *outliers* (a high pixel
     surrounded by low neighbours). `getis_ord_gi` only flags concordant
     hot/cold clusters. If you specifically want a clean hotspot map
@@ -90,7 +90,7 @@ in GIS/spatial-epidemiology tooling.
 **Returns:** `(AnnData, DataFrame[x, y, value, gi_star, pval, hotspot_type])`.
 `hotspot_type` is `"hot"`, `"cold"`, or `"NS"`.
 
-**Verified against esda/PySAL's `G_Local`** — correlation > 0.999 on
+**Verified against esda/PySAL's `G_Local`**, correlation > 0.999 on
 synthetic ground truth (see the note in the function's own docstring
 about a normalization-convention difference in absolute scale, which
 doesn't affect which pixels are flagged).
@@ -114,7 +114,7 @@ mt.spatial_neighbors(adata, n_neighbors: int = 6, batch_key: str = "sample", cop
 ```
 
 Build a symmetric physical-distance kNN graph in
-`adata.obsp['spatial_connectivities']` — required before
+`adata.obsp['spatial_connectivities']`, required before
 [`neighborhood_enrichment()`](#neighborhood_enrichment) and used
 internally by [`spatial_domains()`](analysis-clustering.md#spatial_domains)
 /[`spatially_weighted_nmf()`](analysis-clustering.md#spatially_weighted_nmf).
@@ -135,7 +135,7 @@ co-localize (or avoid each other) more than expected by chance.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `n_jobs` | `None` | Threads for the permutation loop; `None` = `MORTIS_N_JOBS` env var or all CPU cores. Genuinely changes wall time — see [Performance & Threading](../concepts/performance.md). |
+| `n_jobs` | `None` | Threads for the permutation loop; `None` = `MORTIS_N_JOBS` env var or all CPU cores. Genuinely changes wall time, see [Performance & Threading](../concepts/performance.md). |
 
 **Returns:** `(AnnData, DataFrame[cluster_a, cluster_b, observed, expected, zscore, pval])`.
 
@@ -164,7 +164,7 @@ labels (analogous to squidpy's `gr.co_occurrence`). Distinct from
 rather than a fixed-degree graph, revealing *at what distance scale*
 two regions co-occur, not just whether they're graph-adjacent.
 
-**Returns:** `DataFrame[cluster_a, cluster_b, bin, distance, ratio]` —
+**Returns:** `DataFrame[cluster_a, cluster_b, bin, distance, ratio]`,
 `ratio` is `P(b | within this distance of a) / P(b)`; > 1 means
 enrichment, < 1 means depletion, at that distance.
 
@@ -188,7 +188,7 @@ variable metabolites (run [`spatial_autocorrelation()`](#spatial_autocorrelation
 
 | Parameter | Default | Description |
 |---|---|---|
-| `metric` | `"pearson"` | `"pearson"` — correlation between (optionally spatially-smoothed) ion images. `"cosine"` — matches METASPACE's own colocalization metric / ColocML; more sensitive to shared on/off spatial patterns in sparse data. |
+| `metric` | `"pearson"` | `"pearson"`, correlation between (optionally spatially-smoothed) ion images. `"cosine"`, matches METASPACE's own colocalization metric / ColocML; more sensitive to shared on/off spatial patterns in sparse data. |
 
 **Raises:** [`InvalidParameterError`](exceptions.md#invalidparametererror)
 if `spatial_autocorrelation()` hasn't been run.
@@ -216,7 +216,7 @@ mt.spatial_gradient(
 
 Bins all pixels by physical distance to the nearest pixel matching
 `target_col == target_val` (e.g. distance from tumour core) and reports
-mean metabolite intensity per distance bin — a metabolic gradient
+mean metabolite intensity per distance bin, a metabolic gradient
 profile.
 
 ```python
@@ -228,3 +228,4 @@ mt.plot_spatial_gradient(grad_df, top_n=5)
 ![Spatial gradient](../assets/img/spatial_gradient_glass.png)
 <figcaption>Top metabolites by intensity change with distance from cluster "0"</figcaption>
 </div>
+

@@ -10,7 +10,7 @@ I want to know" and "which function answers that."
 (Moran's I + Geary's C, computed together)
 
 A single global number per metabolite. Positive Moran's I / Geary's C < 1
-means the metabolite is spatially clustered somewhere in the tissue —
+means the metabolite is spatially clustered somewhere in the tissue,
 but this statistic doesn't tell you *where*.
 
 ## "Where, specifically, are this metabolite's hot/cold regions?"
@@ -36,7 +36,7 @@ would predict?
 
 → [`mt.co_occurrence()`](../api/analysis-spatial.md#co_occurrence)
 
-A **distance-binned** alternative to neighbourhood enrichment — instead
+A **distance-binned** alternative to neighbourhood enrichment, instead
 of a single "adjacent or not" answer, you get a curve: the enrichment
 ratio at 10 µm, 50 µm, 100 µm, etc. Useful when you suspect regions
 interact at a specific distance rather than only when touching.
@@ -60,7 +60,7 @@ a chosen reference region (e.g. distance from tumour core).
 → [`mt.spatial_domains()`](../api/analysis-clustering.md#spatial_domains) /
 [`mt.spatial_domains_kmeans()`](../api/analysis-clustering.md#spatial_domains_kmeans)
 
-These aren't statistics per se — they're spatially-aware *clustering*,
+These aren't statistics per se, they're spatially-aware *clustering*,
 smoothing the feature space across physical neighbours before grouping,
 so the result tends toward contiguous regions instead of scattered
 chemical clusters.
@@ -76,3 +76,4 @@ chemical clusters.
 | Do metabolites X and Y look spatially similar? | `metabolite_colocalization` | a similarity network |
 | How does intensity change with distance from a region? | `spatial_gradient` | a curve per metabolite |
 | Find contiguous tissue domains | `spatial_domains` | cluster labels, spatially smoothed |
+

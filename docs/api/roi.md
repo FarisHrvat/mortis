@@ -1,7 +1,7 @@
 # ROI Selection
 
 Use these when your tissue/background files **aren't** already paired
-by `load_from_folder()` — e.g. a single unlabeled file where tissue and
+by `load_from_folder()`, e.g. a single unlabeled file where tissue and
 background occupy the same coordinate space and need to be drawn manually.
 
 ## `draw_ROIs`
@@ -45,9 +45,9 @@ adata = mt.draw_ROIs(adata)
 mt.draw_ROIs_for_folder(adatas: list[anndata.AnnData]) -> list[anndata.AnnData]
 ```
 
-Runs [`draw_ROIs()`](#draw_rois) sequentially for every sample in a list
-— convenient after `mt.check_rois()` tells you which samples are missing
-labels.
+Runs [`draw_ROIs()`](#draw_rois) sequentially for every sample in a list,
+which is convenient after `mt.check_rois()` tells you which samples are
+missing labels.
 
 ```python
 try:
@@ -55,3 +55,4 @@ try:
 except mt.MissingROIError:
     adatas = mt.draw_ROIs_for_folder(adatas)
 ```
+

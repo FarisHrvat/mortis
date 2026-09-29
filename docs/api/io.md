@@ -48,7 +48,7 @@ don't match this pattern are loaded individually.
 |---|---|---|---|
 | `folder_path` | `str` | :material-check: | Folder to scan |
 
-**Returns:** `list[AnnData]` — one entry per sample (paired or unpaired).
+**Returns:** `list[AnnData]`, one entry per sample (paired or unpaired).
 
 **Raises:** `FileNotFoundError` if the folder doesn't exist;
 [`FileFormatError`](exceptions.md#fileformaterror) if any file can't be parsed.
@@ -60,10 +60,10 @@ adatas = mt.load_from_folder("./data")
 
 !!! warning "Sanity-check your pairs"
     If a "tissue" and "background" file are accidentally identical or
-    swapped (it happens — e.g. a copy-paste mistake when exporting from
+    swapped (it happens, e.g. a copy-paste mistake when exporting from
     the instrument software), `filter_background()` will correctly
     reject every metabolite (fold-change ≈ 1.0 everywhere). If that
-    happens, don't assume MORTIS is broken — check
+    happens, don't assume MORTIS is broken, check
     `stats[0]['fold_change'].max()`; if it's suspiciously close to
     `1.0`, compare the two source files directly (e.g. an md5 checksum)
     before debugging further.
@@ -85,26 +85,26 @@ mt.load_annotation_scores(
 Merge per-compound annotation confidence scores from a **separate**
 feature table into `adata.var[target_col]`.
 
-Many MSI facilities export spatial intensities (pixels x metabolites —
+Many MSI facilities export spatial intensities (pixels x metabolites,
 what `read_metabolomics_data` reads) and annotation metadata (one row
 per metabolite, with `Compound`, `Chemical Formula`, `Adduct`, `HMDB ID`,
 `Identification Score`, etc.) as two **separate** files. This performs
 the join needed before [`filter_by_score()`](filtering.md#filter_by_score),
-which otherwise requires `adata.var['score']` to already exist — true
+which otherwise requires `adata.var['score']` to already exist, true
 for `.h5ad` exports from METASPACE/SCiLS, but not for raw `.xlsx`/`.csv`
 tissue exports.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `adata` | `AnnData` | — | Loaded via `read_metabolomics_data`/`load_from_folder` |
-| `feature_table_path` | `str` | — | Path to a `.xlsx`/`.csv` feature table |
+| `adata` | `AnnData` |, | Loaded via `read_metabolomics_data`/`load_from_folder` |
+| `feature_table_path` | `str` |, | Path to a `.xlsx`/`.csv` feature table |
 | `compound_col` | `str` | `"Compound"` | Column matching `adata.var_names` |
 | `score_col` | `str` | `"Identification Score"` | Column with the confidence score |
 | `target_col` | `str` | `"score"` | Column created in `adata.var` |
 
 **Returns:** `AnnData` with `adata.var[target_col]` populated.
 Metabolites with no match get `NaN` (which `filter_by_score` treats as
-failing any positive threshold — i.e. unmatched metabolites are dropped,
+failing any positive threshold, i.e. unmatched metabolites are dropped,
 not silently kept).
 
 **Raises:** `FileNotFoundError`; [`FileFormatError`](exceptions.md#fileformaterror)
@@ -151,7 +151,7 @@ mt.save_spatial_data(
 ) -> list[pathlib.Path]
 ```
 
-Save a list of `AnnData` objects to `{prefix}_1.h5ad`, `{prefix}_2.h5ad`, ....
+Save a list of `AnnData` objects to `{prefix}_1.h5ad`, `{prefix}_2.h5ad`....
 Use this for saving raw/lightly-processed multi-sample data early in a
 pipeline; for a single fully-processed sample, use
 [`save_adata()`](analysis-multisample.md#save_adata) instead.
@@ -159,3 +159,4 @@ pipeline; for a single fully-processed sample, use
 ```python
 paths = mt.save_spatial_data(adatas, output_dir="results", prefix="patient1")
 ```
+

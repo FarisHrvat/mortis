@@ -22,7 +22,7 @@ yaml = pytest.importorskip("yaml")
 
 @pytest.fixture
 def cohort(tmp_path):
-    """Twelve sections, two arms, on a small grid — a miniature of the real thing."""
+    """Twelve sections, two arms, on a small grid, a miniature of the real thing."""
     rng = np.random.default_rng(0)
     side, n_vars, n_sections = 12, 15, 12
     n = side * side
@@ -204,3 +204,4 @@ class TestOtherCommands:
         manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
         steps = [entry["step"] for entry in manifest["provenance"]]
         assert "pseudobulk" in steps
+

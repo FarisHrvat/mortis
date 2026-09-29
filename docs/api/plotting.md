@@ -1,6 +1,6 @@
 # Plotting
 
-Every plot function returns a `matplotlib.figure.Figure` — modify it
+Every plot function returns a `matplotlib.figure.Figure`, modify it
 further before saving/displaying if you want (see
 [Plot Customization](#plot-customization) below).
 
@@ -11,7 +11,7 @@ All plot functions accept these:
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `figsize` | `tuple[float, float]` or `None` | auto | Figure size in inches |
-| `dpi` | `int` | `300` | Resolution — use `300`+ for print, `100-150` for web/screen |
+| `dpi` | `int` | `300` | Resolution, use `300`+ for print, `100-150` for web/screen |
 | `fontsize` | `int` | `11` | Base font size |
 | `show_grid` | `bool` | `False` | Background grid |
 | `show_axes_border` | `bool` | `True` | Border around each axes |
@@ -20,13 +20,13 @@ All plot functions accept these:
 
 Spatial-scatter functions (`plot_spatial`, `plot_umap`,
 `plot_embedding_grid`, `plot_qc`) accept marker size as either `s=`
-(matplotlib-native) or `spot_size=` (more descriptive alias) —
+(matplotlib-native) or `spot_size=` (more descriptive alias),
 both work identically.
 
 ## `plot_qc`
 
 ```python
-mt.plot_qc(stats: dict, clean_adata, sample_name: str = "Sample", ...) -> matplotlib.figure.Figure
+mt.plot_qc(stats: dict, clean_adata, sample_name: str = "Sample"...) -> matplotlib.figure.Figure
 ```
 
 Four-panel QC report after [`filter_background()`](preprocessing.md#filter_background):
@@ -39,7 +39,7 @@ mt.plot_qc(stats[0], clean[0], sample_name="Patient 1", dpi=300, save="qc_patien
 
 <div class="mortis-figure" markdown>
 ![QC report](../assets/img/qc_report.png)
-<figcaption>A real QC report — this one shows a 100% rejection because the tissue and background source files were accidentally identical (see the <a href="../tutorials/01-qc-and-scoring/">tutorial</a> for the full story); this is exactly what that failure mode looks like, so you can recognize it if it happens to you.</figcaption>
+<figcaption>A real QC report showing a 100% rejection, because the tissue and background source files were accidentally identical (see the <a href="../tutorials/01-qc-and-scoring/">tutorial</a> for the full story); this is exactly what that failure mode looks like, so you can recognize it if it happens to you.</figcaption>
 </div>
 
 ---
@@ -47,11 +47,11 @@ mt.plot_qc(stats[0], clean[0], sample_name="Patient 1", dpi=300, save="qc_patien
 ## `plot_spatial`
 
 ```python
-mt.plot_spatial(adata, color: str, cmap: str = "viridis", palette: str = "tab20", ...) -> matplotlib.figure.Figure
+mt.plot_spatial(adata, color: str, cmap: str = "viridis", palette: str = "tab20"...) -> matplotlib.figure.Figure
 ```
 
 Spatial scatter plot (an "ion image" when `color` is a metabolite,
-a cluster/domain map when `color` is categorical) — colour by any
+a cluster/domain map when `color` is categorical), colour by any
 `adata.obs` column or metabolite name; auto-detects categorical vs.
 continuous.
 
@@ -64,19 +64,19 @@ mt.plot_spatial(adata, color="cluster", figsize=(10, 8), fontsize=14, show_grid=
 ## `plot_spatial_metabolite`
 
 ```python
-mt.plot_spatial_metabolite(adata, metabolite: str, cmap: str = "hot", ...) -> matplotlib.figure.Figure
+mt.plot_spatial_metabolite(adata, metabolite: str, cmap: str = "hot"...) -> matplotlib.figure.Figure
 ```
 
-Single-metabolite ion image — a thin convenience wrapper around
+Single-metabolite ion image, a thin convenience wrapper around
 `plot_spatial` with the title pre-filled.
 
 ## `plot_embedding_grid`
 
 ```python
-mt.plot_embedding_grid(adata, metabolites: list[str], ncols: int = 4, cmap: str = "viridis", ...) -> matplotlib.figure.Figure
+mt.plot_embedding_grid(adata, metabolites: list[str], ncols: int = 4, cmap: str = "viridis"...) -> matplotlib.figure.Figure
 ```
 
-Small-multiples grid of ion images — the single most common main-figure
+Small-multiples grid of ion images, the single most common main-figure
 panel type in MSI papers.
 
 ```python
@@ -94,7 +94,7 @@ mt.plot_embedding_grid(adata, top_mets, ncols=4)
 ## `plot_umap`
 
 ```python
-mt.plot_umap(adata, color: str = "cluster", palette: str = "tab20", cmap: str = "viridis", ...) -> matplotlib.figure.Figure
+mt.plot_umap(adata, color: str = "cluster", palette: str = "tab20", cmap: str = "viridis"...) -> matplotlib.figure.Figure
 ```
 
 UMAP embedding, coloured by cluster/condition/metabolite.
@@ -109,7 +109,7 @@ UMAP embedding, coloured by cluster/condition/metabolite.
 ## `plot_markers`
 
 ```python
-mt.plot_markers(adata, cluster_key: str = "cluster", n_top: int = 5, ...) -> matplotlib.figure.Figure
+mt.plot_markers(adata, cluster_key: str = "cluster", n_top: int = 5...) -> matplotlib.figure.Figure
 ```
 
 Dot plot of top marker metabolites per cluster (dot size = fraction
@@ -124,7 +124,7 @@ expressing, colour = mean expression).
 mt.plot_volcano(
     results_df, group1: str = "Group 1", group2: str = "Group 2",
     fc_cutoff: float = 1.0, pval_cutoff: float = 0.05, n_label: int = 10,
-    show_table: bool = False, n_table: int = 5, ...
+    show_table: bool = False, n_table: int = 5...
 ) -> matplotlib.figure.Figure
 ```
 
@@ -138,7 +138,7 @@ mt.plot_volcano(results, group1="Healthy", group2="Tumour", show_table=True, n_t
 ## `plot_heatmap`
 
 ```python
-mt.plot_heatmap(adata, metabolites: list[str], groupby: str = "cluster", cmap: str = "RdBu_r", ...) -> matplotlib.figure.Figure
+mt.plot_heatmap(adata, metabolites: list[str], groupby: str = "cluster", cmap: str = "RdBu_r"...) -> matplotlib.figure.Figure
 ```
 
 Mean intensity heatmap across groups/clusters.
@@ -146,7 +146,7 @@ Mean intensity heatmap across groups/clusters.
 ## `plot_violin`
 
 ```python
-mt.plot_violin(adata, metabolites: str | list[str], groupby: str = "cluster", ...) -> matplotlib.figure.Figure
+mt.plot_violin(adata, metabolites: str | list[str], groupby: str = "cluster"...) -> matplotlib.figure.Figure
 ```
 
 Intensity distributions per group.
@@ -159,7 +159,7 @@ Intensity distributions per group.
 ## `plot_cluster_composition`
 
 ```python
-mt.plot_cluster_composition(adata, cluster_key: str = "cluster", groupby: str = "condition", normalize: bool = True, ...) -> matplotlib.figure.Figure
+mt.plot_cluster_composition(adata, cluster_key: str = "cluster", groupby: str = "condition", normalize: bool = True...) -> matplotlib.figure.Figure
 ```
 
 Stacked bar chart of cluster proportions per condition/sample.
@@ -172,7 +172,7 @@ Stacked bar chart of cluster proportions per condition/sample.
 ## `plot_morans`
 
 ```python
-mt.plot_morans(morans_df, n_top: int = 20, ...) -> matplotlib.figure.Figure
+mt.plot_morans(morans_df, n_top: int = 20...) -> matplotlib.figure.Figure
 ```
 
 Horizontal bar chart of top spatially variable metabolites (output of
@@ -181,7 +181,7 @@ Horizontal bar chart of top spatially variable metabolites (output of
 ## `plot_spatial_gradient`
 
 ```python
-mt.plot_spatial_gradient(gradient_df, top_n: int = 5, ...) -> matplotlib.figure.Figure
+mt.plot_spatial_gradient(gradient_df, top_n: int = 5...) -> matplotlib.figure.Figure
 ```
 
 Shaded line plot of intensity vs. distance from a target region
@@ -190,7 +190,7 @@ Shaded line plot of intensity vs. distance from a target region
 ## `plot_colocalization_network`
 
 ```python
-mt.plot_colocalization_network(edges_df, ...) -> matplotlib.figure.Figure
+mt.plot_colocalization_network(edges_df...) -> matplotlib.figure.Figure
 ```
 
 Network graph of co-localized metabolites (output of
@@ -218,3 +218,4 @@ mt.plot_umap(adata, color="cluster", figsize=(6, 5), dpi=300, fontsize=13,
 # TIFF (raster, required by some journals)
 mt.plot_spatial(adata, color="cluster", dpi=600, save="figure.tiff")
 ```
+

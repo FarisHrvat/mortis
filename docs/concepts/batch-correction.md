@@ -17,16 +17,16 @@ biological differences.
 | Protect a biological covariate | `covariates=["condition"]` | Not applicable (Harmony's own iterative clustering already tends to preserve strong biological signal, but isn't given an explicit covariate to protect) |
 
 ```python
-# ComBat — corrects the matrix, can protect a covariate from being "corrected away"
+# ComBat, corrects the matrix, can protect a covariate from being "corrected away"
 adata = mt.correct_batches(adata, batch_key="sample", covariates=["condition"])
 
-# Harmony — corrects the embedding; point downstream steps at the new key
+# Harmony, corrects the embedding; point downstream steps at the new key
 adata = mt.run_harmony(adata, batch_key="sample")
 adata = mt.run_neighbors(adata, use_rep="X_pca_harmony")
 adata = mt.run_umap(adata)
 ```
 
-## Don't just assume it worked — measure it
+## Don't just assume it worked, measure it
 
 This is the step people skip. Use
 [`mt.batch_mixing_score()`](../api/analysis-validation.md#batch_mixing_score)
@@ -54,7 +54,7 @@ mean LISI after harmony:  2.69
 ```
 
 That's a real, modest improvement (~26% relative increase in local
-batch mixing) — **not** a dramatic "problem solved" number. This is the
+batch mixing), **not** a dramatic "problem solved" number. This is the
 honest range you should expect on real clinical MSI data with strong
 patient-to-patient chemistry differences; treat a LISI score that jumps
 to near the maximum with more suspicion than reassurance (it can mean
@@ -68,5 +68,6 @@ correction.
 If you're analyzing a single sample, or samples that were all acquired
 in one session on one slide with one calibration, batch correction may
 add noise rather than remove it. Check `batch_mixing_score` on the raw
-embedding first — if mixing is already reasonably high, correction may
+embedding first, if mixing is already reasonably high, correction may
 not be worth the risk of over-correcting real biology away.
+

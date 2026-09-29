@@ -8,7 +8,7 @@
 #SBATCH --partition=compute          # EDIT
 #SBATCH --array=0-9%4                # EDIT: 10 configs, at most 4 at once
 
-# One array task per config — for a batch of cohorts, or the same cohort under
+# One array task per config, for a batch of cohorts, or the same cohort under
 # several parameter choices. Put the configs in a directory and submit:
 #
 #     ls configs/*.yaml | wc -l          # set --array to N-1
@@ -27,7 +27,7 @@ if [[ ${#CONFIGS[@]} -eq 0 ]]; then
     exit 1
 fi
 if [[ ${SLURM_ARRAY_TASK_ID:-0} -ge ${#CONFIGS[@]} ]]; then
-    echo "Task ${SLURM_ARRAY_TASK_ID} has no config (only ${#CONFIGS[@]} found) — nothing to do."
+    echo "Task ${SLURM_ARRAY_TASK_ID} has no config (only ${#CONFIGS[@]} found), nothing to do."
     exit 0
 fi
 
@@ -43,3 +43,4 @@ source "${MORTIS_VENV:-$HOME/venvs/mortis}/bin/activate"
 
 echo "array task ${SLURM_ARRAY_TASK_ID:-0} -> $CONFIG"
 time mortis run "$CONFIG"
+

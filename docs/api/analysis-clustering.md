@@ -1,4 +1,4 @@
-# Analysis — Clustering
+# Analysis. Clustering
 
 ## `cluster`
 
@@ -16,7 +16,7 @@ the same cluster). For spatially-contiguous regions instead, see
 
 | Parameter | Default | Description |
 |---|---|---|
-| `resolution` | `0.5` | Higher = more, smaller clusters. Typical range 0.1–2.0. Pass a **list** (e.g. `[0.1, 0.3, 0.5]`) to sweep multiple resolutions in one call, saved as `cluster_0.1`, `cluster_0.3`, etc. |
+| `resolution` | `0.5` | Higher = more, smaller clusters. Typical range 0.1-2.0. Pass a **list** (e.g. `[0.1, 0.3, 0.5]`) to sweep multiple resolutions in one call, saved as `cluster_0.1`, `cluster_0.3`, etc. |
 | `key_added` | `"cluster"` | Column name in `adata.obs` |
 
 **Raises:** [`NoEmbeddingError`](exceptions.md#noembeddingerror) if no
@@ -30,7 +30,7 @@ adata = mt.cluster(adata, resolution=[0.1, 0.3, 0.5, 1.0])  # resolution sweep
 
 !!! tip "Which resolution should I use?"
     Run a sweep, then compare clusterings objectively instead of
-    eyeballing it — see [`cluster_validation()`](analysis-validation.md#cluster_validation)
+    eyeballing it, see [`cluster_validation()`](analysis-validation.md#cluster_validation)
     (silhouette score) and [`compare_clusterings()`](analysis-validation.md#compare_clusterings)
     (ARI/AMI between two resolutions, to check stability).
 
@@ -69,16 +69,16 @@ mt.plot_spatial(adata, color="domain")
 <div class="mortis-img-grid" markdown>
 <figure markdown>
   ![Chemistry-only clustering](../assets/img/spatial_clusters_healthy.png)
-  <figcaption><code>cluster()</code> — chemistry space only</figcaption>
+  <figcaption><code>cluster()</code>, chemistry space only</figcaption>
 </figure>
 <figure markdown>
   ![Spatially-smoothed domains](../assets/img/spatial_domains_healthy.png)
-  <figcaption><code>spatial_domains()</code> — same sample, alpha=0.6: visibly more spatially contiguous</figcaption>
+  <figcaption><code>spatial_domains()</code>, same sample, alpha=0.6: visibly more spatially contiguous</figcaption>
 </figure>
 </div>
 
 !!! note "Honest example, not a cherry-picked one"
-    Note the domain map above still has speckle at the tissue edges —
+    Note the domain map above still has speckle at the tissue edges,
     increasing `alpha` (stronger smoothing) or `n_neighbors` trades some
     of that residual noise for coarser domain boundaries. There's no
     universally "correct" `alpha`; pick based on whether you care more
@@ -118,11 +118,11 @@ mt.cluster_nmf(
 ) -> tuple[anndata.AnnData, pandas.DataFrame]
 ```
 
-Non-negative Matrix Factorization — **soft**, parts-based clustering,
+Non-negative Matrix Factorization, **soft**, parts-based clustering,
 useful when tissue regions blend rather than have hard boundaries (a
 pixel can partially belong to multiple metabolic programs).
 
-**Returns:** `(AnnData, DataFrame)` — `adata.obsm[basis_key]` (per-pixel
+**Returns:** `(AnnData, DataFrame)`, `adata.obsm[basis_key]` (per-pixel
 component weights), `adata.obs[key_added]` (argmax hard assignment for
 convenience), and a tidy DataFrame of the top-weighted metabolites per
 component.
@@ -151,7 +151,7 @@ mt.spatially_weighted_nmf(
 ```
 
 NMF run on a spatially-smoothed version of the data (blends each pixel
-with its physical neighbours before factorization) — extracts spatial
+with its physical neighbours before factorization), extracts spatial
 "microenvironments" rather than purely chemical components.
 
 ```python
@@ -161,7 +161,7 @@ mt.plot_spatial(adata, color="snmf_cluster")
 
 <div class="mortis-figure" markdown>
 ![Spatially-weighted NMF](../assets/img/spatially_weighted_nmf_glass.png)
-<figcaption>Same sample, spatially-smoothed before factorization — compare boundary smoothness to the plain NMF map above</figcaption>
+<figcaption>Same sample, spatially-smoothed before factorization, compare boundary smoothness to the plain NMF map above</figcaption>
 </div>
 
 ---
@@ -184,3 +184,4 @@ mt.rename_clusters(adata, mapping={
     "2": "Necrosis",
 })
 ```
+

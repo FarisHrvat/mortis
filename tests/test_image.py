@@ -1,5 +1,5 @@
 """
-Tests for mortis.image — TIFF loading, alignment, feature extraction,
+Tests for mortis.image. TIFF loading, alignment, feature extraction,
 and overlay plotting.
 """
 
@@ -168,3 +168,4 @@ class TestPlotImageOverlay:
     def test_raises_without_image(self, spatial_adata):
         with pytest.raises(InvalidParameterError):
             plot_image_overlay(spatial_adata)
+

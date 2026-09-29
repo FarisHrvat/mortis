@@ -5,8 +5,8 @@ that matches your scheduler, change the parts marked `EDIT`, submit.
 
 ```
 hpc/
-  slurm_single.sh    one cohort, one node          — start here
-  slurm_array.sh     many cohorts in parallel      — one array task each
+  slurm_single.sh    one cohort, one node, start here
+  slurm_array.sh     many cohorts in parallel, one array task each
   pbs_single.sh      the same, for PBS/Torque
   apptainer.def      a container for clusters that will not let you pip install
   environment.yml    a conda environment, when they will
@@ -28,7 +28,7 @@ export MORTIS_N_JOBS=$SLURM_CPUS_PER_TASK
 ```
 
 These must be set **before** Python starts. BLAS reads them once when its
-thread pool initialises — which happens on `import numpy` — so exporting them
+thread pool initialises, which happens on `import numpy`, so exporting them
 later has no effect at all. MORTIS learned this the hard way and the finding is
 written up in `docs/concepts/performance.md`.
 
@@ -67,3 +67,4 @@ mortis verify results/manifest.json --data results/pseudobulk.h5ad
 
 Worth doing after a cluster migration or a module upgrade, when the environment
 has moved underneath you and nothing announces it.
+
