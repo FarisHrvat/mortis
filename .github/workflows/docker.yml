@@ -1,10 +1,5 @@
 name: Docker
 
-# The Dockerfile is a claim that the package installs cleanly from nothing on a
-# machine that is not mine. Building it on every push is the only way that claim
-# stays true, an image that has not been built since it was written is a
-# guess.
-
 on:
   push:
     branches: [main]
@@ -35,8 +30,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Building proves it compiles. These prove it actually works, which is a
-      # different and more useful thing.
       - name: The entry point responds
         run: docker run --rm mortis:ci --help
 
@@ -97,8 +90,6 @@ jobs:
 
       - name: Results are owned by the caller, not by root
         run: |
-          # A container that writes root-owned files into a mounted directory
-          # is a container people quietly stop using.
           owner=$(stat -c '%u' work/results/differential_abundance.csv)
           echo "output uid: $owner (runner uid: $(id -u))"
           test "$owner" = "$(id -u)"

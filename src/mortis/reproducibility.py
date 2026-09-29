@@ -157,12 +157,8 @@ def record_step(
         is safe to pass.
     """
     chain = list(adata.uns.get("mortis_provenance", []))
-    # Stored as JSON strings rather than dicts. HDF5 has no notion of a nested
-    # mapping, so a list of dicts in .uns makes write_h5ad() fail with
-    # "Can't implicitly convert non-string objects to strings", which used to
-    # mean that recording provenance quietly broke saving the object it was
-    # recorded on. A list of strings round-trips fine. Use provenance() to read
-    # it back as dicts.
+    # JSON strings, not dicts: HDF5 has no nested mapping, so a list of dicts
+    # in .uns breaks write_h5ad(). provenance() reads them back.
     chain.append(json.dumps({
         "step": str(step),
         "params": {str(k): str(v) for k, v in (params or {}).items()},
@@ -338,9 +334,8 @@ def export_manifest(
     if extra:
         body["extra"] = {str(k): str(v) for k, v in extra.items()}
 
-    # The seal covers everything above it, so tampering with any recorded value
-    # invalidates it. It is an integrity check rather than a signature: it
-    # proves the file is internally consistent, not who wrote it.
+    # Integrity check, not a signature: it proves the file is internally
+    # consistent, not who wrote it.
     body["seal_sha256"] = _digest(json.dumps(body, sort_keys=True).encode("utf-8"))
 
     out = Path(path)

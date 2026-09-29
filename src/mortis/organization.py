@@ -71,11 +71,8 @@ __all__ = [
     "compare_abundance_and_organization",
 ]
 
-#: Metrics computed per sample per metabolite. Every one is deliberately scale
-#: free, normalised so that a section with 30,000 pixels and a section with
-#: 3,000 produce comparable numbers. Without that, the metric would mostly
-#: measure section size and any group difference would track how big the
-#: biopsies happened to be.
+#: Metrics computed per sample per metabolite. All are scale free, so a
+#: 30,000-pixel section and a 3,000-pixel one are comparable.
 ORGANIZATION_METRICS = ("morans_i", "entropy", "hotspot_fraction", "gini")
 
 
@@ -239,10 +236,8 @@ def spatial_organization(
             )
             section.obsm["spatial"] = adata.obsm["spatial"][mask]
 
-        # A single-section graph: batch_key is absent from this view, so
-        # _build_spatial_weights treats it as one block and no offsetting is
-        # applied. Neighbours cannot leak between sections because sections are
-        # never in the same call.
+        # One section per call, so _build_spatial_weights sees a single block
+        # and neighbours cannot leak across sections.
         W, _ = _build_spatial_weights(section, n_neighbors, batch_key="__none__")
         row_sums = np.asarray(W.sum(axis=1)).ravel()
         S0 = float(W.sum())

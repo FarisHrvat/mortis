@@ -402,10 +402,8 @@ def annotate_pathways(
         adata.var_names, cache=cache, timeout=timeout, retries=retries
     )
 
-    # fillna before astype(str). Under pandas 2 a missing value became the
-    # literal "nan" and everything downstream still saw a string; under pandas 3
-    # astype(str) yields a string column that keeps NA as NA, so the same code
-    # started handing floats to .upper() further down.
+    # fillna before astype(str): pandas 3 keeps NA as NA rather than the
+    # string "nan", which hands a float to .upper() downstream.
     def _as_text(column: str) -> pd.Series:
         return identifiers[column].fillna("NA").astype(str).replace("nan", "NA")
 

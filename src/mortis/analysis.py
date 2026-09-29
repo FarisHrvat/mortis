@@ -121,9 +121,8 @@ def _check_spatial(adata: ad.AnnData) -> None:
 # Clustering
 # ---------------------------------------------------------------------------
 
-# scanpy is switching its default Leiden backend from leidenalg to igraph, and
-# the two do not give the same partition. Naming the backend keeps a result
-# from moving under a user who only upgraded scanpy.
+# scanpy is changing its default Leiden backend and the two give different
+# partitions, so name it rather than inherit it.
 _LEIDEN_BACKEND = {"flavor": "leidenalg"}
 
 
@@ -1346,10 +1345,8 @@ def neighborhood_enrichment(
     if copy: adata = adata.copy()
 
     prior_n_threads = nb.get_num_threads()
-    # Clamp to what Numba will accept. set_num_threads() raises if asked for
-    # more than NUMBA_NUM_THREADS, which is fixed at import from the core
-    # count, so n_jobs=8 on a 4-core machine would otherwise be an error
-    # rather than simply using 4.
+    # set_num_threads() raises above NUMBA_NUM_THREADS, which is fixed at
+    # import from the core count, so clamp rather than error.
     requested = n_jobs if n_jobs is not None else _N_JOBS
     nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
 

@@ -69,20 +69,15 @@ __all__ = [
     "ion_cmap",
 ]
 
-#: Colours are chosen to stay distinguishable in greyscale and under the common
-#: forms of colour-vision deficiency: they differ in lightness, not only in hue.
-#: Figure formats MORTIS writes. Vector first: a journal wants the vector
-#: file, and a raster one is for a slide or a preprint server that refuses
-#: anything else.
 _VECTOR_FORMATS = ("pdf", "svg", "eps", "ps")
 _RASTER_FORMATS = ("png", "jpg", "jpeg", "tiff", "tif", "webp")
 _SAVE_FORMATS = frozenset(_VECTOR_FORMATS + _RASTER_FORMATS)
 
-#: matplotlib names a couple of formats differently from the extension people
-#: expect on the file.
+#: matplotlib spells a couple of these differently from the file extension.
 _EXTENSION = {"jpeg": "jpg", "tif": "tiff"}
 
-
+#: Distinguishable in greyscale and under colour-vision deficiency: these
+#: differ in lightness, not only hue.
 PALETTE = {
     "up": "#B2182B",            # higher in group 1   (RdBu-11)
     "down": "#2166AC",          # higher in group 2   (RdBu-11)
@@ -220,10 +215,8 @@ def set_publication_style(
         raise InvalidParameterError(f"base_size must be > 0, got {base_size}.")
     generic = font_family in ("sans-serif", "serif", "monospace")
     if not generic:
-        # A named family, "Arial" or "Helvetica Neue" or whatever the journal
-        # asks for. Check it is actually installed, because matplotlib's own
-        # behaviour is to warn once and silently draw DejaVu Sans, which means
-        # a figure set that looks right locally and wrong on another machine.
+        # matplotlib warns once and silently substitutes DejaVu Sans for a
+        # missing font, so check it is installed.
         available = {f.name for f in font_manager.fontManager.ttflist}
         if font_family not in available:
             raise InvalidParameterError(
@@ -589,11 +582,8 @@ def plot_effect_size(
     if n1 is not None and n2 is not None:
         ax.set_title(f"{group_labels[0]} (n={n1}) vs {group_labels[1]} (n={n2})", loc="left")
 
-    # The fill/outline legend only earns its space when both states appear.
-    # On an underpowered cohort every bar is hollow, and a legend explaining
-    # that half of it is unused is a third line of text under the axis for no
-    # information. Below the axes when shown: at ten-plus bars it lands on data
-    # wherever it is placed inside the frame.
+    # Only show the fill/outline legend when both states occur. Placed below
+    # the axes, since inside the frame it overlaps data past ten bars.
     if bool(significant.any()) and bool((~significant).any()):
         handles = [
             mpl.patches.Patch(facecolor=PALETTE["up"], edgecolor=PALETTE["up"],
@@ -878,12 +868,9 @@ def plot_abundance_vs_organization(
         "abundance only": PALETTE["abundance"],
         "neither": PALETTE["neutral"],
     }
-    # Cliff's delta on a small cohort takes very few distinct values -- with
-    # three sections per arm there are only ten -- so hundreds of metabolites
-    # can land on a handful of coordinates and the figure shows a dozen dots
-    # where the legend claims two hundred. Collapse exact duplicates and scale
-    # the marker area by how many sit there. Moving the points apart would be
-    # easier to draw and would be a lie about where they are.
+    # Cliff's delta is quantised: 3v3 gives only ten values, so many
+    # metabolites share a coordinate. Collapse duplicates and scale marker
+    # area by the count rather than jittering them apart.
     stacked = 0
     # Draw "neither" first so the findings sit on top of the cloud.
     for label in ("neither", "abundance only", "both", "organization only"):
@@ -900,10 +887,8 @@ def plot_abundance_vs_organization(
         ))
     _note_stacking(ax, stacked)
 
-    # Only the two zero lines are drawn. Guides at the classification
-    # threshold were four more full-width lines, and at any opacity that reads
-    # as a grid laid over the data. The threshold is marked with a tick on the
-    # axis instead, where it cannot cross anything.
+    # Only the zero lines. Threshold guides would be four more full-width
+    # lines and read as a grid, so the threshold is a tick on the axis.
     ax.axvline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
     ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
     for value in (-delta_threshold, delta_threshold):
@@ -913,10 +898,8 @@ def plot_abundance_vs_organization(
                 alpha=0.55, clip_on=False, zorder=4)
 
     if label_top > 0:
-        # One label per coordinate, carrying a count when several metabolites
-        # share it. Six separate names pointing at one dot is six leader lines
-        # to the same place, which tells the reader nothing about which is
-        # which; "Spermidine +3 more" at least says how crowded that point is.
+    # One label per coordinate, with a count when several metabolites share
+    # it: "Spermidine +3 more" rather than six leader lines to one dot.
         organization_only = merged[merged["classification"] == "organization only"]
         points, labels = [], []
         for (x, y), group in organization_only.groupby(
@@ -1540,9 +1523,8 @@ def plot_ion_images(
         n_cols = int(counts.max())
     n_cols = int(n_cols or min(len(order), 5))
 
-    # Each group starts on a fresh row, so the group name can be a single label
-    # on the left of its block instead of a second line under every panel
-    # title. Repeating the arm ten times is noise; saying it twice is a figure.
+    # Each group starts a fresh row, so its name can sit once to the left of
+    # the block instead of under every panel title.
     placement, row = [], 0
     for group in dict.fromkeys(group_of[s] for s in order):
         members = [s for s in order if group_of[s] == group]
@@ -1551,9 +1533,8 @@ def plot_ion_images(
         row += int(np.ceil(len(members) / n_cols))
     n_rows = max(row, 1)
 
-    # Intensities are arbitrary units after normalisation, so a raw axis reads
-    # "8 x 10^-5" and matplotlib parks that exponent over the top panel. Scale
-    # to O(1) and put the decade in the label instead.
+    # Normalised intensities are ~1e-5, and matplotlib parks the exponent
+    # over the top panel. Scale to O(1) and put the decade in the label.
     decade = 0
     if shared_scale and np.isfinite(vmax) and vmax > 0:
         decade = int(np.floor(np.log10(vmax)))
@@ -1583,10 +1564,9 @@ def plot_ion_images(
             lo, hi = vmin * scale, vmax * scale
         handle = _draw_ion_panel(ax, xy, v, lo, hi, cmap or ion_cmap())
         ax.set_title(str(sample), fontsize=mpl.rcParams["font.size"] - 1, pad=3)
-        # Equal aspect shrinks the axes box to the tissue outline, and by
-        # default matplotlib centres what is left inside the cell, so the
-        # titles of five differently-shaped sections end up at five different
-        # heights. Anchoring north pins the top edge and lines them up.
+        # Equal aspect shrinks the box to the tissue and centres it, which
+        # puts the titles of differently-shaped sections at different
+        # heights. Anchoring north pins the top edge.
         ax.set_aspect("equal", anchor="N")
         ax.set_xticks([])
         ax.set_yticks([])
@@ -1707,22 +1687,18 @@ def plot_organization_heatmap(
         boundaries = np.where(ordered[1:] != ordered[:-1])[0]
         for b in boundaries:
             ax.axhline(b + 0.5, color=_ink(), linewidth=1.2)
-        # Group labels sit outside the section tick labels. Both data
-        # coordinates and axes fractions put them on top of the tick text,
-        # because neither knows how wide that text renders. Offsetting in
-        # points does: tick labels occupy roughly 0.6 * fontsize per character
-        # plus the tick padding, which is directly computable.
+        # Offset in points, not data or axes coordinates, since neither knows
+        # how wide the tick text renders. Roughly 0.6 * fontsize per
+        # character plus the tick padding.
         longest = max(len(s) for s in org.obs_names.astype(str))
         # font.size is always numeric; ytick.labelsize may be a keyword string
         # such as 'medium' when no style has been applied, which would fail here.
         tick_points = float(mpl.rcParams["font.size"]) - 1.0
         pad_points = -(10.0 + 0.62 * tick_points * longest)
 
-        # Group labels stay horizontal. Rotating them saves width, but a
-        # rotated label is as tall as it is long, so on a small cohort of two
-        # sections per arm "Non Responder" is taller than its own band and the
-        # group names collide. Horizontal text is one line tall whatever it
-        # says, and tight_layout finds the room for it.
+        # Horizontal, not rotated: a rotated label is as tall as it is long,
+        # so on a two-section band "Non Responder" overruns it and collides
+        # with the next group.
         start = 0
         for end in list(boundaries) + [len(ordered) - 1]:
             ax.annotate(
@@ -1790,9 +1766,8 @@ def plot_class_enrichment(
             color=color if sig else "none", edgecolor=color, linewidth=0.9,
         )
 
-    # The class size goes in the tick label, not next to the bar. A class whose
-    # median delta is zero has a bar of zero length, so a count placed at the
-    # end of it lands on the axis and prints over the class name.
+    # Class size goes in the tick label: a zero-length bar would print its
+    # count on the axis, over the class name.
     ax.set_yticks(y)
     ax.set_yticklabels([
         f"{name}  ({int(size)})"

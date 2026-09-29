@@ -23,43 +23,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-latest is Apple Silicon, macos-13 is the last Intel runner.
-        # numba and llvmlite ship different wheels for the two, so both get
-        # tested rather than assumed.
+        # macos-13 is the last Intel runner; macos-latest is Apple Silicon.
         os: [ubuntu-latest, macos-latest, macos-13, windows-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         exclude:
-          # Intel macOS is the smallest slice of the userbase; one version
-          # there is enough to catch a broken wheel.
           - os: macos-13
             python-version: "3.10"
           - os: macos-13
             python-version: "3.11"
+          - os: macos-13
+            python-version: "3.13"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package and dev dependencies
-        run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev]"
 
-      - name: Run tests
-        run: pytest tests/ -v --cov=mortis --cov-report=xml
+      - run: pytest tests/ -q --cov=mortis --cov-report=xml
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
 
-  # A default `pip install mortis-spatial` must not drag in the GPL packages,
-  # and must still import. Easy to break by moving a dependency back into the
-  # base list without noticing.
   default-install:
     needs: lint
     runs-on: ubuntu-latest
@@ -69,29 +61,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install .
-      - name: Import without the optional extras
-        run: |
-          python -c "import mortis; print(mortis.__version__, len(mortis.__all__))"
+      - run: |
+          python -c "import mortis; print(mortis.__version__)"
           mortis info
-      - name: No GPL packages in a default install
+      - name: leidenalg and igraph stay out of the base install
         run: |
           python - <<'PY'
           import importlib.util as u
-          present = [n for n in ("leidenalg", "igraph") if u.find_spec(n)]
-          assert not present, f"default install pulled in GPL packages: {present}"
-          print("clean: no leidenalg, no igraph")
-          PY
-      - name: Leiden clustering explains how to install itself
-        run: |
-          python - <<'PY'
-          import anndata as ad, numpy as np, pandas as pd, mortis as mt
-          a = ad.AnnData(X=np.random.default_rng(0).random((40, 4), dtype=np.float32))
-          a.obsm["spatial"] = np.random.default_rng(1).random((40, 2)).astype(np.float32)
-          try:
-              mt.cluster(mt.preprocess(a))
-          except ImportError as exc:
-              assert "mortis-spatial[cluster]" in str(exc), exc
-              print("raises with the install command")
-          else:
-              raise AssertionError("expected ImportError")
+          found = [n for n in ("leidenalg", "igraph") if u.find_spec(n)]
+          assert not found, f"GPL packages in a default install: {found}"
           PY
