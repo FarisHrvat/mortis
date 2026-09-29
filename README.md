@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="web/assets/logo.svg" width="46" alt=""><br>
+  <img src="https://raw.githubusercontent.com/FarisHrvat/mortis/main/web/assets/logo.svg" width="46" alt=""><br>
   MORTIS
 </h1>
 
@@ -16,7 +16,7 @@
   <a href="https://github.com/FarisHrvat/mortis/actions/workflows/test.yml"><img src="https://github.com/FarisHrvat/mortis/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
   <img src="https://img.shields.io/badge/tested-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg" alt="Linux, macOS, Windows">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT licence"></a>
+  <a href="https://github.com/FarisHrvat/mortis/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/version-0.1.0-orange.svg" alt="version 0.1.0">
 </p>
 
@@ -115,7 +115,7 @@ docker build -t mortis .
 docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" mortis run /work/analysis.yaml
 ```
 
-**On a cluster**, [`hpc/`](hpc/) has Slurm and PBS templates, an Apptainer
+**On a cluster**, [`hpc/`](https://github.com/FarisHrvat/mortis/blob/main/hpc) has Slurm and PBS templates, an Apptainer
 definition for sites that will not permit `pip install`, and a conda
 environment for the ones that will. The scripts derive thread limits from the
 scheduler's allocation and set them before Python starts, which is the
@@ -145,12 +145,12 @@ pytest && ruff check .
 
 572 tests, run against Python 3.10, 3.11 and 3.12 on Linux, macOS and
 Windows. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/FarisHrvat/mortis/blob/main/CONTRIBUTING.md).
 
 ## Citation
 
 MORTIS is **under review for publication**. A citation will appear here, and in
-[`CITATION.cff`](CITATION.cff), as soon as the paper is out. Until then, cite the
+[`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff), as soon as the paper is out. Until then, cite the
 repository and version.
 
 `filter_drugs()` matches against a drug-name list built from Wikidata, which
@@ -162,5 +162,5 @@ it.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/FarisHrvat/mortis/blob/main/LICENSE).
 
