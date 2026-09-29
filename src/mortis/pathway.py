@@ -15,22 +15,22 @@ sitting in ``adata.var_names``.
 
 Where the pieces come from
 --------------------------
-**Names to identifiers** — MetaboAnalyst's public REST endpoint
+**Names to identifiers**, MetaboAnalyst's public REST endpoint
 (``rest.xialab.ca/api/mapcompounds``). It returns HMDB, KEGG, PubChem, ChEBI,
 METLIN and SMILES for each name, and flags what it could not resolve. This is
 the same service the web tool uses.
 
-**Identifiers to pathways** — the KEGG REST API (``rest.kegg.jp``). One call
+**Identifiers to pathways**, the KEGG REST API (``rest.kegg.jp``). One call
 returns every compound-to-pathway link KEGG holds (about 19,600 of them) and a
 second returns the pathway names.
 
-**Enrichment** — computed here by :func:`mortis.pathway_ora`, not remotely.
+**Enrichment**, computed here by :func:`mortis.pathway_ora`, not remotely.
 This was not the plan. MetaboAnalyst documents exactly one REST endpoint, the
 name mapper, and six guesses at an enrichment endpoint all returned 404.
 
 Which turned out to be a lucky escape, because the background set decides the
 answer and a web service has no way of knowing yours. Enrichment must be tested against **the compounds you
-measured**, not against every compound in the database — otherwise a panel that
+measured**, not against every compound in the database, otherwise a panel that
 only detects polar metabolites looks dramatically enriched for polar pathways,
 purely because of what the instrument could see. ``pathway_ora`` uses the
 measured panel as background.
@@ -164,7 +164,7 @@ def map_compound_ids(
         One row per input name, with columns ``query``, ``match``, ``hmdb``,
         ``kegg``, ``pubchem``, ``chebi``, ``metlin``, ``smiles`` and
         ``matched``. Unresolved names keep their row with ``matched=False``
-        and ``NA`` identifiers — dropping them silently would make the
+        and ``NA`` identifiers, dropping them silently would make the
         match rate invisible, and the match rate is the first thing to check.
 
     Examples
@@ -246,7 +246,7 @@ def fetch_kegg_pathway_sets(
         "Global and overview maps". Default ``True``, and worth leaving on.
 
         Without it the top hits fill up with maps that contain many metabolites
-        without being metabolic pathways — "ABC transporters" (membrane
+        without being metabolic pathways, "ABC transporters" (membrane
         transport), "Protein digestion and absorption" (digestive system),
         "Aminoacyl-tRNA biosynthesis" (translation). All three came out
         significant on a 21-compound test panel and none of them means what a
@@ -314,7 +314,7 @@ def _metabolic_pathway_ids(brite: str) -> set:
     map IDs.
 
     The file is a flat indented listing: ``A`` lines are top categories
-    ("Metabolism", "Genetic Information Processing", ...), ``B`` lines are
+    ("Metabolism", "Genetic Information Processing"...), ``B`` lines are
     subcategories ("Carbohydrate metabolism", "Global and overview maps"), and
     ``C`` lines are the maps themselves. Tracking the most recent A and B while
     walking the file is enough to classify every map.
@@ -353,8 +353,8 @@ def annotate_pathways(
     """
     Name to identifier to pathway enrichment, in one call.
 
-    Combines the two lookups a user would otherwise do by hand — resolving
-    compound names to KEGG IDs, then finding which pathways those belong to —
+    Combines the two lookups a user would otherwise do by hand, resolving
+    compound names to KEGG IDs, then finding which pathways those belong to,
     and runs :func:`mortis.pathway_ora` on the result with the measured panel
     as background.
 
@@ -379,7 +379,7 @@ def annotate_pathways(
     -------
     (identifiers, enrichment)
         The full ID mapping table, and the pathway ORA report. The mapping is
-        returned rather than hidden so the match rate stays visible — a
+        returned rather than hidden so the match rate stays visible, a
         pathway result computed from 30% of a panel needs reading differently
         from one computed from 90%.
 
@@ -478,3 +478,4 @@ def clear_cache(cache: Optional[str] = None) -> int:
             removed += 1
     print(f"[MORTIS] Cleared {removed} cached response(s) from {directory}.")
     return removed
+

@@ -1,5 +1,5 @@
 """
-Tests for mortis.plotting — all plot functions produce Figure objects,
+Tests for mortis.plotting, all plot functions produce Figure objects,
 accept style parameters, and save to disk correctly.
 """
 
@@ -154,7 +154,7 @@ class TestPlotSpatial:
         assert isinstance(fig, plt.Figure)
 
     def test_spot_size_kwarg_sets_marker_size(self, full_adata):
-        # descriptive alias — regression test: this used to crash with
+        # descriptive alias, regression test: this used to crash with
         # "PathCollection.set() got an unexpected keyword argument 'spot_size'"
         # because spot_size fell through to ax.scatter(**kwargs) unpopped.
         fig = plot_spatial(full_adata, color="cluster", spot_size=9)
@@ -184,10 +184,9 @@ class TestPlotEmbeddingGrid:
         fig = plot_embedding_grid(full_adata, ["met_0", "met_1", "met_2"], ncols=3)
         assert isinstance(fig, plt.Figure)
 
-    def test_skips_missing_metabolites(self, full_adata, capsys):
-        plot_embedding_grid(full_adata, ["met_0", "fake_met"], ncols=2)
-        captured = capsys.readouterr()
-        assert "skipping" in captured.out
+    def test_skips_missing_metabolites(self, full_adata):
+        with pytest.warns(UserWarning, match="not in this object"):
+            plot_embedding_grid(full_adata, ["met_0", "fake_met"], ncols=2)
 
     def test_saves_pdf(self, full_adata, tmp_path):
         out = str(tmp_path / "grid.pdf")
@@ -347,3 +346,4 @@ class TestPlotClusterComposition:
         out = str(tmp_path / "composition.svg")
         plot_cluster_composition(full_adata, save=out)
         assert Path(out).exists()
+

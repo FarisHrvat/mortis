@@ -2,11 +2,13 @@
 The error messages are part of the interface, so they get tested like the rest
 of it.
 
-A user who mistypes a column name should be told three things: that the name is
-wrong, what the real names are, and — when the mistake looks like a typo — which
-one they probably meant. These tests pin that down for the functions people hit
-first, so a future refactor cannot quietly drop back to "'x' not found".
+A user who mistypes a column name should be told that the name is wrong, what
+the real names are, and, when the mistake looks like a typo, which one they
+probably meant. These tests pin that down for the functions people hit first,
+so a later refactor cannot quietly drop back to "'x' not found".
 """
+
+from pathlib import Path
 
 import anndata as ad
 import numpy as np
@@ -127,3 +129,38 @@ class TestNoStaleCapitalisation:
             if re.search(r"MORTIS\.[a-z_]+\(", text):
                 offenders.append(path.name)
         assert not offenders, f"MORTIS.foo() should be mortis.foo(): {offenders}"
+
+
+class TestSourceStaysPrintable:
+    """
+    A Windows console on a legacy code page cannot encode characters outside
+    cp1252, so an arrow or a >= sign inside a print() crashes the run there
+    instead of reporting progress. The package source is kept to ASCII, with
+    two deliberate exceptions.
+    """
+
+    ALLOWED = {
+        "\u00b1",  # matches "(+-)-" stereodescriptors in real compound names
+        "\u00b5",  # the micrometre axis label, drawn by matplotlib, never printed
+    }
+
+    def _source_files(self):
+        import mortis
+        root = Path(mortis.__file__).parent
+        return sorted(root.glob("*.py"))
+
+    def test_no_unencodable_characters(self):
+        offenders = []
+        for path in self._source_files():
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                for char in line:
+                    if ord(char) > 127 and char not in self.ALLOWED:
+                        offenders.append(f"{path.name}:{lineno}: {char!r}")
+        assert not offenders, "non-ASCII outside the allowed set:\n" + "\n".join(offenders)
+
+    def test_every_message_survives_a_cp1252_console(self):
+        for path in self._source_files():
+            text = path.read_text(encoding="utf-8")
+            for char in self.ALLOWED:
+                text = text.replace(char, "")
+            text.encode("cp1252")

@@ -4,8 +4,8 @@ MORTIS Cross-Cohort Comparison Module
 Comparing one cohort analysis against another: two drugs, two timepoints, two
 studies.
 
-The operation underneath every function here is the same — take the
-per-metabolite effect sizes from two independent analyses and correlate them —
+The operation underneath every function here is the same, take the
+per-metabolite effect sizes from two independent analyses and correlate them,
 but what the correlation *means* depends entirely on what the two analyses
 were. Two drugs gives you "do these drugs act on the same metabolites?". A
 baseline and an on-treatment analysis of the same patients gives you "does the
@@ -16,8 +16,8 @@ The one rule that matters
 -------------------------
 **Run each cohort through the identical pipeline first, then compare.**
 
-Analyse the second cohort as an appendix of the first — reusing its clusters,
-its normalisation factors, its feature selection — and what you end up measuring
+Analyse the second cohort as an appendix of the first, reusing its clusters,
+its normalisation factors, its feature selection, and what you end up measuring
 is your own processing choices, dressed up as biology. Reviewers reject
 asymmetric comparisons, and they are right to.
 
@@ -102,7 +102,7 @@ def compare_signatures(
     labels : tuple of str
         Short names for the two analyses, used as column suffixes.
     min_shared : int
-        Minimum metabolites in common. Default 10 — below that a correlation
+        Minimum metabolites in common. Default 10, below that a correlation
         is not interpretable.
     n_boot : int
         Bootstrap resamples for a confidence interval on rho. Default 0.
@@ -172,9 +172,9 @@ def cross_cohort_profile(
     ==================  =====================================================
     rho                 reading
     ==================  =====================================================
-    near +1             the same metabolites move the same way — a shared
+    near +1             the same metabolites move the same way, a shared
                         response signature
-    near 0              the signatures are unrelated — response is
+    near 0              the signatures are unrelated, response is
                         cohort-specific (drug-specific, site-specific)
     near -1             the same metabolites move in opposite directions,
                         which is a strong and unusual claim; check first that
@@ -186,7 +186,7 @@ def cross_cohort_profile(
     that is often the more interesting answer.
 
     Both inputs must come from cohorts run through the *same* pipeline
-    independently — see the module docstring.
+    independently, see the module docstring.
 
     Returns
     -------
@@ -235,17 +235,17 @@ def track_flow(
     ==================  =====================================================
     rho                 reading
     ==================  =====================================================
-    near +1             **persists** — the same metabolites separate
+    near +1             **persists**, the same metabolites separate
                         responders at both timepoints
-    near 0              **reorganises** — responders are still distinguishable
+    near 0              **reorganises**, responders are still distinguishable
                         but by a different set of metabolites
-    near -1             **flips** — the direction of separation reverses
+    near -1             **flips**, the direction of separation reverses
     ==================  =====================================================
 
     Note this is a different question from :func:`mortis.paired_differential_abundance`,
     which asks how each patient changed. This asks how the *between-group
     difference* changed, so it does not require matched patients at the two
-    timepoints — only that both analyses used the same feature set.
+    timepoints, only that both analyses used the same feature set.
 
     Returns
     -------
@@ -269,3 +269,4 @@ def track_flow(
     )
     print(f"[MORTIS]   {verdict}")
     return rho, table
+

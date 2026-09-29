@@ -7,7 +7,7 @@ class and pathway level.
 Why classification is done in layers
 ------------------------------------
 Class-level results are often the most readable thing in a spatial metabolomics
-paper — "phospholipids collapse in the inflamed region" says more than a list
+paper, "phospholipids collapse in the inflamed region" says more than a list
 of forty m/z values. But they are only as good as the classifier, and the usual
 failure is quiet: a rule set built from a handful of lipid prefixes drops a
 third of the compounds into "Other", and every class-level conclusion is then
@@ -23,12 +23,12 @@ Three layers, in order of precedence:
 1. **Exact-name lookup** for compounds where a pattern would guess wrong.
    "Glutathione" contains no amino-acid marker; "Carnitine" looks like an amino
    acid but is not.
-2. **Pattern rules** on shorthand and systematic names — ``PC(34:1)``,
+2. **Pattern rules** on shorthand and systematic names, ``PC(34:1)``,
    ``SM(d18:1/16:0)``, ``N1-Acetylspermidine``.
 3. **Suffix and substructure heuristics** as a last resort, so a compound with
    a recognisable chemical ending is placed rather than discarded.
 
-Anything still unmatched is labelled ``"Unclassified"`` rather than "Other" —
+Anything still unmatched is labelled ``"Unclassified"`` rather than "Other",
 the point being that it is a gap in the classifier, not a chemical category.
 :func:`classification_report` tells you how large that gap is, and you should
 look at it before quoting any class-level result.
@@ -41,8 +41,8 @@ the effect before relying on them: measured against a real 2,231-compound
 METASPACE-style panel, the built-in rules leave **about 55% unclassified**.
 
 That is not a tuning problem. The unplaced remainder is dominated by plant
-alkaloids and natural products whose names carry no usable stem —
-"(+)-Erysotrine", "(-)-Slaframine", "(+)-Mahanimbine" — together with fully
+alkaloids and natural products whose names carry no usable stem,
+"(+)-Erysotrine", "(-)-Slaframine", "(+)-Mahanimbine", together with fully
 systematic IUPAC names. Nothing short of a database resolves those, which is
 what the ``reference=`` argument of :func:`classify_compounds` is for: pass an
 HMDB, LIPID MAPS or ClassyFire export and it is consulted before the rules.
@@ -296,11 +296,11 @@ def classify_compounds(
     ----------
     adata : anndata.AnnData
         Data whose ``var_names`` are compound names. Purely m/z ``var_names``
-        cannot be classified — annotate them first.
+        cannot be classified, annotate them first.
     key_added : str
         Column created in ``adata.var``. Default ``'chemical_class'``.
     reference : pandas.DataFrame or dict, optional
-        A name-to-class mapping consulted **before** the built-in rules — the
+        A name-to-class mapping consulted **before** the built-in rules, the
         way to bring a real database in. Either a dict, or a DataFrame with a
         compound-name column and a class column (the first two columns are
         used). Export from HMDB, LIPID MAPS or ClassyFire and pass it here.
@@ -311,7 +311,7 @@ def classify_compounds(
         about 55% unclassified, and the remainder are largely plant alkaloids
         and natural products whose names carry no usable stem
         ("(+)-Erysotrine", "(-)-Slaframine"). No amount of pattern work fixes
-        that — those compounds need a database.
+        that. Those compounds need a database.
     overrides : dict, optional
         ``{compound_name: class}`` applied last and unconditionally. Use this
         for facility-specific naming the built-in rules do not know, and keep
@@ -379,12 +379,12 @@ def classify_compounds(
     print(
         f"[MORTIS] Classified {len(classes) - n_unclassified}/{len(classes)} compounds "
         f"into {len(set(classes) - {'Unclassified'})} classes "
-        f"→ adata.var['{key_added}']"
+        f"-> adata.var['{key_added}']"
     )
     if fraction > 0.25:
         warnings.warn(
             f"[MORTIS] {fraction:.0%} of compounds are Unclassified. Class-level results "
-            "computed on the remainder may not represent the panel — inspect "
+            "computed on the remainder may not represent the panel, inspect "
             "mortis.classification_report(adata) and consider passing overrides=.",
             stacklevel=2,
         )
@@ -436,7 +436,7 @@ def class_enrichment(
     Compares each class's effect sizes against all other compounds with a
     Mann-Whitney test, so the question is "do this class's members shift more
     than the rest of the panel?". Classes are the level at which small cohorts
-    have something to say — a class of 30 phospholipids moving together is
+    have something to say, a class of 30 phospholipids moving together is
     evidence that no individual compound at n = 6 could carry.
 
     Parameters
@@ -542,8 +542,8 @@ def pathway_ora(
     Over-representation of metabolite sets among the shifted compounds.
 
     Complements :func:`mortis.metabolite_set_enrichment`, which is rank-based
-    over the whole list. This one asks a simpler question — of the compounds
-    that passed a threshold, is any pathway over-represented — using Fisher's
+    over the whole list. This one asks a simpler question, of the compounds
+    that passed a threshold, is any pathway over-represented, using Fisher's
     exact test against the background of every compound measured.
 
     The background matters and is easy to get wrong: it is the compounds in
@@ -556,7 +556,7 @@ def pathway_ora(
     result : pandas.DataFrame
         Output of :func:`mortis.differential_abundance`.
     metabolite_sets : dict
-        ``{pathway_name: [compound, ...]}``. Matching is case-insensitive.
+        ``{pathway_name: [compound...]}``. Matching is case-insensitive.
     effect_col : str
         Effect-size column. Default ``"delta"``.
     delta_threshold : float
@@ -592,7 +592,7 @@ def pathway_ora(
         raise InvalidParameterError(
             "metabolite_sets is empty, so every test would have zero members. "
             "Build it from mortis.annotate_pathways(), or pass your own "
-            "{set_name: [compound, ...]} mapping."
+            "{set_name: [compound...]} mapping."
         )
     if fdr_threshold is not None and "pval_adj" not in result.columns:
         raise InvalidParameterError(
@@ -667,3 +667,4 @@ def pathway_ora(
         f"{int((report['pval_adj'] < 0.05).sum())} enriched at FDR < 0.05."
     )
     return report
+

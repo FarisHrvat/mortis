@@ -4,7 +4,7 @@
 
 This is the same pipeline as the [Quickstart](quickstart.md), extended
 with every optional step MORTIS supports. Use it as a reference to copy
-from, not something to run top-to-bottom on every project — skip
+from, not something to run top-to-bottom on every project, skip
 whatever doesn't apply to your data.
 
 ```python
@@ -32,11 +32,14 @@ adata = mt.filter_by_score(adata, min_score=0.3)
 # (.h5ad files exported from METASPACE/SCiLS already have adata.var['score']
 # populated, so load_annotation_scores is not needed for those.)
 
-# ── 5. Drug/xenobiotic metabolite removal (optional) ───────────────────
-# DrugBank filtering is opt-in QC, not mandatory -- if drug distribution
-# is your analyte of interest (e.g. an in situ PK study), skip this and
-# use list_drug_matches()/score_metabolite_set() to *find* drug ions instead.
+# --- 5. Drug and xenobiotic removal (optional) ---
+# This is opt-in QC, not a mandatory stage. If drug distribution is your
+# analyte of interest, as in an in-situ PK study, skip it and use
+# list_drug_matches() or score_metabolite_set() to find drug ions instead.
+# Note that amino acids, taurine and cholesterol all carry drug identifiers,
+# so check the endogenous column before removing anything.
 matches = mt.list_drug_matches(adata)
+print(matches[~matches.endogenous])
 adata = mt.filter_drugs(adata)
 
 # ── 6. Preprocess ───────────────────────────────────────────────────────
@@ -123,8 +126,12 @@ adata = mt.extract_image_features(adata, radius=5)
 mt.plot_image_overlay(adata, color="cluster", save="overlay.pdf")
 
 # ── 18. Reproducibility receipt (optional) ──────────────────────────────
-from mortis import audit
-audit.generate_audit_receipt("my_analysis", {"resolution": 0.5, "cutoff": 1.5}, output_dir="results")
+mt.export_manifest(
+    "results/manifest.json",
+    adata=adata,
+    results={"abundance": ab, "organization": do},
+    analysis="my_analysis",
+)
 
 # ── 19. Save ──────────────────────────────────────────────────────────────
 mt.save_adata(adata, "results/patient1_processed.h5ad")
@@ -134,3 +141,4 @@ mt.save_results(results, "results/de_results.csv")
 Every function used above is documented in full in the
 [API Reference](../api/index.md), with parameters, defaults, exceptions,
 and its own runnable example.
+

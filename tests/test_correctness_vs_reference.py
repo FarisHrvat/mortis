@@ -1,16 +1,16 @@
 """
 Correctness verification: MORTIS results checked against independent
-reference implementations — either a genuinely independent published
+reference implementations, either a genuinely independent published
 package (esda/PySAL for the custom spatial statistics) or a direct call
 to the exact underlying library MORTIS wraps (scanpy/sklearn/scipy/
 statsmodels/harmonypy), on identical inputs with matched parameters.
 
 This exists to answer a specific question: "does MORTIS actually compute
-what it claims to, or does the wrapper subtly change the result?" —
+what it claims to, or does the wrapper subtly change the result?",
 not to re-test business logic already covered elsewhere.
 
 Requires the optional test dependencies `esda` and `libpysal` (NOT
-runtime dependencies of mortis itself — install with
+runtime dependencies of mortis itself, install with
 `pip install esda libpysal` to run this file; skipped automatically if
 unavailable).
 """
@@ -123,7 +123,7 @@ class TestGetisOrdVsEsda:
         w.transform = "r"
         # esda has no unambiguous default for the Gi* self-weight when the
         # weights are already row-standardized (it warns about this and
-        # falls back to a heuristic — see the UserWarning this raises).
+        # falls back to a heuristic, see the UserWarning this raises).
         ref = G_Local(x_structured, w, star=True, permutations=0)
 
         # These are two different published statistics that share a name.
@@ -213,7 +213,10 @@ class TestLeidenMatchesScanpy:
         sc.pp.neighbors(a2, n_neighbors=10, random_state=0)
 
         cluster(a1, resolution=0.5, random_state=0)
-        sc.tl.leiden(a2, resolution=0.5, random_state=0, key_added="cluster")
+        # cluster() names the backend so scanpy's changing default cannot move
+        # the result; the reference call has to name the same one.
+        sc.tl.leiden(a2, resolution=0.5, random_state=0, key_added="cluster",
+                     flavor="leidenalg")
 
         assert list(a1.obs["cluster"]) == list(a2.obs["cluster"])
 
@@ -335,3 +338,4 @@ class TestSilhouetteAriAmiAreDirectSklearnCalls:
         result = compare_clusterings(a, b)
         assert result["ari"] == pytest.approx(adjusted_rand_score(a, b), abs=1e-8)
         assert result["ami"] == pytest.approx(adjusted_mutual_info_score(a, b), abs=1e-8)
+

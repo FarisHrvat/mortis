@@ -6,7 +6,7 @@ patients, independently of whether there is more or less of them.
 
 The question this answers
 -------------------------
-Abundance testing asks "is there more of metabolite X in responders?" — which
+Abundance testing asks "is there more of metabolite X in responders?", which
 is precisely the question bulk metabolomics answered years ago, more cheaply.
 Ask only that of imaging data and you have paid for spatial resolution in order
 to throw it away.
@@ -72,7 +72,7 @@ __all__ = [
 ]
 
 #: Metrics computed per sample per metabolite. Every one is deliberately scale
-#: free — normalised so that a section with 30,000 pixels and a section with
+#: free, normalised so that a section with 30,000 pixels and a section with
 #: 3,000 produce comparable numbers. Without that, the metric would mostly
 #: measure section size and any group difference would track how big the
 #: biopsies happened to be.
@@ -100,7 +100,7 @@ def _normalised_entropy(block: np.ndarray) -> np.ndarray:
     Treating a metabolite's pixel intensities as a distribution over locations,
     entropy is high when signal is spread evenly across the section and low
     when it is concentrated in a few pixels. Dividing by ``log(n_pixels)`` puts
-    it on [0, 1] regardless of how many pixels the section has — without that
+    it on [0, 1] regardless of how many pixels the section has, without that
     normalisation a bigger section scores higher for purely combinatorial
     reasons and the metric becomes a proxy for biopsy size.
     """
@@ -116,7 +116,7 @@ def _normalised_entropy(block: np.ndarray) -> np.ndarray:
 def _gini(block: np.ndarray) -> np.ndarray:
     """
     Gini coefficient of each ion image: 0 = perfectly uniform, 1 = all signal
-    in one pixel. Complements entropy — both measure concentration, but Gini
+    in one pixel. Complements entropy, both measure concentration, but Gini
     responds mainly to the top of the distribution, so a metabolite forming one
     intense focus against a flat background moves Gini more than entropy.
     """
@@ -133,7 +133,7 @@ def _hotspot_fraction(block: np.ndarray, W_star, n: int, k: int) -> np.ndarray:
     """
     Fraction of pixels sitting in a significant Getis-Ord Gi* hot spot
     (|z| > 1.96, positive side). Reads as "how much of this section is taken up
-    by concentrated high-signal foci" — a direct measure of focal organisation
+    by concentrated high-signal foci", a direct measure of focal organisation
     that is already a proportion, so it compares across section sizes.
     """
     mean = block.mean(axis=0)
@@ -158,7 +158,7 @@ def spatial_organization(
     The spatial analogue of :func:`mortis.pseudobulk`: where pseudobulk
     collapses a section to *how much* of each metabolite is present, this
     collapses it to *how that metabolite is arranged*. The output has the same
-    shape — samples x metabolites — so it feeds the same downstream tests.
+    shape, samples x metabolites, so it feeds the same downstream tests.
 
     Each section is processed independently, with its own spatial weights
     graph. Nothing is ever compared across section boundaries.
@@ -169,7 +169,7 @@ def spatial_organization(
         Pixel-level data with ``adata.obsm['spatial']``.
     sample_key : str
         Column in ``adata.obs`` identifying the section. Use the section here,
-        not the patient — organisation is a property of a physical tissue
+        not the patient, organisation is a property of a physical tissue
         section, and two sections from one patient should be summarised
         separately (aggregate them afterwards if the patient is your unit).
     metrics : sequence of str
@@ -181,7 +181,7 @@ def spatial_organization(
     layer : str, optional
         Layer to summarise. Default ``None`` uses ``.X``.
     min_pixels : int
-        Sections with fewer pixels are skipped — a spatial statistic on a
+        Sections with fewer pixels are skipped, a spatial statistic on a
         handful of pixels is noise. Default 50.
     carry_obs : sequence of str, optional
         Sample-level metadata to carry over. Default auto-detects, as in
@@ -399,7 +399,7 @@ def compare_abundance_and_organization(
         have found this.
     ``organization only``
         **The same amount, arranged differently.** Invisible to abundance
-        testing and to bulk metabolomics entirely — only imaging can see it,
+        testing and to bulk metabolomics entirely, only imaging can see it,
         and only if you look for it.
     ``both``
         Amount and arrangement both shifted. The strongest evidence, and worth
@@ -435,7 +435,7 @@ def compare_abundance_and_organization(
         10      3 true, 3 false         **3 true, 0 false**
         ======  ======================  ======================
 
-        Two things follow. Effect size alone always over-calls — it doubles or
+        Two things follow. Effect size alone always over-calls: it doubles or
         triples the hit list with noise at every cohort size tested. And below
         about six sections per group the FDR filter rejects even *perfect*
         separation: a Mann-Whitney comparison of 5 vs 5 bottoms out at
@@ -532,3 +532,4 @@ def compare_abundance_and_organization(
             "or bulk metabolomics experiment could have found."
         )
     return merged
+

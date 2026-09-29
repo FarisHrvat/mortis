@@ -10,7 +10,7 @@ mt.filter_by_score(
 
 Keep only metabolites whose annotation confidence score meets a minimum
 threshold. Scores typically come from METASPACE/SCiLS and range 0 (no
-confidence) – 2 (high confidence / library match). If `adata.var['score']`
+confidence) - 2 (high confidence / library match). If `adata.var['score']`
 isn't already populated (common for raw `.xlsx`/`.csv` exports), run
 [`load_annotation_scores()`](io.md#load_annotation_scores) first.
 
@@ -40,24 +40,36 @@ mt.filter_drugs(
 ) -> anndata.AnnData
 ```
 
-Remove metabolites matching the [DrugBank](https://doi.org/10.1093/nar/gkx1037)
-database — bundled with the package (`mortis/data/drugbank.db`) and
-resolved automatically when `db_path=None` (the default). No setup
-needed; pass an explicit path only if you want to use a different or
-updated DrugBank export.
+Remove metabolites that match the bundled drug vocabulary
+(`mortis/data/drug_names.db`), which is resolved automatically when
+`db_path=None`. No setup is needed. Pass a path to use your own file, for
+instance a DrugBank export if you hold a licence for one.
+
+The vocabulary holds roughly 20,000 drug names and 44,000 synonyms, built from
+[Wikidata](https://www.wikidata.org): an entry counts as a drug when Wikidata
+gives it a DrugBank or ATC identifier, or files it under medication or
+pharmaceutical product. Wikidata is CC0, so the file ships inside the wheel.
+Rebuild it with `python tools/build_drug_vocabulary.py`.
+
+!!! warning "Many ordinary metabolites are also sold as drugs"
+    Taurine, glycine, carnitine, cholesterol and most amino acids all carry
+    drug identifiers, so `remove_all=True` deletes them from your panel along
+    with the xenobiotics. `filter_drugs()` warns when it is about to do this,
+    and [`list_drug_matches()`](#list_drug_matches) flags them in an
+    `endogenous` column. Look at that list before you filter.
 
 !!! warning "Optional QC step, not a mandatory pipeline stage"
-    MSI is also widely used to **visualize** drug/xenobiotic
-    distribution as the analyte of interest (in situ pharmacokinetic
-    studies). If that's your use case, skip this and use
+    MSI is also widely used to visualise drug and xenobiotic distribution as
+    the analyte of interest, in in-situ pharmacokinetic studies. If that is
+    your use case, skip this and use
     [`list_drug_matches()`](#list_drug_matches) or
     [`score_metabolite_set()`](analysis-multisample.md#score_metabolite_set)
     to *find* drug ions instead of removing them.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `remove_all` | `True` | `True` — remove every DrugBank match. `False` — only remove `drug_names` |
-| `drug_names` | `None` | Specific names to remove (case-insensitive, matched against DrugBank names + synonyms) |
+| `remove_all` | `True` | `True` removes every match. `False` removes only `drug_names` |
+| `drug_names` | `None` | Names to remove, matched case-insensitively against names and synonyms |
 
 **Returns:** `AnnData` with drug metabolites removed;
 `adata.uns['filter_drugs']` records what was removed.
@@ -67,7 +79,7 @@ updated DrugBank export.
 `remove_all=False` with no `drug_names`.
 
 ```python
-# Remove all DrugBank matches
+# Remove everything that matches the vocabulary
 adata = mt.filter_drugs(adata)
 
 # Remove only specific drugs
@@ -84,12 +96,14 @@ mt.list_drug_matches(adata, db_path: str | None = None) -> pandas.DataFrame
 ```
 
 Preview which metabolites [`filter_drugs()`](#filter_drugs) *would*
-remove, without removing them — inspect before committing, or use this
+remove, without removing them, inspect before committing, or use this
 as the entry point for a drug-distribution study.
 
-**Returns:** `DataFrame` with columns `metabolite`, `in_drugbank`.
+**Returns:** `DataFrame` with columns `metabolite`, `is_drug` and
+`endogenous`, the last marking compounds the body makes for itself.
 
 ```python
 matches = mt.list_drug_matches(adata)
-print(f"Found {len(matches)} drug metabolites in your data")
+print(matches[~matches.endogenous])   # the genuinely xenobiotic ones
 ```
+

@@ -1,5 +1,5 @@
 """
-Tests for mortis.filter — annotation score filtering and DrugBank filtering.
+Tests for mortis.filter, annotation score filtering and DrugBank filtering.
 """
 
 import sqlite3
@@ -45,8 +45,8 @@ def drug_adata():
 
 @pytest.fixture
 def mock_db(tmp_path):
-    """Create a minimal mock DrugBank SQLite database."""
-    db_path = tmp_path / "test_drugbank.db"
+    """A tiny stand-in for the bundled drug vocabulary."""
+    db_path = tmp_path / "test_drugs.db"
     conn = sqlite3.connect(str(db_path))
     conn.execute("CREATE TABLE drug_compounds (name TEXT)")
     conn.execute("CREATE TABLE drug_synonyms (synonym TEXT)")
@@ -130,7 +130,7 @@ class TestFilterDrugs:
 
     def test_missing_db_raises(self, drug_adata):
         with pytest.raises(FileNotFoundError, match="not found"):
-            filter_drugs(drug_adata, db_path="/nonexistent/drugbank.db")
+            filter_drugs(drug_adata, db_path="/nonexistent/drug_names.db")
 
     def test_remove_all_false_no_names_raises(self, drug_adata, mock_db):
         with pytest.raises(InvalidParameterError, match="drug_names"):
@@ -141,13 +141,12 @@ class TestFilterDrugs:
         filter_drugs(drug_adata, db_path=mock_db, copy=True)
         assert drug_adata.n_vars == original_n
 
-    def test_unknown_drug_name_warns(self, drug_adata, mock_db, capsys):
-        filter_drugs(
-            drug_adata, db_path=mock_db,
-            remove_all=False, drug_names=["totally_fake_drug_xyz"]
-        )
-        captured = capsys.readouterr()
-        assert "not found" in captured.out
+    def test_unknown_drug_name_warns(self, drug_adata, mock_db):
+        with pytest.warns(UserWarning, match="not in the drug vocabulary"):
+            filter_drugs(
+                drug_adata, db_path=mock_db,
+                remove_all=False, drug_names=["totally_fake_drug_xyz"]
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +158,7 @@ class TestListDrugMatches:
         df = list_drug_matches(drug_adata, db_path=mock_db)
         assert isinstance(df, pd.DataFrame)
         assert "metabolite" in df.columns
-        assert "in_drugbank" in df.columns
+        assert "is_drug" in df.columns
 
     def test_finds_correct_matches(self, drug_adata, mock_db):
         df = list_drug_matches(drug_adata, db_path=mock_db)
@@ -177,23 +176,22 @@ class TestListDrugMatches:
 
 
 # ---------------------------------------------------------------------------
-# Bundled DrugBank database (package data, no db_path required)
+# Bundled drug vocabulary (package data, no db_path required)
 # ---------------------------------------------------------------------------
 
-class TestBundledDrugbank:
+class TestBundledVocabulary:
     def test_default_path_resolves_to_bundled_file(self):
         from pathlib import Path
 
-        from mortis.filter import _default_drugbank_path
-        resolved = _default_drugbank_path()
+        from mortis.filter import _default_vocabulary_path
+        resolved = _default_vocabulary_path()
         assert Path(resolved).is_file()
-        assert Path(resolved).name == "drugbank.db"
+        assert Path(resolved).name == "drug_names.db"
 
     def test_list_drug_matches_without_db_path(self):
-        # Regression test: filter_drugs/list_drug_matches must work without
-        # requiring the caller to have a drugbank.db in their cwd — it's
-        # bundled as package data (mortis/data/drugbank.db) and resolved by
-        # default via importlib.resources.
+        # Regression test: these must work without the caller keeping a copy
+        # of the vocabulary in their working directory. It ships as package
+        # data and is resolved through importlib.resources.
         obs = pd.DataFrame({"x": [0, 1], "y": [0, 0]})
         obs.index = ["0_0", "1_0"]
         var = pd.DataFrame(index=["Aspirin", "Palmitic acid"])
@@ -209,3 +207,34 @@ class TestBundledDrugbank:
         result = filter_drugs(adata)
         assert "Aspirin" not in result.var_names
         assert "Nonexistent Compound Xyz123" in result.var_names
+
+
+class TestEndogenousWarning:
+    """remove_all=True also drops metabolites the body makes for itself."""
+
+    def test_warns_when_an_endogenous_compound_is_removed(self, tmp_path):
+        db = tmp_path / "vocab.db"
+        conn = sqlite3.connect(str(db))
+        conn.execute("CREATE TABLE drug_compounds (name TEXT)")
+        conn.execute("CREATE TABLE drug_synonyms (synonym TEXT)")
+        conn.executemany("INSERT INTO drug_compounds VALUES (?)",
+                         [("Taurine",), ("Aspirin",)])
+        conn.commit()
+        conn.close()
+
+        obs = pd.DataFrame({"x": [0], "y": [0]}, index=["0_0"])
+        var = pd.DataFrame(index=["Taurine", "Aspirin", "Oleic acid"])
+        adata = ad.AnnData(X=np.ones((1, 3), dtype=np.float32), obs=obs, var=var)
+
+        with pytest.warns(UserWarning, match="made by the body"):
+            result = filter_drugs(adata, db_path=str(db))
+        assert "Oleic acid" in result.var_names
+
+    def test_list_drug_matches_flags_them(self):
+        obs = pd.DataFrame({"x": [0], "y": [0]}, index=["0_0"])
+        var = pd.DataFrame(index=["Taurine", "Aspirin"])
+        adata = ad.AnnData(X=np.ones((1, 2), dtype=np.float32), obs=obs, var=var)
+        df = list_drug_matches(adata).set_index("metabolite")
+        assert bool(df.loc["Taurine", "endogenous"]) is True
+        assert bool(df.loc["Aspirin", "endogenous"]) is False
+

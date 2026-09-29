@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://farishrvat.github.io/mortis/"><b>📖 Read the documentation →</b></a>
+  <a href="https://farishrvat.github.io/mortis/"><b>Read the documentation</b></a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 ## What it does
 
 Imaging mass spectrometry tells you *where* a metabolite is. Most analyses then
-throw that away and ask only *how much* — which is the question bulk
+throw that away and ask only *how much*, which is the question bulk
 metabolomics already answered, more cheaply.
 
 MORTIS asks both, and asks them at the level where the statistics actually hold:
@@ -35,7 +35,7 @@ MORTIS asks both, and asks them at the level where the statistics actually hold:
   simulated null data that turns 0 real findings into 183 significant ones.
   `pseudobulk()` comes first here, and it is not optional.
 - **Differential spatial *organization*.** A metabolite can sit at identical
-  abundance in two groups and be arranged completely differently — diffuse in
+  abundance in two groups and be arranged completely differently, diffuse in
   one, pooled into foci in the other. That finding is invisible to every
   abundance test and to bulk metabolomics entirely.
 - **Cohorts, not sections.** Compare two drugs, or the same patients before and
@@ -44,18 +44,46 @@ MORTIS asks both, and asks them at the level where the statistics actually hold:
   manifest a reviewer can check your re-run against without you sending them a
   single byte of patient data.
 
+## What it is not
+
+It is not an acquisition or peak-picking tool. It starts from a feature table
+or an `.h5ad`, so extraction, alignment and annotation happen upstream in
+SCiLS, METASPACE, Cardinal or the vendor software.
+
+It does not identify compounds. It takes the names your annotation pipeline
+gave you, and it cannot tell a confident match from a shaky one beyond the
+score your instrument software already wrote.
+
+It is not built for a single section. Most of what it adds is about comparing
+groups of patients, and on one section a good deal of it will refuse to run
+rather than give you a p-value that counts pixels as replicates.
+
+It does not read raw vendor formats. Convert to imzML or a feature table
+first.
+
 ## Install
 
 ```bash
 pip install mortis-spatial
 ```
 
+Leiden clustering needs two GPL packages, which are not installed by default
+because MORTIS is MIT and the choice of pulling GPL code into your environment
+should be yours:
+
+```bash
+pip install "mortis-spatial[cluster]"
+```
+
+Everything else works without them, and `spatial_domains_kmeans()` finds
+tissue domains if you would rather not add GPL code at all.
+
 ```python
 import mortis as mt
 
 adata = mt.preprocess(mt.read_metabolomics_data("section.h5ad"))
 
-# collapse pixels to patients, then test — in that order
+# collapse pixels to patients, then test, in that order
 pb  = mt.pseudobulk(adata, sample_key="patient")
 ab  = mt.differential_abundance(pb, "response", "R", "NR")
 
@@ -87,7 +115,7 @@ docker build -t mortis .
 docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" mortis run /work/analysis.yaml
 ```
 
-**On a cluster** — [`hpc/`](hpc/) has Slurm and PBS templates, an Apptainer
+**On a cluster**, [`hpc/`](hpc/) has Slurm and PBS templates, an Apptainer
 definition for sites that will not permit `pip install`, and a conda
 environment for the ones that will. The scripts derive thread limits from the
 scheduler's allocation and set them before Python starts, which is the
@@ -96,7 +124,7 @@ difference between using your cores and oversubscribing a shared node.
 ## Does it work?
 
 `validation/run_validation.py` downloads a public imaging study, rebuilds the
-pixel matrices from the ion images, and runs the whole pipeline — no simulation,
+pixel matrices from the ion images, and runs the whole pipeline, no simulation,
 no private data, no other package:
 
 ```bash
@@ -115,7 +143,8 @@ pip install -e ".[dev]"
 pytest && ruff check .
 ```
 
-520 tests, run against Python 3.10, 3.11 and 3.12 on Linux and macOS. See
+572 tests, run against Python 3.10, 3.11 and 3.12 on Linux, macOS and
+Windows. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Citation
@@ -124,11 +153,14 @@ MORTIS is **under review for publication**. A citation will appear here, and in
 [`CITATION.cff`](CITATION.cff), as soon as the paper is out. Until then, cite the
 repository and version.
 
-If you use `filter_drugs()` please also cite DrugBank (Wishart et al. 2018);
-`run_harmony()`, Korsunsky et al. 2019; `annotate_pathways()`, MetaboAnalyst and
-KEGG. Each is linked from the function's own documentation.
+`filter_drugs()` matches against a drug-name list built from Wikidata, which
+is CC0. `run_harmony()` implements Korsunsky et al. 2019, and
+`annotate_pathways()` calls MetaboAnalyst and KEGG. Each is linked from the
+function's own documentation, and should be cited alongside MORTIS if you use
+it.
 
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
+

@@ -6,7 +6,7 @@ Run a cohort analysis from a config file, without writing any Python.
 Why bother
 ----------
 Plenty of people who need this analysis do not want to write a script for it,
-and plenty of the machines it should run on — a cluster node, a container —
+and plenty of the machines it should run on, a cluster node, a container,
 have no interest in an interactive session. Both want the same thing: one
 command, one config file, results on disk.
 
@@ -35,14 +35,14 @@ TEMPLATE = """\
 # MORTIS analysis config.
 #
 # Everything here is a parameter you would otherwise pass in Python. Keep this
-# file next to your results — it is the most honest methods section you can
+# file next to your results. It is the most honest methods section you can
 # write, because it is the thing that actually ran.
 
 input:
   # A folder of exports, or a single .h5ad / .csv / .xlsx file.
   path: ./data
   # Column in adata.obs identifying the independent unit. Use the PATIENT, not
-  # the section, whenever one patient gave you more than one section — two
+  # the section, whenever one patient gave you more than one section, two
   # sections from one person are no more independent than two pixels.
   sample_key: patient
   # Column identifying the physical tissue section. Spatial organization is a
@@ -158,7 +158,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 f"{sorted(adata.obs.columns)}"
             )
 
-    # ── preprocess ──
+    # --- preprocess ---
     if _get(config, "preprocess.min_annotation_score", 0) > 0:
         adata = mt.filter_by_score(adata, min_score=_get(config, "preprocess.min_annotation_score"))
     if _get(config, "preprocess.remove_drugs", False):
@@ -183,7 +183,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     pb = mt.pseudobulk(adata, sample_key=sample_key)
 
-    # ── abundance ──
+    # --- abundance ---
     if group_key and _get(config, "analysis.abundance", True):
         ab = mt.differential_abundance(
             pb, group_key, groups[0], groups[1],
@@ -196,11 +196,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             figures["effect_size"] = mt.plot_effect_size(ab, group_labels=tuple(groups))
             figures["volcano"] = mt.plot_delta_volcano(ab)
 
-    # ── organization ──
+    # --- organization ---
     org = None
     if group_key and _get(config, "analysis.organization", True):
         if "spatial" not in adata.obsm:
-            print("[MORTIS] No spatial coordinates — skipping organization.")
+            print("[MORTIS] No spatial coordinates, skipping organization.")
         else:
             org = mt.spatial_organization(
                 adata, sample_key=section_key,
@@ -217,7 +217,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 if _get(config, "output.figures", True):
                     figures["two_axis"] = mt.plot_abundance_vs_organization(both)
 
-    # ── annotation ──
+    # --- annotation ---
     if _get(config, "analysis.classify_compounds", True):
         adata = mt.classify_compounds(adata)
         mt.classification_report(adata).to_csv(out / "chemical_classes.csv", index=False)
@@ -237,7 +237,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         except Exception as exc:                      # network, or nothing mapped
             print(f"[MORTIS] Pathway step skipped: {exc}")
 
-    # ── figures ──
+    # --- figures ---
     for name, fig in figures.items():
         mt.save_figure(
             fig, out / name,
@@ -246,7 +246,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             close=True,
         )
 
-    # ── receipts ──
+    # --- receipts ---
     pb.write_h5ad(out / "pseudobulk.h5ad")
     if _get(config, "output.manifest", True):
         mt.export_manifest(
@@ -265,7 +265,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         pass
 
     print(f"\n[MORTIS] Done. {len(results)} result table(s), "
-          f"{len(figures)} figure(s) → {out}/")
+          f"{len(figures)} figure(s) -> {out}/")
     return 0
 
 
@@ -355,3 +355,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

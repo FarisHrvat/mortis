@@ -91,6 +91,24 @@ def draw_ROIs(adata: ad.AnnData) -> ad.AnnData:
 
 
 def draw_ROIs_for_folder(adatas: List[ad.AnnData]) -> List[ad.AnnData]:
+    """
+    Draw tissue and background ROIs for a list of sections, one after another.
+
+    Opens the interactive selector once per section and collects the results, so
+    a folder loaded with :func:`load_from_folder` can be annotated in a single
+    pass. Needs an interactive matplotlib backend.
+
+    Parameters
+    ----------
+    adatas : list of anndata.AnnData
+        Sections to annotate, each with spatial coordinates.
+
+    Returns
+    -------
+    list of anndata.AnnData
+        The same sections, each with ``is_tissue`` and ``is_background`` in
+        ``.obs``, ready for :func:`filter_background`.
+    """
     processed_adatas = []
     for i, adata in enumerate(adatas):
         print(f"\n[MORTIS] Processing Unpaired Sample {i+1} of {len(adatas)}...")

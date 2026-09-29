@@ -2,7 +2,7 @@
 MORTIS Reproducibility Module
 =============================
 A file you can hand a reviewer that lets them verify your analysis re-runs to
-the same numbers — without giving them the patient data.
+the same numbers, without giving them the patient data.
 
 The problem
 -----------
@@ -21,14 +21,14 @@ What a manifest is
 
 * the exact package and environment versions it ran under,
 * every MORTIS step that touched the object, with its parameters and seeds,
-* a **fingerprint** of the input data — its shape, its feature names, and a
+* a **fingerprint** of the input data: its shape, its feature names, and a
   checksum of the matrix,
 * a fingerprint of every result table produced.
 
 Then :func:`verify_manifest` re-runs the comparison. If someone repeats the
 analysis and their manifest matches yours, the numbers are identical and both
 of you can prove it. If it does not match, the report says precisely which
-part diverged — the input, a parameter, a seed, or a result.
+part diverged, the input, a parameter, a seed, or a result.
 
 Fingerprints, not data
 ----------------------
@@ -36,7 +36,7 @@ Nothing in a manifest can be turned back into intensities. Checksums are
 one-way, and what is stored alongside them is metadata a methods section would
 carry anyway: matrix shape, column names, parameter values. A manifest is safe
 to attach to a submission or commit to a public repository even when the
-underlying cohort cannot leave the institution — which is the entire point,
+underlying cohort cannot leave the institution, which is the entire point,
 because that is exactly the situation clinical imaging data is in.
 
 What it does not do
@@ -142,7 +142,7 @@ def record_step(
     Append one step to the object's provenance chain.
 
     MORTIS functions call this themselves. Call it directly for anything you do
-    by hand that changes the data — a manual subset, a custom filter — so the
+    by hand that changes the data, a manual subset, a custom filter, so the
     manifest reflects the analysis you actually ran rather than the parts of it
     that happened to go through the package.
 
@@ -159,7 +159,7 @@ def record_step(
     chain = list(adata.uns.get("mortis_provenance", []))
     # Stored as JSON strings rather than dicts. HDF5 has no notion of a nested
     # mapping, so a list of dicts in .uns makes write_h5ad() fail with
-    # "Can't implicitly convert non-string objects to strings" — which used to
+    # "Can't implicitly convert non-string objects to strings", which used to
     # mean that recording provenance quietly broke saving the object it was
     # recorded on. A list of strings round-trips fine. Use provenance() to read
     # it back as dicts.
@@ -189,7 +189,7 @@ def provenance(adata: ad.AnnData) -> List[Dict[str, Any]]:
     --------
     >>> for entry in mt.provenance(pb):
     ...     print(entry["step"], entry["params"])
-    pseudobulk {'sample_key': 'patient', 'method': 'mean', ...}
+    pseudobulk {'sample_key': 'patient', 'method': 'mean'...}
     """
     out: List[Dict[str, Any]] = []
     for entry in adata.uns.get("mortis_provenance", []):
@@ -246,7 +246,7 @@ def result_fingerprint(result: pd.DataFrame) -> Dict[str, Any]:
     A checksum of one result table.
 
     Numeric columns are rounded to six decimals before hashing, for the same
-    reason :func:`data_fingerprint` rounds — so a verification fails on real
+    reason :func:`data_fingerprint` rounds, so a verification fails on real
     disagreement rather than on floating-point scheduling noise.
     """
     if not isinstance(result, pd.DataFrame):
@@ -296,7 +296,7 @@ def export_manifest(
     analysis : str
         A name for this analysis, carried into the manifest.
     notes : str, optional
-        Free text for anything a reader should know — which cohort, which
+        Free text for anything a reader should know, which cohort, which
         preregistration, why a section was excluded.
     extra : mapping, optional
         Any additional key-values to record. Coerced to strings.
@@ -314,7 +314,7 @@ def export_manifest(
     """
     if adata is None and not results:
         raise InvalidParameterError(
-            "Nothing to record — pass adata, results, or both."
+            "Nothing to record, pass adata, results, or both."
         )
 
     body: Dict[str, Any] = {
@@ -339,8 +339,8 @@ def export_manifest(
         body["extra"] = {str(k): str(v) for k, v in extra.items()}
 
     # The seal covers everything above it, so tampering with any recorded value
-    # invalidates it. It is an integrity check, not a signature — it proves the
-    # file is internally consistent, not who wrote it.
+    # invalidates it. It is an integrity check rather than a signature: it
+    # proves the file is internally consistent, not who wrote it.
     body["seal_sha256"] = _digest(json.dumps(body, sort_keys=True).encode("utf-8"))
 
     out = Path(path)
@@ -376,7 +376,7 @@ def verify_manifest(
         The re-run's result tables, keyed as they were at export.
     strict_environment : bool
         Treat a package-version difference as a failure. Default ``False``,
-        which reports versions as informational — most version changes do not
+        which reports versions as informational, most version changes do not
         move a number, and failing on all of them makes the check useless
         within a year. Turn it on when reproducing a published result exactly.
 
@@ -389,7 +389,7 @@ def verify_manifest(
     Raises
     ------
     MortisError
-        If the file is not a MORTIS manifest, or its seal does not match — the
+        If the file is not a MORTIS manifest, or its seal does not match, the
         latter meaning the file was edited after it was written.
 
     Examples
@@ -405,7 +405,7 @@ def verify_manifest(
     recorded_seal = body.pop("seal_sha256")
     if _digest(json.dumps(body, sort_keys=True).encode("utf-8")) != recorded_seal:
         raise MortisError(
-            f"The seal on '{path}' does not match its contents — the file was modified "
+            f"The seal on '{path}' does not match its contents, the file was modified "
             "after it was written. Verification cannot proceed."
         )
 
@@ -422,14 +422,14 @@ def verify_manifest(
     # Environment
     current, recorded = _versions(), body.get("environment", {}).get("packages", {})
     drifted = [
-        f"{name}: {recorded[name]} → {current.get(name)}"
+        f"{name}: {recorded[name]} -> {current.get(name)}"
         for name in recorded if recorded[name] != current.get(name)
     ]
     if drifted:
         rows.append({
             "check": "package versions",
             "status": "fail" if strict_environment else "info",
-            "detail": "; ".join(drifted[:6]) + ("…" if len(drifted) > 6 else ""),
+            "detail": "; ".join(drifted[:6]) + ("..." if len(drifted) > 6 else ""),
         })
     else:
         rows.append({"check": "package versions", "status": "pass", "detail": "identical"})
@@ -463,7 +463,7 @@ def verify_manifest(
                          "detail": f"identical ({got['n_rows']} rows)"})
         else:
             if want["n_rows"] != got["n_rows"]:
-                why = f"row count {want['n_rows']} → {got['n_rows']}"
+                why = f"row count {want['n_rows']} -> {got['n_rows']}"
             elif want["columns"] != got["columns"]:
                 why = "columns differ"
             else:
@@ -487,3 +487,4 @@ def verify_manifest(
         for _, row in report[report["status"] == "fail"].iterrows():
             print(f"[MORTIS]   FAIL {row['check']}: {row['detail']}")
     return report
+

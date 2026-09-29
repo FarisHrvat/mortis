@@ -28,7 +28,7 @@ env/
 # Obsidian vault metadata (personal notes, not part of the package)
 .obsidian/
 
-# Local results / large example data — NOT committed to git.
+# Local results / large example data. NOT committed to git.
 # Several of these exceed GitHub's 100MB hard per-file push limit
 # (488IMb_tissue.xlsx / 488IMb_background.xlsx are 165MB each,
 # 1b_P487_Healthy_sez1.h5ad is 97MB, and any merged/processed .h5ad output
@@ -46,7 +46,7 @@ env/
 /Responder/
 /data/
 
-# Corrupted / unreferenced by any code — see CHANGELOG. Keep out of git
+# Corrupted / unreferenced by any code, see CHANGELOG. Keep out of git
 # until confirmed needed; delete outright if not.
 local_enrichment_db_v2.sqlite
 
@@ -54,19 +54,16 @@ local_enrichment_db_v2.sqlite
 Single Cell Samu.md
 .obsidian/
 
-# Personal dev-scratch / benchmarking scripts and internal process notes —
-# useful to keep locally, not appropriate for a public-facing repo (informal
-# tone, personal notebook references, ad-hoc one-off debugging tools).
-# drugbank.db is NOT here: it's intentionally gone for good, since it's a
-# redundant duplicate of src/mortis/data/drugbank.db (the package now
-# bundles and auto-resolves its own copy — see filter_drugs()).
+# Personal scratch and benchmarking scripts, plus internal process notes.
+# Useful locally, not appropriate for a public repo.
 /pypi_upload_guide.md
 /benchmark_full_pipeline.py
 /run_benchmark.py
 /test.py
 
-# Private patient data — NEVER commit. Local test fixture only.
+# Private patient data. NEVER commit. Local test fixture only.
 /test_data/
 
-# Downloaded METASPACE images — public data, but large and re-fetchable.
+# Downloaded METASPACE images, public data, but large and re-fetchable.
 /validation/cache/
+

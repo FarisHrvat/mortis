@@ -1,5 +1,5 @@
 """
-Tests for mortis.analysis — clustering, markers, differential expression,
+Tests for mortis.analysis, clustering, markers, differential expression,
 spatial statistics, and metabolite set scoring.
 """
 
@@ -254,11 +254,10 @@ class TestScoreMetaboliteSet:
         assert "test_score" in result.obs.columns
         assert result.obs["test_score"].shape[0] == preprocessed_adata.n_obs
 
-    def test_missing_metabolites_warned(self, preprocessed_adata, capsys):
+    def test_missing_metabolites_warned(self, preprocessed_adata):
         mets = ["met_0", "nonexistent_metabolite"]
-        score_metabolite_set(preprocessed_adata.copy(), mets)
-        captured = capsys.readouterr()
-        assert "not found" in captured.out
+        with pytest.warns(UserWarning, match="not in this object"):
+            score_metabolite_set(preprocessed_adata.copy(), mets)
 
     def test_all_missing_raises(self, preprocessed_adata):
         with pytest.raises(InvalidParameterError, match="None of the provided"):
@@ -268,3 +267,4 @@ class TestScoreMetaboliteSet:
         original_cols = set(preprocessed_adata.obs.columns)
         score_metabolite_set(preprocessed_adata, ["met_0"], copy=True)
         assert set(preprocessed_adata.obs.columns) == original_cols
+

@@ -1,12 +1,10 @@
 """
 Tests for previously-uncovered analysis functions: correct_batches,
 run_harmony (edge cases), spatially_weighted_nmf, spatial_gradient,
-metabolite_colocalization, spatial_domains, median_normalize,
-load_annotation_scores, and the audit module.
+metabolite_colocalization, spatial_domains, median_normalize and
+load_annotation_scores.
 """
 
-import json
-from pathlib import Path
 
 import anndata as ad
 import numpy as np
@@ -20,7 +18,6 @@ from mortis.analysis import (
     spatial_gradient,
     spatially_weighted_nmf,
 )
-from mortis.audit import generate_audit_receipt
 from mortis.exceptions import InvalidParameterError, NoEmbeddingError
 from mortis.io import load_annotation_scores
 from mortis.preprocessing import correct_batches, median_normalize, preprocess
@@ -251,26 +248,3 @@ class TestLoadAnnotationScores:
         df.to_csv(p, index=False)
         adata = load_annotation_scores(base_adata, str(p))
         assert adata.var.loc["met_0", "score"] == pytest.approx(0.7)
-
-
-# ---------------------------------------------------------------------------
-# audit module
-# ---------------------------------------------------------------------------
-
-class TestAuditReceipt:
-    def test_generates_json_with_hash(self, tmp_path):
-        path_str = generate_audit_receipt(
-            "unit_test_analysis", {"resolution": 0.5}, output_dir=str(tmp_path)
-        )
-        path = Path(path_str)
-        assert path.exists()
-        data = json.loads(path.read_text())
-        assert data["analysis"] == "unit_test_analysis"
-        assert data["parameters"] == {"resolution": 0.5}
-        assert "sha256_hash" in data
-        assert "hardware_environment" in data
-
-    def test_creates_output_dir(self, tmp_path):
-        out_dir = tmp_path / "receipts"
-        generate_audit_receipt("x", {}, output_dir=str(out_dir))
-        assert out_dir.exists()

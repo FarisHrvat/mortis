@@ -1,0 +1,7 @@
+# The sdist should carry enough to rebuild and check the package, not just run
+# it: the tests, and the script that regenerates the bundled drug vocabulary.
+include CHANGELOG.md
+include CITATION.cff
+include CONTRIBUTING.md
+include tools/build_drug_vocabulary.py
+recursive-include tests *.py

@@ -74,9 +74,9 @@ def load_image(
     anndata.AnnData
         AnnData with ``adata.uns[image_key]`` containing a dict:
 
-        * ``'data'``   — float32 ndarray, shape (H, W) or (H, W, C)
-        * ``'shape'``  — (H, W) or (H, W, C)
-        * ``'path'``   — original file path string
+        * ``'data'``: float32 ndarray, shape (H, W) or (H, W, C)
+        * ``'shape'``: (H, W) or (H, W, C)
+        * ``'path'``: original file path string
 
     Raises
     ------
@@ -133,7 +133,7 @@ def load_image(
         "offset_y": 0.0,
     }
     print(
-        f"[MORTIS] Loaded image '{path.name}' → adata.uns['{image_key}'] "
+        f"[MORTIS] Loaded image '{path.name}' -> adata.uns['{image_key}'] "
         f"shape={img.shape}, dtype=float32"
     )
     return adata
@@ -190,7 +190,7 @@ def align_image(
     if image_key not in adata.uns:
         raise InvalidParameterError(
             f"Image key '{image_key}' not found in adata.uns. "
-            "Run mt.load_image(adata, ...) first."
+            "Run mt.load_image(adata...) first."
         )
     if copy:
         adata = adata.copy()
@@ -260,7 +260,7 @@ def extract_image_features(
     if image_key not in adata.uns:
         raise InvalidParameterError(
             f"Image key '{image_key}' not found in adata.uns. "
-            "Run mt.load_image(adata, ...) first."
+            "Run mt.load_image(adata...) first."
         )
     if copy:
         adata = adata.copy()
@@ -277,7 +277,7 @@ def extract_image_features(
     W = img.shape[1]
     is_rgb = img.ndim == 3 and img.shape[2] >= 3
 
-    # Convert MSI coords → image pixel coords
+    # Convert MSI coords -> image pixel coords
     col_idx = np.clip(((coords[:, 0] - ox) / sx).astype(int), 0, W - 1)
     row_idx = np.clip(((coords[:, 1] - oy) / sy).astype(int), 0, H - 1)
 
@@ -297,7 +297,7 @@ def extract_image_features(
         adata.obs[f"{image_key}_R"] = features[:, 0]
         adata.obs[f"{image_key}_G"] = features[:, 1]
         adata.obs[f"{image_key}_B"] = features[:, 2]
-        print(f"[MORTIS] Extracted RGB features → adata.obs['{image_key}_R/G/B']")
+        print(f"[MORTIS] Extracted RGB features -> adata.obs['{image_key}_R/G/B']")
     else:
         img_2d = img if img.ndim == 2 else img[:, :, 0]
         features = np.zeros(n, dtype=np.float32)
@@ -306,7 +306,7 @@ def extract_image_features(
             cols = np.clip(col_idx[i] + dx_off, 0, W - 1)
             features[i] = img_2d[rows, cols].mean()
         adata.obs[f"{image_key}_intensity"] = features
-        print(f"[MORTIS] Extracted intensity features → adata.obs['{image_key}_intensity']")
+        print(f"[MORTIS] Extracted intensity features -> adata.obs['{image_key}_intensity']")
 
     return adata
 
@@ -343,9 +343,9 @@ def plot_image_overlay(
     dpi : int, optional
         Resolution in dots per inch.  Default: 150.
     save : bool, str, or None, optional
-        * ``None`` — display interactively.
-        * ``True`` — save as ``'mortis_plot.pdf'``.
-        * ``'path/to/file.png'`` — save to the given path.
+        * ``None``: display interactively.
+        * ``True``: save as ``'mortis_plot.pdf'``.
+        * ``'path/to/file.png'``: save to the given path.
 
     Returns
     -------
@@ -358,7 +358,7 @@ def plot_image_overlay(
     if image_key not in adata.uns:
         raise InvalidParameterError(
             f"Image key '{image_key}' not found in adata.uns. "
-            "Run mt.load_image(adata, ...) first."
+            "Run mt.load_image(adata...) first."
         )
 
     img_info = adata.uns[image_key]
@@ -406,13 +406,14 @@ def plot_image_overlay(
                 cmap="viridis", s=spot_size, alpha=alpha_spots, rasterized=True,
             )
             plt.colorbar(sc, ax=ax, shrink=0.8)
-        ax.set_title(f"Image Overlay — {color}", fontsize=13)
+        ax.set_title(f"Image Overlay, {color}", fontsize=13)
     else:
         ax.scatter(coords[:, 0], coords[:, 1],
                    c="cyan", s=spot_size, alpha=alpha_spots, rasterized=True)
-        ax.set_title("Image Overlay — MSI spots", fontsize=13)
+        ax.set_title("Image Overlay. MSI spots", fontsize=13)
 
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     plt.tight_layout()
     return _save_or_show(fig, save)
+

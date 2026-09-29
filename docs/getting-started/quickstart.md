@@ -9,13 +9,13 @@ installed MORTIS yet, do that first: [Installation](installation.md).
 ## Step 0: what you'll need
 
 - A terminal window with your environment activated
-  (`micromamba activate spatpy_env` — see [Installation](installation.md)).
+  (`micromamba activate spatpy_env`, see [Installation](installation.md)).
 - One or more spatial metabolomics files: `.h5ad`, `.csv`, or `.xlsx`
   (with `x`, `y`, and metabolite intensity columns).
 
 ## Step 1: start Python and load your data
 
-Type `python` in your terminal and press Enter — you're now inside an
+Type `python` in your terminal and press Enter, you're now inside an
 interactive Python session (you'll see a `>>>` prompt).
 
 ```python
@@ -31,7 +31,7 @@ adata = mt.read_metabolomics_data("my_sample.xlsx")
 ```
 
 This reads one file into a variable called `adata` (short for
-"annotated data" — the standard object type used throughout MORTIS,
+"annotated data", the standard object type used throughout MORTIS,
 scanpy, and the wider single-cell/spatial Python ecosystem). Think of
 `adata` as a smart spreadsheet: rows are pixels, columns are
 metabolites, plus extra metadata (spatial coordinates, sample info,
@@ -66,7 +66,7 @@ AnnData object with n_obs × n_vars = 7943 × 2334
 
 Raw MSI data includes signal from *outside* the tissue (background/matrix
 noise). If your file has separate tissue and background regions marked
-(via `load_from_folder`'s auto-pairing, or drawn manually — see
+(via `load_from_folder`'s auto-pairing, or drawn manually, see
 [ROI Selection](../api/roi.md)), remove metabolites that aren't
 meaningfully above background:
 
@@ -77,7 +77,7 @@ adata = clean[0]
 
 `cutoff=1.5` means "keep a metabolite only if it's at least 1.5x
 stronger in tissue than in background." Higher = stricter. `stats[0]`
-holds the numbers behind this decision — visualize them:
+holds the numbers behind this decision, visualize them:
 
 ```python
 mt.plot_qc(stats[0], adata, sample_name="My Sample", save="qc.pdf")
@@ -125,7 +125,7 @@ adata = mt.cluster(adata, resolution=0.5)
 ```
 
 This groups pixels with similar chemistry into numbered clusters
-(`"0"`, `"1"`, `"2"`, ...), stored in `adata.obs["cluster"]`. Higher
+(`"0"`, `"1"`, `"2"`...), stored in `adata.obs["cluster"]`. Higher
 `resolution` = more, smaller clusters.
 
 ## Step 6: make your first figure
@@ -134,7 +134,7 @@ This groups pixels with similar chemistry into numbered clusters
 mt.plot_spatial(adata, color="cluster", save="my_first_figure.pdf")
 ```
 
-Open `my_first_figure.pdf` — you should see your tissue shape, colored
+Open `my_first_figure.pdf` and you should see your tissue shape, colored
 by cluster. That's a complete raw-file-to-figure pipeline in 6 steps.
 
 ## What's next
@@ -156,3 +156,4 @@ by cluster. That's a complete raw-file-to-figure pipeline in 6 steps.
     import anndata as ad
     adata = ad.read_h5ad("my_processed_sample.h5ad")
     ```
+

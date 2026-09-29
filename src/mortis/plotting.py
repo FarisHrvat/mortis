@@ -11,6 +11,7 @@ ANY aspect of the plot (titles, legends, colors) before saving or displaying.
 
 from __future__ import annotations
 
+import warnings
 from typing import List, Optional, Tuple, Union
 
 import anndata as ad
@@ -21,6 +22,14 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.sparse import issparse
+
+from .exceptions import (
+    InvalidParameterError,
+    NoClustersError,
+    NoEmbeddingError,
+    listing,
+    suggest,
+)
 
 _WHITE_RED = LinearSegmentedColormap.from_list("white_red", ["#ffffff", "#8b0000"])
 _WHITE_BLUE = LinearSegmentedColormap.from_list("white_blue", ["#ffffff", "#003580"])
@@ -158,7 +167,7 @@ def plot_qc(
     ax2.plot(thresholds, retained, color="navy", linewidth=2)
     ax2.set_ylabel("Retained metabolites", color="navy", fontsize=fontsize)
     ax2.tick_params(axis="y", labelcolor="navy", labelsize=fontsize - 1)
-    ax1.axvline(cutoff, color="crimson", linestyle="--", linewidth=2, label=f"Cutoff = {cutoff}×")
+    ax1.axvline(cutoff, color="crimson", linestyle="--", linewidth=2, label=f"Cutoff = {cutoff}x")
     ax2.scatter([cutoff], [mask.sum()], color="crimson", zorder=5, s=60)
     _apply_style(ax1, fontsize, show_grid, show_axes_border, title="Fold-Change Distribution & Retention Curve", xlabel="Tissue / Background fold-change")
     ax1.legend(loc="upper right", fontsize=fontsize - 1)
@@ -300,10 +309,13 @@ def plot_embedding_grid(
     found = [m for m in metabolites if m in adata.var_names]
     missing = [m for m in metabolites if m not in adata.var_names]
     if missing:
-        print(f"[MORTIS] Warning: skipping {len(missing)} metabolites not found: {missing[:5]}")
+        warnings.warn(
+            f"{len(missing)} of the {len(metabolites)} names you passed are not in "
+            f"this object and were left out of the figure: {listing(missing, limit=5)}."
+            f"{suggest(missing[0], adata.var_names)}",
+            UserWarning, stacklevel=2,
+        )
     if not found:
-        from .exceptions import InvalidParameterError, suggest
-
         raise InvalidParameterError(
             f"None of the {len(metabolites)} names you passed are in "
             f"adata.var_names, so there is nothing to draw."
@@ -363,7 +375,6 @@ def plot_umap(
     **kwargs
 ) -> plt.Figure:
     """UMAP embedding coloured by cluster, condition, or metabolite intensity."""
-    from .exceptions import NoEmbeddingError
     if "X_umap" not in adata.obsm:
         raise NoEmbeddingError(
             "There is no UMAP embedding in adata.obsm['X_umap'] to draw. Run "
@@ -398,7 +409,7 @@ def plot_umap(
         plt.colorbar(sc_obj, ax=ax, shrink=0.8)
 
     _apply_style(ax, fontsize, show_grid, show_axes_border,
-                 title=title or f"UMAP — {color}",
+                 title=title or f"UMAP, {color}",
                  xlabel="UMAP 1", ylabel="UMAP 2")
     ax.set_facecolor("#f8f8f8")
     plt.tight_layout()
@@ -424,8 +435,6 @@ def plot_markers(
 ) -> plt.Figure:
     """Dot plot of top marker metabolites per cluster."""
     import scanpy as sc
-
-    from .exceptions import NoClustersError
 
     if "rank_genes_groups" not in adata.uns:
         raise NoClustersError(
@@ -570,8 +579,6 @@ def plot_heatmap(
     """Heatmap of mean metabolite intensities across groups."""
     import scanpy as sc
 
-    from .exceptions import InvalidParameterError, listing, suggest
-
     if groupby not in adata.obs.columns:
         raise InvalidParameterError(
             f"There is no column called {groupby!r} in adata.obs, so the heatmap "
@@ -617,8 +624,6 @@ def plot_violin(
 ) -> plt.Figure:
     """Violin plots of metabolite intensity distributions per group."""
     import scanpy as sc
-
-    from .exceptions import InvalidParameterError, listing, suggest
 
     if groupby not in adata.obs.columns:
         raise InvalidParameterError(
@@ -675,8 +680,6 @@ def plot_cluster_composition(
     **kwargs
 ) -> plt.Figure:
     """Stacked bar chart showing cluster composition per condition or sample."""
-    from .exceptions import InvalidParameterError, NoClustersError, listing, suggest
-
     if cluster_key not in adata.obs.columns:
         raise NoClustersError(
             f"No cluster labels called {cluster_key!r} in adata.obs. Run "
@@ -808,3 +811,4 @@ def plot_colocalization_network(
     ax.axis("off")
     plt.tight_layout()
     return _save_or_show(fig, save, show=show, dpi=dpi)
+

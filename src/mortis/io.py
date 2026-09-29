@@ -1,7 +1,7 @@
 """
 MORTIS I/O Module
 =================
-Loading spatial metabolomics data from .h5ad, .csv, and .xlsx files. Handles
+Loading spatial metabolomics data from .h5ad.csv, and .xlsx files. Handles
 single files, paired tissue/background exports, and whole folders (which get
 paired up by filename).
 
@@ -48,7 +48,7 @@ def make_writable(adata: ad.AnnData) -> ad.AnnData:
     Newer pandas hands back nullable ``StringArray`` for text columns, and
     anndata refuses to write those unless you opt in, on the grounds that
     versions below 0.11 cannot read them. The result is a file written on one
-    machine that cannot be re-saved on another — which is exactly the situation
+    machine that cannot be re-saved on another, which is exactly the situation
     a container or a cluster node puts you in.
 
     Plain object dtype is what every anndata version has always understood, so
@@ -186,10 +186,10 @@ def read_metabolomics_data(file_path: str) -> ad.AnnData:
     anndata.AnnData
         AnnData with:
 
-        * ``adata.X``  — float32 intensity matrix (pixels × metabolites)
-        * ``adata.obs`` — pixel metadata including 'x' and 'y' coordinates
-        * ``adata.var`` — metabolite names as index
-        * ``adata.obsm['spatial']`` — (N, 2) float32 coordinate array
+        * ``adata.X``: float32 intensity matrix (pixels x metabolites)
+        * ``adata.obs``: pixel metadata including 'x' and 'y' coordinates
+        * ``adata.var``: metabolite names as index
+        * ``adata.obsm['spatial']``: (N, 2) float32 coordinate array
 
     Raises
     ------
@@ -225,7 +225,7 @@ def load_annotation_scores(
     table into ``adata.var[target_col]``.
 
     Many MSI facilities export spatial intensities (one row per pixel, one
-    column per metabolite — the ``*_tissue.xlsx`` / ``*_background.xlsx`` /
+    column per metabolite, the ``*_tissue.xlsx`` / ``*_background.xlsx`` /
     ``.csv`` files handled by :func:`read_metabolomics_data`) and annotation
     metadata (one row per metabolite, with identification confidence score,
     adduct, chemical formula, HMDB ID, etc.) as two *separate* files. This
@@ -302,7 +302,7 @@ def load_annotation_scores(
 
     print(
         f"[MORTIS] Annotation scores merged from '{path.name}': "
-        f"{n_matched} / {adata.n_vars} metabolites matched → adata.var['{target_col}']"
+        f"{n_matched} / {adata.n_vars} metabolites matched -> adata.var['{target_col}']"
     )
     if n_matched < adata.n_vars:
         print(
@@ -479,3 +479,4 @@ def save_spatial_data(
         print(f"[MORTIS] Saved: {path}")
         saved.append(path)
     return saved
+

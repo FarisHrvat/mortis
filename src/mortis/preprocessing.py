@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import warnings
 from contextlib import contextmanager
 from typing import List, Optional, Tuple
 
@@ -30,6 +31,7 @@ from .exceptions import (
     InvalidParameterError,
     MissingROIError,
     MissingSpatialError,
+    MortisError,
     NoEmbeddingError,
     listing,
     suggest,
@@ -46,7 +48,7 @@ def _configure_runtime_threads():
     Setting ``os.environ['OMP_NUM_THREADS']`` (or MKL_/OPENBLAS_NUM_THREADS)
     at runtime has **no effect** here: OpenBLAS/MKL read those variables
     once, the first time their thread pool initialises (typically at
-    NumPy/SciPy import, or the first BLAS call anywhere in the process) —
+    NumPy/SciPy import, or the first BLAS call anywhere in the process),
     setting them later, deep inside a function call, is silently ignored.
     Measured on this package's own PCA step: an *actual* env-var-before-
     process-start change gave a 5.5x speedup (OMP_NUM_THREADS=1 vs 16 on a
@@ -73,13 +75,13 @@ def _numba_thread_limit():
     IMPORTANT caveat found while measuring this (don't be misled by it):
     the *first* call to ``run_neighbors``/``run_umap`` in a process pays a
     one-time ~15-17s Numba JIT-compilation cost for pynndescent's kernels
-    (on a 30k-pixel dataset), regardless of thread count — every
+    (on a 30k-pixel dataset), regardless of thread count, every
     *subsequent* call in the same process is ~1.3-1.5s regardless of
     whether it uses 1 or 16 threads. An early version of this fix
     benchmarked "1 thread vs 16 threads" back-to-back in the same process
     and attributed the entire ~12x difference to thread scaling; re-testing
     with the run order reversed (16 threads first, then 1) showed both
-    taking ~17s on the *first* call and both ~1.4s afterward — i.e. the
+    taking ~17s on the *first* call and both ~1.4s afterward, i.e. the
     original benchmark was confounded by JIT warm-up, not a genuine
     threading effect. Thread count does still matter for very large
     datasets/high k where the post-compilation query itself is
@@ -150,6 +152,43 @@ def filter_background(
     cutoff: float = 1.5,
     mode: str = "sample",
 ) -> Tuple[List[ad.AnnData], List[dict]]:
+    """
+    Drop off-tissue pixels by comparing them to the background ROI.
+
+    A pixel is kept when its total signal exceeds ``cutoff`` times the mean of
+    the background region, so the threshold is set by the slide itself rather
+    than by an absolute intensity that would not carry between runs.
+
+    Parameters
+    ----------
+    adatas : list of anndata.AnnData
+        Sections with ``is_tissue`` and ``is_background`` in ``.obs``, which
+        :func:`draw_ROIs` or paired tissue/background files provide.
+    cutoff : float, optional
+        Multiple of the background mean a pixel has to clear. Default 1.5.
+        Near 1.0 keeps almost everything, near 3.0 keeps only clearly
+        on-tissue pixels.
+    mode : {'sample', 'group'}, optional
+        ``'sample'`` computes a threshold per section, which suits slides that
+        were acquired separately. ``'group'`` pools the background across the
+        whole list and uses one threshold, which suits serial sections from a
+        single run. Default ``'sample'``.
+
+    Returns
+    -------
+    list of anndata.AnnData
+        The sections with background pixels removed.
+    list of dict
+        One QC record per section: pixels before and after, the threshold, and
+        the fraction kept.
+
+    Raises
+    ------
+    InvalidParameterError
+        If ``cutoff`` is not positive, or ``mode`` is neither option.
+    MissingROIError
+        If a section has no ROI labels.
+    """
     if cutoff <= 0:
         raise InvalidParameterError(
             f"cutoff is a multiple of the background mean, so it has to be "
@@ -284,6 +323,29 @@ def median_normalize(
     return adata
 
 def log1p_transform(adata: ad.AnnData, copy: bool = False) -> ad.AnnData:
+    """
+    Replace ``adata.X`` with ``log(1 + x)``.
+
+    Run this after normalisation. Intensities from imaging MS span several
+    orders of magnitude, and on the raw scale a handful of bright pixels
+    decide every distance and every principal component.
+
+    Sparse matrices are transformed in place on their stored values, so zeros
+    stay zero and the matrix stays sparse.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Normalised data.
+    copy : bool, optional
+        Return a copy instead of transforming in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Log-transformed data, with the step appended to
+        ``adata.uns['mortis_steps']``.
+    """
     if copy: adata = adata.copy()
     if issparse(adata.X):
         X = adata.X.tocsr(copy=True).astype(np.float32, copy=False)
@@ -297,6 +359,30 @@ def log1p_transform(adata: ad.AnnData, copy: bool = False) -> ad.AnnData:
     return adata
 
 def scale(adata: ad.AnnData, max_value: Optional[float] = 10.0, copy: bool = False, **kwargs) -> ad.AnnData:
+    """
+    Centre each metabolite to zero mean and unit variance.
+
+    The log-transformed matrix is kept in ``adata.layers['log1p']`` first,
+    because scaled values are the right input to PCA but the wrong input to
+    any test of abundance. Statistics in MORTIS read that layer.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Log-transformed data.
+    max_value : float or None, optional
+        Clip scaled values at this many standard deviations. Default 10.0.
+        None leaves them unclipped.
+    copy : bool, optional
+        Return a copy instead of scaling in place. Default False.
+    **kwargs
+        Passed through to ``scanpy.pp.scale``.
+
+    Returns
+    -------
+    anndata.AnnData
+        Scaled data, with the unscaled matrix in ``adata.layers['log1p']``.
+    """
     if copy: adata = adata.copy()
     adata.layers["log1p"] = _to_dense(adata.X).copy()
     sc.pp.scale(adata, max_value=max_value, **kwargs)
@@ -357,7 +443,13 @@ def correct_batches(
     Batch correction with ComBat.
 
     Covariates you ask to protect are dropped if they only take one value in
-    the data -- ComBat's design matrix would be singular and it would crash.
+    the data, since ComBat's design matrix would be singular and it would
+    crash.
+
+    If ComBat itself fails, this raises rather than falling back to a simpler
+    correction. Substituting a method quietly would hand back data corrected
+    by something other than what you asked for, and other than what your
+    methods section is going to say.
     """
     if batch_key not in adata.obs:
         raise InvalidParameterError(
@@ -376,32 +468,42 @@ def correct_batches(
                 if adata.obs[cov].nunique() > 1:
                     valid_covariates.append(cov)
                 else:
-                    print(f"[MORTIS] Notice: Covariate '{cov}' has only 1 unique value. "
-                          "Reverting to standard ComBat to prevent crash.")
+                    warnings.warn(
+                        f"Covariate {cov!r} takes the same value in every pixel, so "
+                        "there is nothing for ComBat to protect and its design "
+                        "matrix would be singular. Running without it.",
+                        UserWarning, stacklevel=2,
+                    )
             else:
-                print(f"[MORTIS] Warning: Covariate '{cov}' not found in adata.obs. Ignoring.")
+                warnings.warn(
+                    f"Covariate {cov!r} is not a column in adata.obs, so it cannot be "
+                    f"protected. Columns present: {listing(adata.obs.columns)}."
+                    f"{suggest(cov, adata.obs.columns)}",
+                    UserWarning, stacklevel=2,
+                )
 
-    msg = f"[MORTIS] Running ComBat on '{batch_key}'"
-    if valid_covariates:
-        msg += f" (Protecting biological covariates: {valid_covariates})"
-    else:
-        msg += " (Standard ComBat - No covariates protected)"
-    print(msg)
+    protecting = f"protecting {valid_covariates}" if valid_covariates else "no covariates protected"
+    print(f"[MORTIS] ComBat on '{batch_key}' ({protecting}).")
 
     def _apply_combat(X_mat, obs_df):
         import scanpy as sc
         tmp = ad.AnnData(X=X_mat, obs=obs_df)
         try:
-            # Pass valid_covariates (or None if empty) to Scanpy
-            combat_covs = valid_covariates if valid_covariates else None
-            sc.pp.combat(tmp, key=batch_key, covariates=combat_covs, **kwargs)
-            return tmp.X
-        except Exception as e:
-            print(f"[MORTIS] ComBat failed ({e}). Falling back to simple mean-centering...")
-            for batch in tmp.obs[batch_key].unique():
-                mask = tmp.obs[batch_key] == batch
-                tmp.X[mask] -= tmp.X[mask].mean(axis=0)
-            return tmp.X
+            sc.pp.combat(tmp, key=batch_key, covariates=valid_covariates or None, **kwargs)
+        except Exception as exc:
+            counts = obs_df[batch_key].value_counts()
+            raise MortisError(
+                f"ComBat could not correct '{batch_key}' and MORTIS will not "
+                "silently substitute a weaker method for it.\n"
+                f"Original error: {exc}\n"
+                f"Batch sizes: {counts.to_dict()}.\n"
+                "The usual causes are a batch with too few pixels to estimate a "
+                "variance from, a covariate that is collinear with the batch, or "
+                "a metabolite that is constant inside one batch. Drop the tiny "
+                "batches, or use mortis.run_harmony() instead, which tolerates "
+                "unbalanced designs."
+            ) from exc
+        return tmp.X
 
     if "log1p" in adata.layers:
         temp_X = _to_dense(adata.X)
@@ -414,8 +516,7 @@ def correct_batches(
         adata.X = _apply_combat(adata.X, adata.obs)
 
     if recompute_pca:
-        # Assumes run_pca is in the same module
-        print("[MORTIS] Recomputing PCA on batch-corrected data...")
+        print("[MORTIS] Recomputing PCA on the corrected data.")
         n_comps = adata.obsm['X_pca'].shape[1] if 'X_pca' in adata.obsm else 50
         run_pca(adata, n_comps=n_comps, use_hardware=use_hardware)
 
@@ -473,7 +574,7 @@ def run_harmony(
     ho = harmonypy.run_harmony(adata.obsm["X_pca"], adata.obs, [batch_key], **kwargs)
     Z = np.asarray(ho.Z_corr)
     # harmonypy's Z_corr orientation (n_pcs, n_obs) vs (n_obs, n_pcs) has
-    # varied across versions/backends (numpy vs PyTorch) — normalise here.
+    # varied across versions/backends (numpy vs PyTorch), normalise here.
     if Z.shape[0] != adata.n_obs:
         Z = Z.T
     adata.obsm[adjusted_basis] = Z.astype(np.float32)
@@ -512,6 +613,42 @@ def run_umap(
     copy: bool = False,
     **kwargs
 ) -> ad.AnnData:
+    """
+    Compute a UMAP embedding for visualisation.
+
+    Runs on the Harmony-corrected basis when one is present, otherwise on PCA.
+    Use it to look at the data, not to measure it: distances between UMAP
+    clusters do not carry a quantitative meaning.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data with a neighbour graph from :func:`run_neighbors`.
+    min_dist : float, optional
+        How tightly points may pack together. Default 0.3. Lower values give
+        denser clumps, higher values spread them out.
+    spread : float, optional
+        Scale of the embedding. Default 1.0.
+    random_state : int, optional
+        Seed. Default 0.
+    use_hardware : bool, optional
+        Use a GPU through cuML when one is available. Default True. The GPU
+        and CPU paths do not give identical coordinates.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+    **kwargs
+        Passed through to the UMAP implementation.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with coordinates in ``adata.obsm['X_umap']``.
+
+    Raises
+    ------
+    NoEmbeddingError
+        If no neighbour graph has been computed.
+    """
     if "neighbors" not in adata.uns:
         raise NoEmbeddingError("Neighbour graph not found. Run mortis.run_neighbors(adata) first.")
     if copy: adata = adata.copy()
@@ -537,7 +674,7 @@ def preprocess(
     n_neighbors: int = 15,
     metric: str = "euclidean",
     do_tic: bool = True,       # Toggle row normalization (TIC or median)
-    normalize_method: str = "tic",  # "tic" or "median" — see median_normalize()
+    normalize_method: str = "tic",  # "tic" or "median", see median_normalize()
     do_log1p: bool = True,     # Toggle Log1p
     target_sum: Optional[float] = None,
     scale_data: bool = False,
@@ -549,7 +686,7 @@ def preprocess(
 ) -> ad.AnnData:
     """
     Full preprocessing pipeline with toggles for already-processed data:
-    row normalization → log1p → (optional) scale → PCA → kNN graph.
+    row normalization -> log1p -> (optional) scale -> PCA -> kNN graph.
 
     normalize_method : {"tic", "median"}, optional
         "tic" (default) divides each pixel by its total ion current.
@@ -576,3 +713,4 @@ def preprocess(
     adata = run_neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs_neighbors, metric=metric, random_state=random_state)
 
     return adata
+

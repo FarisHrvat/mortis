@@ -5,7 +5,7 @@
 ## 1. Install a Python environment manager
 
 MORTIS depends on a lot of scientific packages (`scanpy`, `numpy`, `scipy`,
-`scikit-learn`, ...) that need to be installed together in a matching,
+`scikit-learn`...) that need to be installed together in a matching,
 compatible set. The easiest and most reliable way to do that is
 [**micromamba**](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html),
 a fast, free tool that creates an isolated Python environment just for
@@ -47,7 +47,7 @@ micromamba create -n spatpy_env python=3.11 -c conda-forge -y
 ```
 
 `-n spatpy_env` names it; you can call it anything. `python=3.11` picks
-the Python version (3.9–3.12 all work).
+the Python version (3.9-3.12 all work).
 
 Every time you want to use MORTIS (in a new terminal window), you first
 need to **activate** this environment:
@@ -59,7 +59,7 @@ micromamba activate spatpy_env
 !!! tip "How do I know it worked?"
     Your terminal prompt should now show `(spatpy_env)` at the start of
     the line. If you close the terminal and open a new one, you'll need
-    to run `micromamba activate spatpy_env` again — that's normal.
+    to run `micromamba activate spatpy_env` again, that's normal.
 
 ## 3. Install MORTIS
 
@@ -72,7 +72,7 @@ pip install mortis-spatial
 !!! note "Why `mortis-spatial` but `import mortis`?"
     The package you install (the **distribution name** on PyPI) is
     `mortis-spatial`, but once installed, you `import mortis` in Python
-    (the **import name**). This is a common pattern — for example
+    (the **import name**). This is a common pattern, for example
     `pip install beautifulsoup4` gives you `import bs4`. It happens
     because the short name `mortis` was already taken on PyPI by an
     unrelated package.
@@ -113,10 +113,11 @@ See [Contributing](../contributing.md) for the full development workflow.
 
 ## Citation
 
-If you use MORTIS in your research, please cite it — see
+If you use MORTIS in your research, please cite it, see
 [`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff)
 in the repository for the machine-readable citation record. If you use
-`mt.filter_drugs()`/`mt.list_drug_matches()`, please also cite DrugBank
-(Wishart et al. 2018); if you use `mt.run_harmony()`, please also cite
-Korsunsky et al. 2019 — both are linked from the
-[API reference](../api/preprocessing.md).
+`mt.run_harmony()`, please also cite Korsunsky et al. 2019, which is linked
+from the [API reference](../api/preprocessing.md). The drug vocabulary behind
+`mt.filter_drugs()` comes from Wikidata and is CC0, so it needs attribution
+rather than a citation.
+

@@ -8,12 +8,12 @@ Why this module exists
 An MSI section gives you tens of thousands of pixels. It does not give you tens
 of thousands of patients. They all came from one piece of tissue from one
 person, and testing them as though they were independent inflates your sample
-size by three or four orders of magnitude — which manufactures significance out
+size by three or four orders of magnitude, which manufactures significance out
 of thin air.
 
 This is easy to wave away in the abstract, so here is what it actually costs.
 Six simulated patients, three per arm, 500 pixels each, 200 metabolites, and
-**no group difference whatsoever** — only the ordinary variation between
+**no group difference whatsoever**, only the ordinary variation between
 people:
 
     pixel-level Mann-Whitney (n = 1500 per arm) ->  183 / 200 "significant"
@@ -31,12 +31,12 @@ followed by :func:`differential_abundance`, in that order, every time.
 
 Why Cliff's delta rather than fold change
 -----------------------------------------
-Cohorts here are small — 4 to 10 patients an arm is normal. At that size a
+Cohorts here are small, 4 to 10 patients an arm is normal. At that size a
 p-value is mostly noise, and a mean-based fold change can be dragged anywhere
 by one unusual patient.
 
 Cliff's delta asks something that still means what you think it means at n = 4:
-*pick a patient from each group at random — how much more often does one exceed
+*pick a patient from each group at random, how much more often does one exceed
 the other?* Rank-based, bounded in [-1, 1], no distributional assumptions to
 violate. Lead with it and let the p-value play a supporting role.
 """
@@ -64,7 +64,7 @@ __all__ = [
 ]
 
 # Interpretation thresholds from Romano et al. (2006), the conventional
-# reading of Cliff's delta magnitude. Advisory labels only — they are not
+# reading of Cliff's delta magnitude. Advisory labels only, they are not
 # used to gate anything.
 _DELTA_BANDS = ((0.147, "negligible"), (0.33, "small"), (0.474, "medium"))
 
@@ -109,7 +109,7 @@ def pseudobulk(
     carry_obs: Optional[Sequence[str]] = None,
 ) -> ad.AnnData:
     """
-    Collapse pixels to one profile per sample — the required first step before
+    Collapse pixels to one profile per sample, the required first step before
     any comparison between groups of samples.
 
     Parameters
@@ -119,7 +119,7 @@ def pseudobulk(
     sample_key : str
         Column in ``adata.obs`` identifying the independent unit. This should
         be the **patient**, not the section, whenever one patient contributed
-        more than one section — two sections from the same patient are not
+        more than one section, two sections from the same patient are not
         independent replicates any more than two pixels are.
     method : {"mean", "median", "sum"}
         How to aggregate pixels within a sample. ``"median"`` is the more
@@ -129,7 +129,7 @@ def pseudobulk(
         fold-change intuition assumes.
     layer : str, optional
         Layer to aggregate. Default ``None`` uses ``.X``. Aggregate the
-        **untransformed** intensities where you can — averaging log values
+        **untransformed** intensities where you can, averaging log values
         gives a geometric mean, which is a different quantity than the one
         most readers assume.
     min_pixels : int
@@ -138,7 +138,7 @@ def pseudobulk(
         profile that is better excluded than silently averaged.
     carry_obs : sequence of str, optional
         Columns to carry to the output. Default ``None`` auto-detects every
-        ``obs`` column that is constant within each sample — which picks up
+        ``obs`` column that is constant within each sample, which picks up
         patient, response, drug, timepoint, and batch labels without being
         told about them. Columns that vary within a sample (cluster, niche,
         per-pixel scores) are dropped, because no single value represents them.
@@ -345,7 +345,7 @@ def differential_abundance(
     data is yours.
 
     Ranking is by ``|delta|`` rather than by p-value. With a handful of patients
-    per arm the p-value has very little resolution — a Mann-Whitney comparison
+    per arm the p-value has very little resolution, a Mann-Whitney comparison
     of 4 vs 4 cannot produce a p below 0.029 no matter how cleanly the groups
     separate, so an FDR threshold discards real findings while the effect size
     still ranks them sensibly.
@@ -502,7 +502,7 @@ def paired_differential_abundance(
 
     Pairing is done by explicit ID matching, and any subject missing one of the
     two timepoints is dropped with a warning rather than silently. An unmatched
-    ID that slips through does not produce an error — it produces a confident
+    ID that slips through does not produce an error. It produces a confident
     paired result computed from mismatched data, which is worse.
 
     Parameters
@@ -514,7 +514,7 @@ def paired_differential_abundance(
     time_key : str
         Column holding the timepoint labels.
     time1, time2 : str
-        The two timepoints. **Positive delta means higher at time2** — the
+        The two timepoints. **Positive delta means higher at time2**, the
         change is read as time2 minus time1, in the direction time flows.
     layer : str, optional
         Layer to test. Default ``None`` uses ``.X``.
@@ -620,3 +620,4 @@ def paired_differential_abundance(
         f"{int((np.abs(delta) >= 0.474).sum())}/{adata.n_vars} metabolites with a large change."
     )
     return result
+

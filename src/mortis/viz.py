@@ -96,9 +96,9 @@ _ACTIVE_THEME = "print"
 def _ink(theme: Optional[str] = None) -> str:
     """Foreground colour for rules, axes and reference lines under the active theme.
 
-    Every reference line used to be hardcoded ``"black"``, which is correct on
-    paper and invisible on a dark ground — the zero line of a volcano plot
-    simply disappeared.
+    Reference lines follow the theme rather than being fixed to black, which
+    is right on paper but invisible on a dark ground: a volcano plot's zero
+    line would disappear into the background.
     """
     return {"print": "black", "light": "#10161c", "dark": "#d8d5cf"}[theme or _ACTIVE_THEME]
 
@@ -108,7 +108,7 @@ def ion_cmap(theme: Optional[str] = None):
     Sequential colormap for ion images.
 
     Viridis is the safe scientific default and it reads as software rather than
-    as a figure — the purple-to-yellow ramp is instantly recognisable as "a
+    as a figure, the purple-to-yellow ramp is instantly recognisable as "a
     plotting library made this". This is a quieter ramp in the same
     perceptually-ordered spirit: near-black through petrol and teal to a warm
     pale, so intensity still maps monotonically to lightness but the result sits
@@ -132,7 +132,7 @@ def diverging_cmap(theme: Optional[str] = None):
 
     Standard diverging maps (RdBu, coolwarm) pass through white at zero. That is
     right on paper and wrong on a dark ground, where every near-zero cell of a
-    heatmap lights up as a white block — the values closest to "nothing here"
+    heatmap lights up as a white block, the values closest to "nothing here"
     end up the most visually prominent thing in the figure.
 
     This keeps the package's red and blue endpoints and swaps the centre for the
@@ -176,7 +176,7 @@ def set_publication_style(
         falls back to matplotlib's built-in mathtext with a warning rather than
         failing, since mathtext handles most maths and needs no installation.
 
-        Real LaTeX is markedly slower per figure, so it is off by default —
+        Real LaTeX is markedly slower per figure, so it is off by default,
         turn it on for the final render.
     font_family : str
         ``"sans-serif"`` (Helvetica/Arial-like, the journal default) or
@@ -337,7 +337,7 @@ def save_figure(
         Output path. Any extension is replaced by each requested format, so
         ``"fig1"`` and ``"fig1.pdf"`` behave the same.
     formats : sequence of str
-        Any of ``"pdf"`` (vector, editable text — the one to submit),
+        Any of ``"pdf"`` (vector, editable text, the one to submit),
         ``"svg"`` (vector, for further editing), ``"png"`` (raster, for
         drafts and slides), ``"eps"`` (legacy journals).
     provenance : dict, optional
@@ -460,7 +460,7 @@ def plot_effect_size(
     round for a cohort of this size: with a handful of patients per arm a rank
     p-value has almost no resolution, while a monotone effect size stays
     interpretable. Bars that clear ``fdr_threshold`` are drawn solid, the rest
-    are outlined — visible, but visibly weaker evidence.
+    are outlined, visible, but visibly weaker evidence.
 
     Parameters
     ----------
@@ -782,7 +782,7 @@ def plot_abundance_vs_organization(
 
     Each metabolite is placed by its abundance effect (x) and its spatial
     organization effect (y). The interesting region is the top and bottom of
-    the vertical band around ``x = 0`` — metabolites present at the same
+    the vertical band around ``x = 0``, metabolites present at the same
     abundance in both groups but arranged differently. Those points are
     invisible to abundance testing and to bulk metabolomics, and this figure is
     the argument for having done imaging at all.
@@ -892,7 +892,7 @@ def plot_signature_comparison(
 
     Points on the diagonal are metabolites the two cohorts agree on; points in
     the off-diagonal quadrants move in opposite directions. A cloud with no
-    structure is a real result — the two cohorts do not share a signature.
+    structure is a real result, the two cohorts do not share a signature.
 
     Parameters
     ----------
@@ -1035,8 +1035,8 @@ def _draw_ion_panel(ax, xy: np.ndarray, values: np.ndarray, vmin, vmax, cmap):
     Rasterising onto the acquisition grid and handing it to ``imshow`` removes
     the problem by construction: cells tile exactly, unmeasured positions stay
     transparent, and the file is smaller. MSI coordinates are integer stage
-    positions so this nearly always applies. When they are not on a grid — a
-    subsetted or warped object — the function falls back to a scatter, which is
+    positions so this nearly always applies. When they are not on a grid, a
+    subsetted or warped object, the function falls back to a scatter, which is
     imperfect but honest about the data it was given.
     """
     x, y = xy[:, 0], xy[:, 1]
@@ -1406,7 +1406,7 @@ def plot_ion_images(
         which is the single most common way ion images get rendered useless.
     shared_scale : bool
         Use one colour scale across all panels. **Keep this on for anything
-        comparative** — per-panel scaling makes a faint diffuse section look
+        comparative**, per-panel scaling makes a faint diffuse section look
         exactly as intense as a bright focal one, which is precisely the
         difference the figure exists to show.
     cmap : str, optional
@@ -1652,11 +1652,11 @@ def plot_organization_heatmap(
         tick_points = float(mpl.rcParams["font.size"]) - 1.0
         pad_points = -(10.0 + 0.62 * tick_points * longest)
 
-        # These used to be rotated 90 degrees to save width. A rotated label is
-        # as tall as it is long, so on a small cohort -- two sections per arm --
-        # "Non Responder" was taller than the band it belonged to and the two
-        # group names printed over each other. Horizontal text is one line tall
-        # whatever it says, and tight_layout finds the room for it.
+        # Group labels stay horizontal. Rotating them saves width, but a
+        # rotated label is as tall as it is long, so on a small cohort of two
+        # sections per arm "Non Responder" is taller than its own band and the
+        # group names collide. Horizontal text is one line tall whatever it
+        # says, and tight_layout finds the room for it.
         start = 0
         for end in list(boundaries) + [len(ordered) - 1]:
             ax.annotate(
@@ -1750,10 +1750,9 @@ def plot_pathway_dotplot(
     """
     Enriched pathways as a dot plot, one panel per direction.
 
-    Three channels, three different quantities — which is the point, and the
-    thing dotplots most often get wrong. An earlier version of this function
-    put ``-log10 FDR`` on *both* the x-axis and the colour, which looks
-    informative and tells you one fact twice.
+    Each of the three channels carries a different quantity, which is the
+    thing dot plots most often get wrong. Putting ``-log10 FDR`` on both the
+    x-axis and the colour looks informative while telling you one fact twice.
 
     ==========  ==========================================================
     x           enrichment (odds ratio): how much more of this pathway is
@@ -1874,3 +1873,4 @@ def plot_pathway_dotplot(
             columnspacing=2.4, borderpad=0.8,
         )
     return fig
+

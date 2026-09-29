@@ -55,25 +55,15 @@ def _to_dense(X) -> np.ndarray:
 def _get_X(adata: ad.AnnData) -> np.ndarray:
     """Return the analysis matrix: the ``log1p`` layer if present, else ``.X``.
 
-    This used to memoise the dense result into ``adata.uns['_perf_cache']``.
-    That was removed, deliberately, because it was wrong in three ways:
+    Densified fresh on every call rather than cached. Caching it is tempting,
+    since rebuilding costs about 0.5 s on a 95k by 2231 dataset, but a cached
+    copy has no way to notice that ``scale()``, ``correct_batches()`` or
+    ``tic_normalize()`` has since replaced ``.X``, and stale numbers are worse
+    than slow ones. A copy parked in ``.uns`` would also be written into every
+    ``write_h5ad()``, at roughly 2.4 GB per 100k pixels by 2000 metabolites.
 
-    1. **It went stale.** Nothing invalidated the entry, so any step that
-       *replaced* ``.X`` (``scale()``, ``correct_batches()``, the sparse path
-       of ``tic_normalize()``) left every later call reading pre-correction
-       data. A test run after wiping ``.X`` to all-zeros still returned the
-       original statistics.
-    2. **It was expensive.** Four call sites used four different keys, so a
-       dataset could accumulate four independent full dense copies — about
-       2.4 GB for 100k pixels x 2000 metabolites.
-    3. **It leaked to disk.** ``.uns`` is serialised, so every
-       ``write_h5ad()`` baked those copies into the file.
-
-    Rebuilding the dense view costs ~0.5 s on a 95k x 2231 dataset, which is
-    under 0.3% of a typical pipeline run. Not a trade worth making.
-
-    Note the returned array may *alias* ``adata.X`` when the data is already
-    dense float32 — treat it as read-only and copy before mutating.
+    The returned array may alias ``adata.X`` when the data is already dense
+    float32, so treat it as read-only and copy before mutating.
     """
     if "log1p" in adata.layers:
         return _to_dense(adata.layers["log1p"])
@@ -131,6 +121,30 @@ def _check_spatial(adata: ad.AnnData) -> None:
 # Clustering
 # ---------------------------------------------------------------------------
 
+# scanpy is switching its default Leiden backend from leidenalg to igraph, and
+# the two do not give the same partition. Naming the backend keeps a result
+# from moving under a user who only upgraded scanpy.
+_LEIDEN_BACKEND = {"flavor": "leidenalg"}
+
+
+def _require_leiden() -> None:
+    """Leiden clustering lives in two GPL packages we do not install by default."""
+    try:
+        import igraph  # noqa: F401
+        import leidenalg  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "Leiden clustering needs leidenalg and python-igraph, which are not "
+            "part of the default install because they are GPL and MORTIS is MIT. "
+            "Install them with:\n\n"
+            "    pip install 'mortis-spatial[cluster]'\n\n"
+            "Everything else in MORTIS works without them. If you would rather "
+            "not add GPL code, mortis.spatial_domains_kmeans() finds tissue "
+            "domains without Leiden."
+        ) from exc
+
+
+
 def cluster(
     adata: ad.AnnData,
     resolution: Union[float, List[float]] = 0.5,
@@ -148,6 +162,7 @@ def cluster(
         If a list is provided (e.g., [0.1, 0.3, 0.5]), clustering is run for each,
         and saved as `cluster_0.1`, `cluster_0.3`, etc.
     """
+    _require_leiden()
     _check_neighbors(adata)
 
     resolutions = [resolution] if isinstance(resolution, (int, float)) else resolution
@@ -165,10 +180,10 @@ def cluster(
             resolution=float(res),
             key_added=current_key,
             random_state=random_state,
-            **kwargs
+            **{**_LEIDEN_BACKEND, **kwargs}
         )
         n_clusters = adata.obs[current_key].nunique()
-        print(f"[MORTIS] Leiden clustering: {n_clusters} clusters at resolution {res} → adata.obs['{current_key}']")
+        print(f"[MORTIS] Leiden clustering: {n_clusters} clusters at resolution {res} -> adata.obs['{current_key}']")
 
     if len(resolutions) > 1 and key_added not in adata.obs:
         adata.obs[key_added] = adata.obs[f"{key_added}_{resolutions[0]}"]
@@ -246,6 +261,33 @@ def cluster_nmf(
 
 
 def rename_clusters(adata: ad.AnnData, mapping: Dict[str, str], cluster_key: str = "cluster") -> ad.AnnData:
+    """
+    Give clusters biological names instead of numbers.
+
+    The numeric labels are kept in ``<cluster_key>_original`` so a figure can
+    still be traced back to the clustering that produced it. Clusters you do
+    not mention keep their current label.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data with cluster labels.
+    mapping : dict
+        Old label to new name, for example ``{'0': 'Muscularis', '1': 'Crypt'}``.
+        Keys are compared as strings.
+    cluster_key : str, optional
+        Column holding the labels. Default ``'cluster'``.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with renamed clusters, modified in place.
+
+    Raises
+    ------
+    NoClustersError
+        If ``cluster_key`` is not in ``adata.obs``.
+    """
     _check_clusters(adata, cluster_key)
     adata.obs[cluster_key + "_original"] = adata.obs[cluster_key].copy()
     adata.obs[cluster_key] = adata.obs[cluster_key].map(lambda x: mapping.get(str(x), str(x)))
@@ -270,7 +312,7 @@ def spatial_domains(
     cluster. This instead smooths each pixel's PCA embedding towards its
     physical neighbours (controlled by ``alpha``) before running Leiden,
     so the resulting groups are spatially contiguous regions rather than
-    scattered chemical clusters — analogous to squidpy/scanpy "niche" or
+    scattered chemical clusters, analogous to squidpy/scanpy "niche" or
     spatial-domain detection.
 
     Parameters
@@ -295,17 +337,19 @@ def spatial_domains(
 
     W, _ = _build_spatial_weights(adata, n_neighbors, batch_key=batch_key)
     X_pca = adata.obsm["X_pca"].astype(np.float32)
+    _require_leiden()
     X_smooth = (1 - alpha) * X_pca + alpha * np.asarray(W @ X_pca)
 
     tmp = ad.AnnData(X=np.zeros((adata.n_obs, 1), dtype=np.float32), obs=adata.obs.copy())
     tmp.obsm["X_domain_smooth"] = X_smooth
     sc.pp.neighbors(tmp, use_rep="X_domain_smooth", n_neighbors=n_neighbors, random_state=random_state)
-    sc.tl.leiden(tmp, resolution=resolution, key_added=key_added, random_state=random_state)
+    sc.tl.leiden(tmp, resolution=resolution, key_added=key_added,
+                 random_state=random_state, **_LEIDEN_BACKEND)
 
     adata.obs[key_added] = tmp.obs[key_added].values
     adata.obsm["X_domain_smooth"] = X_smooth
     n_found = adata.obs[key_added].nunique()
-    print(f"[MORTIS] Spatial domains: {n_found} contiguous domain(s) found (alpha={alpha}) → adata.obs['{key_added}']")
+    print(f"[MORTIS] Spatial domains: {n_found} contiguous domain(s) found (alpha={alpha}) -> adata.obs['{key_added}']")
     return adata
 
 
@@ -331,7 +375,7 @@ def spatial_domains_kmeans(
     if not (0.0 <= alpha <= 1.0):
         raise InvalidParameterError(f"alpha must be between 0.0 and 1.0, got {alpha}.")
     if n_domains < 2:
-        raise InvalidParameterError(f"n_domains must be ≥ 2, got {n_domains}.")
+        raise InvalidParameterError(f"n_domains must be >= 2, got {n_domains}.")
     if copy: adata = adata.copy()
 
     W, _ = _build_spatial_weights(adata, n_neighbors, batch_key=batch_key)
@@ -343,7 +387,7 @@ def spatial_domains_kmeans(
 
     adata.obs[key_added] = labels.astype(str)
     adata.obsm["X_domain_smooth_kmeans"] = X_smooth
-    print(f"[MORTIS] Spatial domains (k-means): {n_domains} domains → adata.obs['{key_added}']")
+    print(f"[MORTIS] Spatial domains (k-means): {n_domains} domains -> adata.obs['{key_added}']")
     return adata
 
 
@@ -368,7 +412,7 @@ def cluster_validation(
         raise NoEmbeddingError(f"'{use_rep}' not found in adata.obsm. Run mortis.run_pca(adata) first.")
     labels = adata.obs[cluster_key].astype(str).values
     if len(np.unique(labels)) < 2:
-        raise InvalidParameterError("Need ≥ 2 clusters to compute a silhouette score.")
+        raise InvalidParameterError("Need >= 2 clusters to compute a silhouette score.")
 
     score = silhouette_score(
         adata.obsm[use_rep], labels,
@@ -382,7 +426,7 @@ def cluster_validation(
 def compare_clusterings(labels_a: Union[List, np.ndarray, pd.Series], labels_b: Union[List, np.ndarray, pd.Series]) -> Dict[str, float]:
     """
     Adjusted Rand Index (ARI) and Adjusted Mutual Information (AMI)
-    between two cluster label assignments of the same pixels — e.g.
+    between two cluster label assignments of the same pixels, e.g.
     comparing a Leiden resolution sweep for stability
     (``adata.obs['cluster_0.3']`` vs. ``adata.obs['cluster_0.5']``), or two
     independent runs/samples. Both scores are 1.0 for identical labelings
@@ -408,7 +452,7 @@ def batch_mixing_score(
 ) -> ad.AnnData:
     """
     Local Inverse Simpson's Index (LISI; Korsunsky et al. 2019, the
-    Harmony paper) — verifies whether batch correction (:func:`run_harmony`,
+    Harmony paper), verifies whether batch correction (:func:`run_harmony`,
     :func:`correct_batches`) actually worked, rather than assuming it did.
 
     For each pixel, computes the effective number of distinct batches
@@ -419,7 +463,7 @@ def batch_mixing_score(
 
     Run this *before and after* batch correction on the same ``use_rep``
     (e.g. ``'X_pca'`` before, ``'X_pca_harmony'`` after) and compare the
-    mean score — it should increase toward the number of batches.
+    mean score, so it should increase toward the number of batches.
     """
     if use_rep not in adata.obsm:
         raise NoEmbeddingError(f"'{use_rep}' not found in adata.obsm.")
@@ -449,7 +493,7 @@ def batch_mixing_score(
     adata.obs["lisi_score"] = lisi
     print(
         f"[MORTIS] Batch mixing (iLISI-style, '{use_rep}'): mean={lisi.mean():.2f} "
-        f"(1.0 = no mixing, {nb} = perfect mixing across {nb} batches) → adata.obs['lisi_score']"
+        f"(1.0 = no mixing, {nb} = perfect mixing across {nb} batches) -> adata.obs['lisi_score']"
     )
     return adata
 
@@ -462,6 +506,43 @@ def find_markers(
     adata: ad.AnnData, cluster_key: str = "cluster", method: str = "wilcoxon",
     n_top: int = 20, copy: bool = False, **kwargs
 ) -> Tuple[ad.AnnData, pd.DataFrame]:
+    """
+    Rank the metabolites that distinguish each cluster from the rest.
+
+    This compares pixels, so treat the result as a description of the
+    clustering rather than as evidence about a patient group. For anything you
+    intend to claim between groups, collapse to samples with
+    :func:`pseudobulk` and use :func:`differential_abundance`.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Clustered, preprocessed data.
+    cluster_key : str, optional
+        Column holding the cluster labels. Default ``'cluster'``.
+    method : {'wilcoxon', 't-test', 'logreg'}, optional
+        Ranking test. Default ``'wilcoxon'``.
+    n_top : int, optional
+        Metabolites to keep per cluster. Default 20.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+    **kwargs
+        Passed through to ``scanpy.tl.rank_genes_groups``.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with the full ranking in ``adata.uns['rank_genes_groups']``.
+    pandas.DataFrame
+        Tidy table with one row per cluster and metabolite.
+
+    Raises
+    ------
+    InvalidParameterError
+        If ``method`` is not one of the three.
+    NoClustersError
+        If the cluster column is missing.
+    """
     valid_methods = {"wilcoxon", "t-test", "logreg"}
     if method not in valid_methods:
         raise InvalidParameterError(
@@ -502,7 +583,7 @@ def compare_groups(
     .. warning::
        This treats every pixel as an independent observation. That is only
        valid when the two groups being compared come from the *same* tissue
-       section — comparing regions, clusters, or niches within one sample.
+       section, comparing regions, clusters, or niches within one sample.
 
        It is **not** valid for comparing patients, conditions, treatments, or
        timepoints. Pixels from one patient are not independent replicates, and
@@ -605,6 +686,40 @@ def compare_groups(
 def multi_group_test(
     adata: ad.AnnData, groupby: str, method: str = "kruskal", copy: bool = False,
 ) -> Tuple[ad.AnnData, pd.DataFrame]:
+    """
+    Test every metabolite across three or more groups at once.
+
+    Answers only whether the groups differ somewhere, not which pair differs,
+    so follow a hit with :func:`compare_groups` on the pair you care about. The
+    same warning as :func:`find_markers` applies: run this on pseudobulk
+    profiles, not on raw pixels, whenever the groups are patients.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data to test.
+    groupby : str
+        Column in ``adata.obs`` holding the group labels.
+    method : {'kruskal', 'anova'}, optional
+        Kruskal-Wallis makes no distributional assumption; one-way ANOVA
+        assumes normal residuals and equal variances. Default ``'kruskal'``.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with the result in ``adata.uns['multi_group_test']``.
+    pandas.DataFrame
+        One row per metabolite: statistic, p-value, BH-adjusted p-value and a
+        significance flag.
+
+    Raises
+    ------
+    InvalidParameterError
+        If ``method`` is unknown, ``groupby`` is missing, or fewer than two
+        groups are present.
+    """
     valid_methods = {"kruskal", "anova"}
     if method not in valid_methods:
         raise InvalidParameterError(f"method must be one of {valid_methods}, got '{method}'.")
@@ -728,9 +843,9 @@ def _default_tile_bytes() -> int:
     """
     Pick the tile target from free RAM, clamped to a measured-useful range.
 
-    Sizing this to the CPU cache is the intuitive move and it is **wrong here**
-    — measured, not assumed. Sweeping tile width on a 95,751 x 2,231 dataset
-    (Apple M3 Max, 64 KB L1d, 4 MB L2) gave:
+    Sizing this to the CPU cache is the intuitive move and it is wrong here.
+    That is measured rather than assumed: sweeping tile width on a
+    95,751 x 2,231 dataset (Apple M3 Max, 64 KB L1d, 4 MB L2) gave:
 
     =========  ==========  =============
     tile       time        working set
@@ -780,8 +895,8 @@ def _feature_tiles(adata: ad.AnnData, tile: Optional[int] = None):
 
     Reads straight from ``.X`` (or the ``log1p`` layer) per tile, so a sparse or
     disk-backed matrix is only ever densified one tile wide. Blocks come back
-    as float32 — matching what the non-streaming code path used, so results are
-    unchanged — while the accumulators the caller keeps are float64.
+    as float32, matching what the non-streaming code path used, so results are
+    unchanged, while the accumulators the caller keeps are float64.
     """
     source = adata.layers["log1p"] if "log1p" in adata.layers else adata.X
     if tile is None:
@@ -797,25 +912,24 @@ def _feature_tiles(adata: ad.AnnData, tile: Optional[int] = None):
 def _moran_geary_sums(adata, W, row_sums, col_sums, tile: Optional[int] = None):
     """Accumulate the Moran's I and Geary's C column sums in one streaming pass.
 
-    The straightforward way to write this allocates several full
-    pixels-x-metabolites matrices at once — ``X``, ``X - mean``, ``W @ X_dev``
-    and ``X**2`` are four of them, and on a 583k-pixel cohort with 2231
-    metabolites that is roughly 5 GB *each*. The peak, not the result, is what
-    puts cohort-scale data out of reach on an ordinary machine.
+    Written directly, this needs several full pixels-by-metabolites matrices
+    in memory at the same time: ``X``, ``X - mean``, ``W @ X_dev`` and
+    ``X**2`` are four of them. On a 583k-pixel cohort with 2231 metabolites
+    each one is about 5 GB, which is what puts a cohort out of reach on an
+    ordinary machine.
 
-    Tiling over metabolites fixes it the same way tiled attention kernels do:
-    the reduction is over pixels, and every output is a per-metabolite scalar,
-    so metabolites can be processed in blocks and only the small results kept.
-    Peak memory becomes a function of the tile width rather than the metabolite
-    count. This is **exact** — identical arithmetic, just reassociated — not an
-    approximation, so results match the previous implementation bit for bit at
-    float64 and are unchanged after the float32 cast.
+    Tiling over metabolites avoids that. The reduction runs over pixels and
+    every output is one scalar per metabolite, so metabolites can go through
+    in blocks with only the scalars kept, and peak memory follows the tile
+    width instead of the metabolite count. The arithmetic is the same
+    operations in a different order, not an approximation, so the numbers do
+    not move.
 
-    One arithmetic saving comes free. Both statistics need a sparse product,
-    naively ``W @ X_dev`` for Moran and ``W @ X`` for Geary. Since
+    There is also a saving to be had. Both statistics need a sparse product,
+    ``W @ X_dev`` for Moran and ``W @ X`` for Geary. Because
     ``W @ (X - m) = W @ X - rowsums * m``, computing ``W @ X`` once and
-    subtracting recovers the centred product, halving the sparse matmul —
-    which is the dominant cost of the whole routine.
+    subtracting gives the centred product too, which halves the sparse
+    matrix multiply that dominates the cost here.
     """
     n_vars = adata.n_vars
     moran_num = np.empty(n_vars, dtype=np.float64)
@@ -859,7 +973,7 @@ def spatial_autocorrelation(
     Moran's I > 0 / Geary's C < 1 both indicate clustered (spatially
     autocorrelated) signal; Moran's I < 0 / Geary's C > 1 indicate a
     dispersed (checkerboard-like) pattern. They agree on direction almost
-    always but weight local vs. global dissimilarity differently — Geary's
+    always but weight local vs. global dissimilarity differently. Geary's
     C is more sensitive to sharp *local* discontinuities, Moran's I to the
     overall global pattern. p-values for both use the standard analytic
     z-test under normality (Cliff & Ord 1981), not permutation.
@@ -920,6 +1034,34 @@ def spatial_autocorrelation(
     return adata, morans_df
 
 def spatial_de(adata: ad.AnnData, n_top: int = 50, n_neighbors: int = 6, use_fdr: bool = False, copy: bool = False) -> Tuple[ad.AnnData, pd.DataFrame]:
+    """
+    Return the metabolites with the clearest spatial structure in one section.
+
+    A convenience wrapper over :func:`spatial_autocorrelation` that keeps the
+    significant rows and hands back the top of the list. Useful for picking
+    which ion images are worth looking at.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        One section, with spatial coordinates.
+    n_top : int, optional
+        Rows to return. Default 50.
+    n_neighbors : int, optional
+        Neighbours per pixel in the spatial graph. Default 6.
+    use_fdr : bool, optional
+        Select on the BH-adjusted p-value instead of the raw one. Default
+        False. Turn it on when you intend to report the list.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with Moran's I per metabolite in ``adata.var``.
+    pandas.DataFrame
+        The top spatially structured metabolites, ordered by Moran's I.
+    """
     adata, morans_df = spatial_autocorrelation(adata, n_neighbors=n_neighbors, use_fdr=use_fdr, copy=copy)
     sig_col = "pval_adj" if use_fdr else "pval"
     sig = morans_df[morans_df[sig_col] < 0.05]
@@ -1029,7 +1171,7 @@ def getis_ord_gi(
 
     Complements :func:`local_moran`: LISA also flags spatial *outliers*
     (a high pixel surrounded by low neighbours, or vice versa), whereas
-    Gi* only flags concordant hot/cold clusters — the more standard
+    Gi* only flags concordant hot/cold clusters, the more standard
     "hotspot map" statistic in GIS/spatial-epidemiology tooling.
 
     Note on normalization: this uses uniform 1/(k+1) weights over each
@@ -1038,12 +1180,12 @@ def getis_ord_gi(
     which pixels are relatively hot/cold with correlation > 0.999, but the
     absolute z-scale can differ by a constant factor from tools (e.g. esda
     without an explicit self-weight) that add the self-term without
-    renormalizing the row to sum to 1 — a normalization-convention
+    renormalizing the row to sum to 1, a normalization-convention
     difference, not a disagreement about which pixels are hotspots.
 
     Returns
     -------
-    (AnnData, DataFrame) — adds ``adata.obs[f'{metabolite}_gi']`` /
+    (AnnData, DataFrame), adds ``adata.obs[f'{metabolite}_gi']`` /
     ``_gi_type`` (``'hot'``, ``'cold'``, ``'NS'``), and a DataFrame with
     columns ``x, y, value, gi_star, pval, hotspot_type``.
     """
@@ -1093,6 +1235,40 @@ def getis_ord_gi(
     return adata, gi_df
 
 def spatial_neighbors(adata: ad.AnnData, n_neighbors: int = 6, batch_key: str = "sample", copy: bool = False) -> ad.AnnData:
+    """
+    Build the pixel adjacency graph that the spatial statistics run on.
+
+    Neighbours are found within each section separately, so pixels never link
+    across two slides that happen to share coordinates. The graph is made
+    symmetric and unweighted.
+
+    On a regular pixel grid many pixels sit at identical distances, so the
+    choice of ``n_neighbors`` matters: 4 gives the pixels sharing an edge, 8
+    adds the diagonals, and 6 is a compromise that behaves consistently at
+    tissue borders.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data with coordinates in ``adata.obsm['spatial']``.
+    n_neighbors : int, optional
+        Neighbours per pixel. Default 6.
+    batch_key : str, optional
+        Column separating sections. Default ``'sample'``. If the column is
+        absent, all pixels are treated as one section.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with the graph in ``adata.obsp['spatial_connectivities']``.
+
+    Raises
+    ------
+    MissingSpatialError
+        If there are no coordinates.
+    """
     _check_spatial(adata)
     if copy: adata = adata.copy()
 
@@ -1107,7 +1283,7 @@ def spatial_neighbors(adata: ad.AnnData, n_neighbors: int = 6, batch_key: str = 
 def _numba_permute_and_count(er, ec, label_int, nc, perm_seeds):
     """Permute cluster labels and count label-pair adjacencies, once per seed.
 
-    Reproducibility note — this is the whole reason the signature takes a
+    Reproducibility note: this is the whole reason the signature takes a
     *array* of seeds rather than a single one. Numba gives every worker
     thread its own RNG state, so calling ``np.random.seed(seed)`` once before
     the ``prange`` only seeds whichever thread happened to run that line. The
@@ -1170,11 +1346,10 @@ def neighborhood_enrichment(
     if copy: adata = adata.copy()
 
     prior_n_threads = nb.get_num_threads()
-    # Clamp to what Numba will actually accept. set_num_threads() raises if
-    # asked for more threads than NUMBA_NUM_THREADS, which is fixed at import
-    # from the core count -- so n_jobs=8 on a 4-core CI runner used to crash
-    # rather than simply using 4. Asking for more than you have is a wish,
-    # not an error.
+    # Clamp to what Numba will accept. set_num_threads() raises if asked for
+    # more than NUMBA_NUM_THREADS, which is fixed at import from the core
+    # count, so n_jobs=8 on a 4-core machine would otherwise be an error
+    # rather than simply using 4.
     requested = n_jobs if n_jobs is not None else _N_JOBS
     nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
 
@@ -1231,7 +1406,7 @@ def co_occurrence(
     scale* two regions tend to co-occur, not just whether they're adjacent.
 
     For each ordered pair of labels (a, b) and distance bin, reports the
-    ratio ``P(b | within this distance of a) / P(b)`` — a ratio > 1 means
+    ratio ``P(b | within this distance of a) / P(b)``, a ratio > 1 means
     b is enriched near a at that distance (relative to b's overall
     frequency); a ratio < 1 means depletion.
 
@@ -1299,11 +1474,45 @@ def co_occurrence(
 # ---------------------------------------------------------------------------
 
 def score_metabolite_set(adata: ad.AnnData, metabolites: List[str], score_name: str = "metabolite_set_score", copy: bool = False) -> ad.AnnData:
+    """
+    Score every pixel for a set of metabolites at once.
+
+    The score is the mean of the set minus the mean of a background sample
+    matched on abundance, so a set of uniformly bright metabolites does not
+    score highly everywhere for that reason alone. Names that are not in the
+    data are reported and skipped.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Preprocessed data.
+    metabolites : list of str
+        The set to score, for example the members of one pathway.
+    score_name : str, optional
+        Column written to ``adata.obs``. Default ``'metabolite_set_score'``.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with the per-pixel score in ``adata.obs[score_name]``.
+
+    Raises
+    ------
+    InvalidParameterError
+        If none of the names are in the data.
+    """
     if copy: adata = adata.copy()
     found = [m for m in metabolites if m in adata.var_names]
     missing = [m for m in metabolites if m not in adata.var_names]
     if missing:
-        print(f"[MORTIS] Warning: {len(missing)} metabolite(s) not found and skipped: {missing[:5]}{'...' if len(missing) > 5 else ''}")
+        warnings.warn(
+            f"{len(missing)} of the {len(metabolites)} names you passed are not in "
+            f"this object and were left out of the score: {listing(missing, limit=5)}."
+            f"{suggest(missing[0], adata.var_names)}",
+            UserWarning, stacklevel=2,
+        )
     if not found:
         raise InvalidParameterError("None of the provided metabolites were found in adata.var_names.")
     X = _get_X(adata)
@@ -1315,6 +1524,37 @@ def metabolite_set_enrichment(
     results_df: pd.DataFrame, metabolite_sets: Dict[str, List[str]], score_col: str = "log2fc",
     min_set_size: int = 3, n_permutations: int = 1000, random_state: int = 0
 ) -> pd.DataFrame:
+    """
+    Test whether a metabolite set sits high or low in a ranked result.
+
+    An enrichment score is built by walking the ranked list, and its p-value
+    comes from permuting the ranks, so no assumption is made about the shape of
+    the effect-size distribution. Sets smaller than ``min_set_size`` after
+    intersecting with the data are skipped rather than tested at low power.
+
+    Parameters
+    ----------
+    results_df : pandas.DataFrame
+        A result table with a ``metabolite`` column and ``score_col``.
+    metabolite_sets : dict
+        Set name to member names, for example pathways from
+        :func:`fetch_kegg_pathway_sets`.
+    score_col : str, optional
+        Column to rank on. Default ``'log2fc'``.
+    min_set_size : int, optional
+        Smallest set worth testing, counted after intersection. Default 3.
+    n_permutations : int, optional
+        Permutations behind each p-value. Default 1000, which resolves down to
+        about 0.001.
+    random_state : int, optional
+        Seed. Default 0.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per set: size, enrichment score, p-value, BH-adjusted p-value
+        and the leading-edge members.
+    """
     ranked = results_df.sort_values(score_col, ascending=False).reset_index(drop=True)
     all_mets = ranked["metabolite"].tolist()
     scores = ranked[score_col].to_numpy(dtype=np.float64)
@@ -1366,6 +1606,28 @@ def metabolite_set_enrichment(
     return df.sort_values("nes", ascending=False).reset_index(drop=True)
 
 def lipid_class_summary(adata: ad.AnnData, groupby: Optional[str] = None) -> pd.DataFrame:
+    """
+    Total the signal per lipid class, read off the shorthand names.
+
+    Classes come from the prefix of the compound name, so PC(16:0/18:1) counts
+    as phosphatidylcholine. Anything that does not start with a recognised
+    prefix falls into ``'Other'``, which makes this useful for lipid panels and
+    close to useless for a panel named by m/z.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data whose ``var_names`` are lipid shorthand names.
+    groupby : str or None, optional
+        Column in ``adata.obs`` to summarise within, for example a cluster or a
+        section. Default None, which totals over all pixels.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per class, or per class and group: how many metabolites it
+        holds, its mean intensity, and its share of total signal.
+    """
     lipid_prefixes = {"PC": "Phosphatidylcholine", "PE": "Phosphatidylethanolamine", "PS": "Phosphatidylserine", "PI": "Phosphatidylinositol", "PG": "Phosphatidylglycerol", "PA": "Phosphatidic acid", "SM": "Sphingomyelin", "Cer": "Ceramide", "HexCer": "Hexosylceramide", "TG": "Triglyceride", "DG": "Diglyceride", "MG": "Monoglyceride", "LPC": "Lysophosphatidylcholine", "LPE": "Lysophosphatidylethanolamine", "FA": "Fatty acid", "CE": "Cholesterol ester"}
     def _classify(name: str) -> str:
         for prefix, full in lipid_prefixes.items():
@@ -1390,13 +1652,13 @@ def diversity_index(adata: ad.AnnData, method: str = "shannon", copy: bool = Fal
     """
     Per-pixel metabolomic diversity/heterogeneity score, treating each
     pixel's (non-negative) intensities as a compositional distribution
-    over metabolites — an ecology-style diversity index applied to
+    over metabolites, an ecology-style diversity index applied to
     chemistry instead of species counts.
 
     method : {"shannon", "simpson"}
-        "shannon" — Shannon entropy -sum(p*log(p)); higher = more even,
+        "shannon". Shannon entropy -sum(p*log(p)); higher = more even,
         diverse metabolite composition.
-        "simpson" — Gini-Simpson index 1 - sum(p^2); same interpretation,
+        "simpson". Gini-Simpson index 1 - sum(p^2); same interpretation,
         bounded in [0, 1), more sensitive to dominant metabolites.
 
     Adds ``adata.obs[f'{method}_diversity']``.
@@ -1419,7 +1681,7 @@ def diversity_index(adata: ad.AnnData, method: str = "shannon", copy: bool = Fal
         score = 1.0 - (p**2).sum(axis=1)
 
     adata.obs[f"{method}_diversity"] = score.astype(np.float32)
-    print(f"[MORTIS] {method.capitalize()} diversity computed → adata.obs['{method}_diversity'] "
+    print(f"[MORTIS] {method.capitalize()} diversity computed -> adata.obs['{method}_diversity'] "
           f"(mean={score.mean():.3f})")
     return adata
 
@@ -1428,7 +1690,7 @@ def cluster_diversity(
 ) -> pd.DataFrame:
     """
     Region-level heterogeneity: diversity of cluster/domain *composition*
-    within each group (e.g. sample or condition) — how mixed vs.
+    within each group (e.g. sample or condition), how mixed vs.
     homogeneous each sample's tissue-domain makeup is, complementing the
     per-pixel :func:`diversity_index`.
 
@@ -1462,7 +1724,7 @@ def unmix_pixels(
 ) -> ad.AnnData:
     """
     Non-negative least squares (NNLS) unmixing of mixed pixels against a
-    library of known reference spectra — recovers, per pixel, the
+    library of known reference spectra, recovers, per pixel, the
     non-negative mixing fractions that best reconstruct its intensities as
     a combination of the references. MSI pixels routinely contain mixed
     signal from more than one underlying tissue/cell population (unlike
@@ -1477,7 +1739,7 @@ def unmix_pixels(
     Parameters
     ----------
     reference_spectra : dict[str, dict[str, float]]
-        ``{reference_name: {metabolite_name: intensity, ...}, ...}``. Only
+        ``{reference_name: {metabolite_name: intensity...}...}``. Only
         metabolites present in *every* reference AND in ``adata.var_names``
         are used.
 
@@ -1526,7 +1788,7 @@ def unmix_pixels(
     adata.uns["unmixing"] = {
         "reference_names": ref_names, "metabolites_used": common_mets, "n_metabolites_used": len(common_mets),
     }
-    print(f"[MORTIS] NNLS unmixing: {n_refs} reference(s), {len(common_mets)} shared metabolite(s) → adata.obsm['X_unmixed']")
+    print(f"[MORTIS] NNLS unmixing: {n_refs} reference(s), {len(common_mets)} shared metabolite(s) -> adata.obsm['X_unmixed']")
     return adata
 
 # ---------------------------------------------------------------------------
@@ -1534,6 +1796,35 @@ def unmix_pixels(
 # ---------------------------------------------------------------------------
 
 def subset_obs(adata: ad.AnnData, obs_col: str, value: Union[str, List[str]], copy: bool = True) -> ad.AnnData:
+    """
+    Keep the pixels whose ``.obs`` column matches a value.
+
+    Raises rather than returning an empty object when nothing matches, since an
+    empty result usually means a typo and is easier to debug here than three
+    steps later.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data to subset.
+    obs_col : str
+        Column to match on.
+    value : str or list of str
+        Value, or values, to keep.
+    copy : bool, optional
+        Return a real copy rather than a view. Default True. Views are cheap but
+        break as soon as you write to them.
+
+    Returns
+    -------
+    anndata.AnnData
+        The matching pixels.
+
+    Raises
+    ------
+    InvalidParameterError
+        If the column is missing, or no pixel carries any of the values.
+    """
     if obs_col not in adata.obs.columns:
         raise InvalidParameterError(
             f"There is no column called {obs_col!r} in adata.obs. Columns "
@@ -1553,20 +1844,79 @@ def subset_obs(adata: ad.AnnData, obs_col: str, value: Union[str, List[str]], co
     return result.copy() if copy else result
 
 def merge_samples(adatas: List[ad.AnnData], sample_labels: Optional[List[str]] = None, sample_col: str = "sample", join: str = "inner") -> ad.AnnData:
+    """
+    Combine sections into one object, labelling where each pixel came from.
+
+    Pixel names are rewritten as ``<label>_<n>`` so they stay unique, and the
+    label is written to ``adata.obs[sample_col]``, which is what every later
+    step groups by. The inputs are left untouched.
+
+    Parameters
+    ----------
+    adatas : list of anndata.AnnData
+        Sections to merge.
+    sample_labels : list of str or None, optional
+        One label per section, in the same order. Default None, which numbers
+        them ``sample_0`` onwards.
+    sample_col : str, optional
+        Column the label is written to. Default ``'sample'``.
+    join : {'inner', 'outer'}, optional
+        ``'inner'`` keeps the metabolites present in every section, which is
+        what an untargeted comparison needs. ``'outer'`` keeps the union and
+        fills the gaps with zero, which reads a missing annotation as a real
+        absence. Default ``'inner'``.
+
+    Returns
+    -------
+    anndata.AnnData
+        One object holding every section.
+
+    Raises
+    ------
+    InvalidParameterError
+        If the number of labels does not match the number of sections.
+    """
     if sample_labels is not None and len(sample_labels) != len(adatas):
         raise InvalidParameterError(
             f"sample_labels length ({len(sample_labels)}) must match number of adatas ({len(adatas)})."
         )
     sample_labels = sample_labels or [f"sample_{i}" for i in range(len(adatas))]
-    for i, (a, label) in enumerate(zip(adatas, sample_labels)):
+    labelled = []
+    for a, label in zip(adatas, sample_labels):
         a = a.copy()
         a.obs[sample_col], a.obs_names = label, [f"{label}_{j}" for j in range(a.n_obs)]
-        adatas[i] = a
-    merged = ad.concat(adatas, join=join, fill_value=0.0)
+        labelled.append(a)
+    merged = ad.concat(labelled, join=join, fill_value=0.0)
     merged.obs_names_make_unique()
     return merged
 
 def split_by_obs(adata: ad.AnnData, obs_col: str, copy: bool = True) -> Dict[str, ad.AnnData]:
+    """
+    Split one object into a dictionary of objects, one per value.
+
+    The usual way back from a merged cohort to individual sections, for
+    instance before computing anything spatial, which has to be done per
+    section. Keys come out sorted, so iterating gives the same order twice.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data to split.
+    obs_col : str
+        Column to split on, typically the section or patient.
+    copy : bool, optional
+        Return real copies rather than views. Default True.
+
+    Returns
+    -------
+    dict
+        Value to the pixels carrying it.
+
+    Raises
+    ------
+    InvalidParameterError
+        If the column is missing.
+    """
     if obs_col not in adata.obs.columns:
         raise InvalidParameterError(
             f"There is no column called {obs_col!r} in adata.obs to split on. "
@@ -1580,6 +1930,35 @@ def split_by_obs(adata: ad.AnnData, obs_col: str, copy: bool = True) -> Dict[str
 # ---------------------------------------------------------------------------
 
 def run_paga(adata: ad.AnnData, cluster_key: str = "cluster", copy: bool = False) -> ad.AnnData:
+    """
+    Estimate how strongly clusters connect to one another.
+
+    PAGA summarises the neighbour graph into one weighted graph over clusters.
+    In tissue it reads as which regions border or grade into which, so it is a
+    way of asking whether two clusters are separate compartments or two ends of
+    a gradient.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Clustered data with a neighbour graph.
+    cluster_key : str, optional
+        Column holding the labels. Default ``'cluster'``.
+    copy : bool, optional
+        Return a copy instead of writing in place. Default False.
+
+    Returns
+    -------
+    anndata.AnnData
+        Data with the connectivities in ``adata.uns['paga']``.
+
+    Raises
+    ------
+    NoClustersError
+        If the cluster column is missing.
+    NoEmbeddingError
+        If no neighbour graph has been computed.
+    """
     _check_clusters(adata, cluster_key)
     _check_neighbors(adata)
     if copy: adata = adata.copy()
@@ -1646,6 +2025,45 @@ def spatial_gradient(
     adata: ad.AnnData, target_col: str, target_val: str,
     batch_key: str = "sample", bins: int = 15, max_dist: float = 1000.0
 ) -> pd.DataFrame:
+    """
+    Profile how metabolites change with distance from a region.
+
+    Every pixel gets its distance to the nearest pixel of the target region,
+    distances are binned, and each metabolite is averaged per bin. This turns a
+    border into a curve: how a compound behaves moving out of a tumour, a crypt
+    or a fibrotic front.
+
+    Distances are computed within each section, so nothing is measured across
+    two slides.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Data with coordinates and a region label.
+    target_col : str
+        Column in ``adata.obs`` naming the regions.
+    target_val : str
+        The region to measure distance from.
+    batch_key : str, optional
+        Column separating sections. Default ``'sample'``.
+    bins : int, optional
+        Number of distance bins. Default 15.
+    max_dist : float, optional
+        Farthest distance to profile, in coordinate units. Default 1000.0.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per distance bin and metabolite: the bin centre, how many pixels
+        fell in it, and the mean intensity.
+
+    Raises
+    ------
+    MissingSpatialError
+        If there are no coordinates.
+    InvalidParameterError
+        If ``target_col`` is missing.
+    """
     _check_spatial(adata)
     if target_col not in adata.obs.columns:
         raise InvalidParameterError(
@@ -1695,7 +2113,7 @@ def _median_filter_and_threshold(X: np.ndarray, coords: np.ndarray, size: int = 
 
     The grid is sized by the coordinate *span*, not the pixel count, so
     scattered or wide-span coordinates would allocate an enormous mostly-empty
-    raster — 500 pixels spread over a 50,000-unit range asks for a 49,808 x
+    raster, 500 pixels spread over a 50,000-unit range asks for a 49,808 x
     49,677 grid, about 10 GB per ion image. That is checked for and refused
     rather than attempted.
     """
@@ -1723,7 +2141,7 @@ def _median_filter_and_threshold(X: np.ndarray, coords: np.ndarray, size: int = 
         grid[:] = 0.0
         grid[ys, xs] = X[:, j]
         smoothed = median_filter(grid, size=size, mode="nearest")[ys, xs]
-        # "median thresholding at the 0.5 quantile" — keep the brighter half.
+        # "median thresholding at the 0.5 quantile", keep the brighter half.
         smoothed[smoothed < np.median(smoothed)] = 0.0
         out[:, j] = smoothed
     return out
@@ -1738,23 +2156,23 @@ def metabolite_colocalization(
     variable metabolites (run :func:`spatial_autocorrelation` first).
 
     metric : {"pearson", "cosine", "cosine_median"}
-        ``"pearson"`` (default) — Pearson correlation between (optionally
+        ``"pearson"`` (default). Pearson correlation between (optionally
         spatially-smoothed) ion image vectors. Mean-centred, so unlike the
         cosine variants it is insensitive to shared background; prefer it for
         continuously-varying intensity gradients rather than sparse "on/off"
-        patterns. It stays the default only for backward compatibility —
+        patterns. It stays the default only for backward compatibility,
         ``"cosine_median"`` is the better-validated choice on gridded data.
 
-        ``"cosine_median"`` — the measure that won the ColocML
+        ``"cosine_median"``, the measure that won the ColocML
         benchmark: a 3x3 median filter, then zeroing everything below the
         image's own median, then cosine similarity. Ovchinnikova et al. had 42
         imaging-MS experts from nine laboratories rank 2,210 ion-image pairs,
-        and this scored Spearman 0.794 against that consensus — statistically
+        and this scored Spearman 0.794 against that consensus, statistically
         indistinguishable from their deep-learning model (0.797) and from the
         experts' agreement with each other (0.791), while staying a handful of
         lines of arithmetic. Requires gridded pixel coordinates.
 
-        ``"cosine"`` — plain cosine similarity on raw ion images, without the
+        ``"cosine"``, plain cosine similarity on raw ion images, without the
         filtering and thresholding. Cheaper, needs no grid, and it is what
         METASPACE's own colocalization uses, but it scored materially worse in
         the same benchmark. Use it when coordinates are not on a regular grid.
@@ -1810,6 +2228,16 @@ def metabolite_colocalization(
 # ---------------------------------------------------------------------------
 
 def save_results(results_df: pd.DataFrame, path: str) -> None:
+    """
+    Write a result table to CSV, creating the directory if needed.
+
+    Parameters
+    ----------
+    results_df : pandas.DataFrame
+        The table to write.
+    path : str
+        Destination file. Parent directories are created.
+    """
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(out, index=False)
@@ -1824,3 +2252,4 @@ def save_adata(adata: ad.AnnData, path: str) -> None:
     make_writable(adata)
     adata.write_h5ad(out)
     print(f"[MORTIS] Saved AnnData: {out} (shape={adata.shape})")
+
