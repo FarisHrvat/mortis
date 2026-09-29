@@ -277,3 +277,85 @@ class TestFromDataFrame:
         frame = pd.DataFrame({"x": [0], "y": [0]})
         with pytest.raises(InvalidParameterError, match="no intensities"):
             from_dataframe(frame)
+
+
+class TestNumberFormatInference:
+    """
+    Two people export the same data from Excel on differently configured
+    machines and get different text. Read naively, an Italian file is out by a
+    factor of a thousand and still parses cleanly, so the format is worked out
+    from the raw text rather than assumed.
+    """
+
+    TRUTH = [5188.60, 4801.84, 5960.63]
+
+    def _write(self, path, sep, decimal, thousands=""):
+        rows = ["x" + sep + "y" + sep + sep.join(f"m{i}" for i in range(3))]
+        for row in range(4):
+            values = []
+            for v in self.TRUTH:
+                text = f"{v:,.2f}"                       # 5,188.60
+                text = text.replace(",", "\x00").replace(".", decimal)
+                values.append(text.replace("\x00", thousands))
+            rows.append(f"0{sep}{row}" + sep + sep.join(values))
+        path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+    @pytest.mark.parametrize("name,sep,decimal,thousands", [
+        ("english.csv", ",", ".", ""),
+        ("english_grouped.csv", ";", ".", ","),
+        ("italian.csv", ";", ",", ""),
+        ("italian_grouped.csv", ";", ",", "."),
+        ("tabbed_italian.txt", "\t", ",", "."),
+    ])
+    def test_every_locale_gives_the_same_numbers(self, tmp_path, name, sep, decimal, thousands):
+        path = tmp_path / name
+        self._write(path, sep, decimal, thousands)
+        adata = read_metabolomics_data(str(path))
+        assert adata.X[0].tolist() == pytest.approx(self.TRUTH, rel=1e-5)
+
+    def test_thousands_separator_is_not_read_as_a_decimal(self, tmp_path):
+        # The dangerous one: 1.234 parses fine as 1.234 and means 1234.
+        path = tmp_path / "grouped.csv"
+        path.write_text("x;y;m0\n0;0;1.234.567\n0;1;2.345.678\n", encoding="utf-8")
+        adata = read_metabolomics_data(str(path))
+        assert adata.X[0, 0] == pytest.approx(1234567.0)
+
+    def test_genuinely_ambiguous_file_warns(self, tmp_path):
+        # Every value looks like "1.234", which is valid read either way.
+        path = tmp_path / "ambiguous.csv"
+        path.write_text("x;y;m0\n0;0;1.234\n0;1;5.678\n", encoding="utf-8")
+        with pytest.warns(UserWarning, match="valid reading two ways"):
+            read_metabolomics_data(str(path))
+
+    def test_unambiguous_file_does_not_warn(self, tmp_path, recwarn):
+        path = tmp_path / "plain.csv"
+        path.write_text("x,y,m0\n0,0,12.5\n0,1,3.75\n", encoding="utf-8")
+        read_metabolomics_data(str(path))
+        assert not [w for w in recwarn if "valid reading two ways" in str(w.message)]
+
+
+class TestUnparseableValuesAreNotZeroed:
+    """
+    An absent compound and an unreadable one mean different things, so text
+    that is not a number stops the read instead of becoming a zero.
+    """
+
+    def test_text_in_a_compound_column_raises(self, tmp_path):
+        path = tmp_path / "nd.csv"
+        path.write_text("x,y,Taurine\n0,0,12.5\n0,1,n.d.\n", encoding="utf-8")
+        with pytest.raises(FileFormatError, match="not numbers"):
+            read_metabolomics_data(str(path))
+
+    def test_the_message_names_the_column_and_the_value(self, tmp_path):
+        path = tmp_path / "lod.csv"
+        path.write_text("x,y,Taurine\n0,0,1.0\n0,1,below LOD\n", encoding="utf-8")
+        with pytest.raises(FileFormatError) as caught:
+            read_metabolomics_data(str(path))
+        assert "Taurine" in str(caught.value)
+        assert "below LOD" in str(caught.value)
+
+    def test_blank_cells_are_still_a_legitimate_zero(self, tmp_path):
+        path = tmp_path / "blank.csv"
+        path.write_text("x,y,Taurine\n0,0,12.5\n0,1,\n", encoding="utf-8")
+        adata = read_metabolomics_data(str(path))
+        assert adata.X[1, 0] == 0.0

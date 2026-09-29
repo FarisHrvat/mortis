@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import csv
 import re
+import warnings
 from pathlib import Path
 from typing import List, Optional
 
@@ -110,33 +111,125 @@ def _sniff_delimiter(file_path: Path) -> str:
     return best
 
 
-def _read_text_table(file_path: Path) -> pd.DataFrame:
-    """Read a delimited text export, sniffing the delimiter and the decimals."""
-    sep = _sniff_delimiter(file_path)
-    frame = pd.read_csv(file_path, sep=sep, encoding="utf-8", engine="python")
-    # A European export writes "12,5" for twelve and a half, which pandas reads
-    # as text. Left alone it would coerce to NaN and land in the matrix as a
-    # zero, so look for it and re-read with the matching decimal mark.
-    if _looks_like_comma_decimals(frame):
-        frame = pd.read_csv(file_path, sep=sep, decimal=",",
-                            encoding="utf-8", engine="python")
-    return frame
+#: A run of digits grouped in threes by ``sep``, as a thousands separator is
+#: written: 1.234.567 or 1,234,567.
+def _grouped(sep: str) -> "re.Pattern":
+    return re.compile(r"^-?\d{1,3}(?:" + re.escape(sep) + r"\d{3})+$")
 
 
-_COMMA_DECIMAL = re.compile(r"^\s*-?\d{1,3}(?:\.\d{3})*,\d+\s*$")
+_GROUPED_DOT = _grouped(".")
+_GROUPED_COMMA = _grouped(",")
+_PLAIN_NUMBER = re.compile(r"^-?\d+$")
+_TOKEN = re.compile(r"^-?[\d.,]+$")
 
 
-def _looks_like_comma_decimals(frame: pd.DataFrame) -> bool:
-    """True when a text column is really numbers written the European way."""
+def _infer_number_format(tokens: List[str]) -> "tuple[str, Optional[str], bool]":
+    """Work out how this file writes numbers.
+
+    Returns ``(decimal, thousands, confident)``.
+
+    The case that matters is not a file that fails to parse, it is one that
+    parses into the wrong number. An Italian Excel writes one thousand two
+    hundred and thirty four as ``1.234``, and read with an English decimal
+    point that is 1.234, a factor of a thousand out, with nothing to show for
+    it. So the raw text is inspected before pandas is allowed to guess.
+
+    The rules, in order:
+
+    1. A token holding both separators settles it: whichever comes last is
+       the decimal mark. ``1.234,56`` is European, ``1,234.56`` is English.
+    2. Otherwise, a separator that always has exactly three digits after it
+       and appears more than once in some token is a thousands separator.
+    3. A separator followed by anything other than three digits is a decimal
+       mark.
+    4. What is left is genuinely ambiguous: every token looks like ``1,234``
+       or ``12.345``, which is a valid reading either way.
+    """
+    both = dot = comma = 0
+    dot_groups = comma_groups = 0
+    dot_decimal = comma_decimal = 0
+
+    for token in tokens:
+        has_dot, has_comma = "." in token, "," in token
+        if has_dot and has_comma:
+            both += 1
+            return ((",", ".", True) if token.rfind(",") > token.rfind(".")
+                    else (".", ",", True))
+        if has_dot:
+            dot += 1
+            if _GROUPED_DOT.match(token):
+                dot_groups += 1
+                if token.count(".") > 1:
+                    return (",", ".", True)     # 1.234.567 can only be grouping
+            else:
+                dot_decimal += 1
+        elif has_comma:
+            comma += 1
+            if _GROUPED_COMMA.match(token):
+                comma_groups += 1
+                if token.count(",") > 1:
+                    return (".", ",", True)
+            else:
+                comma_decimal += 1
+
+    if dot_decimal and not comma:
+        return (".", None, True)                # 12.5, ordinary English
+    if comma_decimal and not dot:
+        return (",", None, True)                # 12,5, ordinary European
+    if dot_groups and not dot_decimal and not comma:
+        return (",", ".", False)                # every value like 1.234
+    if comma_groups and not comma_decimal and not dot:
+        return (".", ",", False)                # every value like 1,234
+    return (".", None, True)                    # plain integers, nothing to decide
+
+
+def _sample_tokens(file_path: Path, sep: str, rows: int = 400) -> List[str]:
+    """Raw number-shaped strings from the first rows, before any parsing."""
+    frame = pd.read_csv(file_path, sep=sep, encoding="utf-8", engine="python",
+                        dtype=str, nrows=rows)
+    tokens: List[str] = []
     for column in frame.columns:
-        values = frame[column]
-        # pandas 2 calls a text column 'object', pandas 3 calls it 'str'.
-        if pd.api.types.is_numeric_dtype(values):
-            continue
-        sample = values.dropna().astype(str).head(20)
-        if len(sample) and sample.map(lambda v: bool(_COMMA_DECIMAL.match(v))).all():
-            return True
-    return False
+        if str(column).strip().lower() in {"x", "y", "row", "column", "col"}:
+            continue                            # coordinates are integers
+        for value in frame[column].dropna().astype(str):
+            value = value.strip()
+            if value and _TOKEN.match(value) and not _PLAIN_NUMBER.match(value):
+                tokens.append(value)
+    return tokens
+
+
+def _read_text_table(file_path: Path) -> pd.DataFrame:
+    """Read a delimited text export, working out the delimiter and the decimals.
+
+    Neither is taken on trust. The delimiter is sniffed and the number format
+    inferred from the raw text, so a file written by an Italian Excel and a
+    file written by an English one both come back as the same numbers.
+    """
+    sep = _sniff_delimiter(file_path)
+    tokens = _sample_tokens(file_path, sep)
+    decimal, thousands, confident = _infer_number_format(tokens)
+
+    if not confident:
+        example = next((t for t in tokens if "." in t or "," in t), "1.234")
+        other = "1234" if thousands else f"1{decimal}234"
+        warnings.warn(
+            f"'{file_path.name}' writes numbers like {example!r}, which is a "
+            f"valid reading two ways: {example!r} could be one thousand two "
+            f"hundred and thirty four with '{thousands}' grouping the digits, "
+            f"or it could be the decimal {other}. Every value in the file is "
+            f"written this way, so nothing in it settles the question. MORTIS "
+            f"has read it as the grouped form. If that is wrong the "
+            f"intensities are out by a factor of a thousand, so check one "
+            f"value against the instrument software, and if it is the other "
+            f"reading, load the file with pandas using the decimal you want "
+            f"and pass the frame to mortis.from_dataframe().",
+            UserWarning, stacklevel=4,
+        )
+
+    options = {"sep": sep, "encoding": "utf-8", "engine": "python", "decimal": decimal}
+    if thousands:
+        options["thousands"] = thousands
+    return pd.read_csv(file_path, **options)
 
 
 def _read_rds(file_path: Path) -> pd.DataFrame:

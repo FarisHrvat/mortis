@@ -4,7 +4,7 @@
 
 | Extension | Notes |
 |---|---|
-| `.csv`, `.tsv`, `.txt`, `.tab` | Delimiter is sniffed: comma, semicolon, tab or pipe. A comma decimal mark is detected and re-read. |
+| `.csv`, `.tsv`, `.txt`, `.tab` | Delimiter is sniffed: comma, semicolon, tab or pipe. The number format is inferred from the file. |
 | `.xlsx`, `.xlsm`, `.xls` | Uses `python-calamine` when installed, `openpyxl` otherwise. |
 | `.parquet`, `.pq` | Needs `pip install "mortis-spatial[fast-io]"`. |
 | `.rds` | An R `data.frame` saved with `saveRDS()`. Needs `pip install "mortis-spatial[rds]"`. |
@@ -14,9 +14,30 @@ Coordinates may be called `x`/`y`, `X`/`Y`, `Row`/`Column`, `x_pos`/`y_pos` or
 `x_coord`/`y_coord`. Anything else, rename the columns or use
 [`from_dataframe()`](#from_dataframe).
 
-A compound column that holds text MORTIS cannot parse as a number is an error,
-not a zero. An absent compound and an unreadable one mean different things, and
-a file full of quietly zeroed intensities looks exactly like real data.
+### Numbers written for a different locale
+
+Excel writes numbers the way the machine it runs on is configured. The same
+intensity is `5188.60` on an English install and `5.188,60` on an Italian one,
+and a file of the second kind read as the first is wrong by a factor of a
+thousand while still parsing perfectly. You would not see it.
+
+MORTIS reads the raw text before parsing and works out which mark is the
+decimal and which groups the digits. A value holding both settles it, since
+the last one is always the decimal. Otherwise a separator with exactly three
+digits after it, appearing more than once, is grouping.
+
+The only case it cannot settle is a file where *every* value looks like
+`1.234` and nothing else appears, which is a valid number either way. There it
+reads the grouped form and warns, telling you which value to check against the
+instrument software.
+
+### Values that are not numbers
+
+A compound column holding text MORTIS cannot parse is an error, not a zero. An
+absent compound and an unreadable one mean different things, and a file of
+quietly zeroed intensities looks exactly like real data. The message names the
+column and the first value it choked on, so `n.d.` or `below LOD` sitting in a
+numeric column is obvious rather than silent.
 
 ---
 
