@@ -688,6 +688,7 @@ def preprocess(
     do_tic: bool = True,       # Toggle row normalization (TIC or median)
     normalize_method: str = "tic",  # "tic" or "median", see median_normalize()
     do_log1p: bool = True,     # Toggle Log1p
+    do_neighbors: bool = True,  # Toggle the kNN graph, see the docstring
     target_sum: Optional[float] = None,
     scale_data: bool = False,
     max_value: float = 10.0,
@@ -699,6 +700,13 @@ def preprocess(
     """
     Full preprocessing pipeline with toggles for already-processed data:
     row normalization -> log1p -> (optional) scale -> PCA -> kNN graph.
+
+    ``do_neighbors=False`` stops before the kNN graph. Clustering and UMAP
+    need that graph, but the spatial statistics do not: they build their own
+    graph from the pixel coordinates. On a cohort the expression-space graph
+    is the most expensive thing here, so a workflow that only wants
+    :func:`spatial_organization` or :func:`differential_abundance` should
+    skip it.
 
     normalize_method : {"tic", "median"}, optional
         "tic" (default) divides each pixel by its total ion current.
@@ -722,7 +730,9 @@ def preprocess(
     if scale_data: adata = scale(adata, max_value=max_value)
 
     adata = run_pca(adata, n_comps=n_pcs, random_state=random_state, use_hardware=use_hardware, **kwargs)
-    adata = run_neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs_neighbors, metric=metric, random_state=random_state)
+    if do_neighbors:
+        adata = run_neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs_neighbors,
+                              metric=metric, random_state=random_state)
 
     return adata
 
