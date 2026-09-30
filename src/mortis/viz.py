@@ -647,7 +647,7 @@ def plot_effect_forest(
     ordered = result.reindex(
         result["delta"].abs().sort_values(ascending=False).index
     ).head(top_n)
-    # Largest effect at the top, which is where a reader starts.
+    # largest effect at the top
     ordered = ordered.iloc[::-1]
 
     height = max(2.2, 0.24 * len(ordered) + 1.1)
@@ -1016,7 +1016,7 @@ def _annotate_spread(ax, points, labels, fontsize=None, avoid=None):
     fontsize = fontsize if fontsize is not None else mpl.rcParams["font.size"] - 2.5
     line_height = fontsize * 1.45
 
-    # Display space, so "too close" means what it looks like on the page.
+    # display space, so overlap means overlap on the page
     obstacles: List[Tuple[float, float]] = []
     if avoid is not None and len(avoid):
         obstacles = [tuple(xy) for xy in ax.transData.transform(np.asarray(avoid, float))]

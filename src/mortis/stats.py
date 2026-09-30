@@ -445,7 +445,7 @@ def differential_abundance(
         low, high = _bootstrap_delta_ci(a, b, bootstrap, alpha, random_state)
         result["delta_ci_low"] = low
         result["delta_ci_high"] = high
-        # An interval excluding zero is the small-n statement worth making.
+        # the useful statement at small n
         result["ci_excludes_zero"] = (low > 0) | (high < 0)
 
     # tie-break on name, or two identical runs give different row orders

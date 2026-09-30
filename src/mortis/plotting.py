@@ -743,7 +743,6 @@ def plot_morans(
 
     fig, ax = plt.subplots(figsize=(9, max(4, n_top * 0.38)), dpi=dpi)
 
-    # Pure color representation: Blue for positive spatial autocorrelation
     colors = ["#2196F3" if v > 0 else "#F44336" for v in top["morans_i"]]
 
     ax.barh(top["label"][::-1], top["morans_i"][::-1], color=colors[::-1], edgecolor="white", height=0.7, **kwargs)

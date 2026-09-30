@@ -433,8 +433,8 @@ def run_pca(
         pca = cuml.PCA(n_components=n_comps, random_state=random_state, **kwargs)
         adata.obsm['X_pca'] = pca.fit_transform(X_gpu).get()
     else:
-        # arpack below ~10k pixels, randomized above
         print("[MORTIS] Running PCA on CPU.")
+        # arpack below ~10k pixels, randomized above
         kwargs.setdefault("svd_solver", "arpack" if adata.n_obs < 10_000 else "randomized")
         with _configure_runtime_threads():
             sc.tl.pca(adata, n_comps=n_comps, random_state=random_state, **kwargs)
@@ -470,12 +470,10 @@ def correct_batches(
         )
     if copy: adata = adata.copy()
 
-    # Drop covariates that can't actually be protected.
     valid_covariates = []
     if covariates:
         for cov in covariates:
             if cov in adata.obs.columns:
-                # A covariate mathematically MUST have >= 2 unique values to be protected
                 if adata.obs[cov].nunique() > 1:
                     valid_covariates.append(cov)
                 else:
@@ -607,7 +605,6 @@ def run_neighbors(
 
     print(f"[MORTIS] Building kNN graph (metric={metric}, n_neighbors={n_neighbors}).")
 
-    # Use specified representation if passed (e.g., harmony), else default to X_pca
     use_rep = kwargs.pop("use_rep", "X_pca" if "X_pca" in adata.obsm else None)
 
     with _configure_runtime_threads(), _numba_thread_limit():
@@ -668,7 +665,6 @@ def run_umap(
         import cuml
         print("[MORTIS] Running UMAP on GPU (cuML).")
         umap_model = cuml.UMAP(min_dist=min_dist, spread=spread, random_state=random_state, **kwargs)
-        # Use harmony basis if available, otherwise standard PCA
         basis = "X_pca_harmony" if "X_pca_harmony" in adata.obsm else "X_pca"
         adata.obsm['X_umap'] = umap_model.fit_transform(adata.obsm[basis])
     else:

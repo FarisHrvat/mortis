@@ -114,7 +114,6 @@ def load_image(
             f"Original error: {exc}"
         ) from exc
 
-    # Normalise to float32 [0, 1]
     img = img.astype(np.float32)
     if img.max() > 1.0:
         img = img / img.max()
@@ -277,7 +276,6 @@ def extract_image_features(
     W = img.shape[1]
     is_rgb = img.ndim == 3 and img.shape[2] >= 3
 
-    # Convert MSI coords -> image pixel coords
     col_idx = np.clip(((coords[:, 0] - ox) / sx).astype(int), 0, W - 1)
     row_idx = np.clip(((coords[:, 1] - oy) / sy).astype(int), 0, H - 1)
 
@@ -369,7 +367,6 @@ def plot_image_overlay(
     oy = img_info.get("offset_y", 0.0)
 
     coords = adata.obsm["spatial"]
-    # Map MSI coords to image space for extent
     img_x_min = ox
     img_x_max = ox + img.shape[1] * sx
     img_y_min = oy

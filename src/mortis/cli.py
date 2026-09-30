@@ -249,7 +249,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             notes="Produced by `mortis run`; config.yaml alongside is the exact input.",
         )
 
-    # The config that ran, written back out. Not the config you meant to run.
+    # the config that actually ran, written back out
     try:
         import yaml
         (out / "config.yaml").write_text(
