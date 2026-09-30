@@ -3,7 +3,7 @@
 ## Reporting
 
 Use GitHub's [private vulnerability reporting][pvr] on this repository, or email
-farishrvatit@gmail.com. Please do not open a public issue for anything that
+mortis-spatial@proton.me. Please do not open a public issue for anything that
 looks exploitable.
 
 I maintain this alongside a PhD, so expect a first reply within about a week
