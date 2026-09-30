@@ -18,6 +18,7 @@
   <img src="https://img.shields.io/badge/tested-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg" alt="Linux, macOS, Windows">
   <a href="https://github.com/FarisHrvat/mortis/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/version-0.1.0-orange.svg" alt="version 0.1.0">
+  <a href="https://doi.org/10.5281/zenodo.23056382"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23056382.svg" alt="DOI"></a>
 </p>
 
 ---
@@ -157,9 +158,11 @@ there, but I have not tested it. See
 
 ## Citation
 
-Cite the repository and the version you ran, from
-[`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff).
-A Zenodo DOI will be added there shortly, and the article once it is out.
+Cite the DOI, [10.5281/zenodo.23056382](https://doi.org/10.5281/zenodo.23056382),
+which always resolves to the newest version. To pin the exact version you ran,
+each release has its own DOI on the same record. Full metadata is in
+[`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff),
+and the article will be the preferred citation once it is out.
 
 `filter_drugs()` matches against a drug-name list built from Wikidata, which
 is CC0. `run_harmony()` implements Korsunsky et al. 2019, and

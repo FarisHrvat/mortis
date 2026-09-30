@@ -2,8 +2,8 @@ cff-version: 1.2.0
 title: "MORTIS: cohort-scale analysis for spatial metabolomics"
 message: >-
   Please cite the software using the metadata below, including the version
-  you actually ran. A Zenodo DOI will be added here shortly, and once the
-  paper is out the preferred citation will be the article.
+  you actually ran. Once the paper is out the preferred citation will be the
+  article.
 version: 0.1.0
 date-released: "2026-09-30"
 license: MIT
@@ -32,7 +32,11 @@ keywords:
   - reproducibility
   - bioinformatics
   - anndata
+doi: 10.5281/zenodo.23056382
 identifiers:
-  - type: url
-    value: "https://github.com/FarisHrvat/mortis"
-    description: The repository. A Zenodo DOI will replace this once minted.
+  - type: doi
+    value: 10.5281/zenodo.23056382
+    description: Concept DOI, always resolves to the newest version.
+  - type: doi
+    value: 10.5281/zenodo.23056383
+    description: DOI for version 0.1.0.
