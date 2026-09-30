@@ -63,9 +63,7 @@ __all__ = [
     "paired_differential_abundance",
 ]
 
-# Interpretation thresholds from Romano et al. (2006), the conventional
-# reading of Cliff's delta magnitude. Advisory labels only, they are not
-# used to gate anything.
+# Romano et al. (2006). Advisory labels, nothing is gated on them.
 _DELTA_BANDS = ((0.147, "negligible"), (0.33, "small"), (0.474, "medium"))
 
 
@@ -291,9 +289,8 @@ def cliffs_delta(group1: np.ndarray, group2: np.ndarray) -> np.ndarray:
 
     n1, n2 = a.shape[0], b.shape[0]
 
-    # Direct pairwise comparison. Cohorts are small (n patients, not n pixels),
-    # so the (n1, n2, n_features) intermediate stays modest; features are
-    # chunked so a wide matrix cannot blow up memory regardless.
+    # n is patients, not pixels, so the (n1, n2, features) intermediate is
+    # small. chunked anyway for wide panels.
     chunk = max(1, int(2e7 // max(n1 * n2, 1)))
     deltas = np.empty(a.shape[1], dtype=np.float64)
     for start in range(0, a.shape[1], chunk):
@@ -413,8 +410,7 @@ def differential_abundance(
 
     delta = cliffs_delta(a, b)
 
-    # Mann-Whitney needs at least one non-constant feature to be meaningful;
-    # constant features get p = 1 rather than a NaN that silently becomes 0.
+    # constant features get p = 1, not a NaN that becomes 0
     with np.errstate(invalid="ignore"):
         try:
             _, pvals = stats.mannwhitneyu(a, b, axis=0, alternative="two-sided")
@@ -424,9 +420,7 @@ def differential_abundance(
     pvals_adj = multipletests(pvals, method="fdr_bh")[1]
 
     median1, median2 = np.median(a, axis=0), np.median(b, axis=0)
-    # A ratio only means anything for non-negative intensities. This function is
-    # also used for organisation metrics (Moran's I is signed), so leave log2fc
-    # undefined there rather than emitting a nan and a warning.
+    # Moran's I is signed, so leave log2fc undefined rather than nan
     pseudo = 1e-9
     ratio_defined = (median1 >= 0) & (median2 >= 0)
     log2fc = np.full(median1.shape, np.nan, dtype=np.float64)
@@ -454,9 +448,7 @@ def differential_abundance(
         # An interval excluding zero is the small-n statement worth making.
         result["ci_excludes_zero"] = (low > 0) | (high < 0)
 
-    # Sort on |delta|, but break ties on the name. Without the tiebreaker the
-    # order of equally-ranked metabolites depends on pandas' sort internals,
-    # which is enough to make two identical runs produce non-identical CSVs.
+    # tie-break on name, or two identical runs give different row orders
     result = (
         result.sort_values(
             ["delta", "metabolite"],
@@ -569,8 +561,7 @@ def paired_differential_abundance(
     change = after - before
     n_pairs = len(matched)
 
-    # Wilcoxon signed-rank; features with no change at all are undefined, so
-    # they get p = 1 instead of raising.
+    # unchanged features are undefined, so p = 1 instead of raising
     pvals = np.ones(X.shape[1], dtype=np.float64)
     varying = ~np.all(np.isclose(change, 0.0), axis=0)
     if varying.any():
@@ -579,13 +570,11 @@ def paired_differential_abundance(
                 _, p_varying = stats.wilcoxon(change[:, varying], axis=0, zero_method="wilcox")
                 pvals[varying] = np.nan_to_num(np.asarray(p_varying, dtype=np.float64), nan=1.0)
             except ValueError:
-                # Too few non-zero pairs for the test to be defined. The p = 1
-                # default set above is exactly what we want in that case.
+                # too few non-zero pairs; the p = 1 default above is right
                 pass
     pvals_adj = multipletests(pvals, method="fdr_bh")[1]
 
-    # Matched-pairs rank-biserial correlation: the paired analogue of Cliff's
-    # delta, on the same [-1, 1] scale and read the same way.
+    # matched-pairs rank-biserial, the paired analogue of Cliff's delta
     n_increased = (change > 0).sum(axis=0)
     n_decreased = (change < 0).sum(axis=0)
     delta = (n_increased - n_decreased) / n_pairs
@@ -601,9 +590,7 @@ def paired_differential_abundance(
         "pval_adj": pvals_adj,
         "n_pairs": n_pairs,
     })
-    # Sort on |delta|, but break ties on the name. Without the tiebreaker the
-    # order of equally-ranked metabolites depends on pandas' sort internals,
-    # which is enough to make two identical runs produce non-identical CSVs.
+    # tie-break on name, or two identical runs give different row orders
     result = (
         result.sort_values(
             ["delta", "metabolite"],

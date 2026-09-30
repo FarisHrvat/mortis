@@ -433,8 +433,7 @@ def run_pca(
         pca = cuml.PCA(n_components=n_comps, random_state=random_state, **kwargs)
         adata.obsm['X_pca'] = pca.fit_transform(X_gpu).get()
     else:
-        # arpack is exact and fine below ~10k pixels; randomized is much
-        # faster above that and accurate enough for a 50-component PCA.
+        # arpack below ~10k pixels, randomized above
         print("[MORTIS] Running PCA on CPU.")
         kwargs.setdefault("svd_solver", "arpack" if adata.n_obs < 10_000 else "randomized")
         with _configure_runtime_threads():
@@ -585,8 +584,7 @@ def run_harmony(
     print(f"[MORTIS] Running Harmony batch correction on '{batch_key}'")
     ho = harmonypy.run_harmony(adata.obsm["X_pca"], adata.obs, [batch_key], **kwargs)
     Z = np.asarray(ho.Z_corr)
-    # harmonypy's Z_corr orientation (n_pcs, n_obs) vs (n_obs, n_pcs) has
-    # varied across versions/backends (numpy vs PyTorch), normalise here.
+    # harmonypy's Z_corr orientation varies by version and backend
     if Z.shape[0] != adata.n_obs:
         Z = Z.T
     adata.obsm[adjusted_basis] = Z.astype(np.float32)

@@ -209,9 +209,8 @@ _PATTERNS = (
                 r"methionyl|prolyl|phenylalanyl|tyrosyl|tryptophyl|aspartyl|glutamyl|"
                 r"asparaginyl|glutaminyl|lysyl|arginyl|histidyl)", re.I), "Peptide"),
     (re.compile(r"^(l|d|dl)-\w+|amino acid|amino.*butyric acid", re.I), "Amino acid"),
-    # Ring-system stems, deliberately without a trailing "e": systematic names
-    # write them as substituent forms ("piperidin-4-yl", "imidazol-4-ylmethyl"),
-    # so requiring the "e" misses most real occurrences.
+    # Ring stems without the trailing "e": systematic names write
+#: "piperidin-4-yl", not "piperidine".
     (re.compile(r"\bamine\b|piperidin|piperazin|pyrrolidin|morpholin|imidazol|"
                 r"hydrazin|anilin|amino", re.I), "Amine"),
     (re.compile(r"alkaloid|quinolin|isoquinolin|indol|carbolin|tropan|"
@@ -220,9 +219,8 @@ _PATTERNS = (
     (re.compile(r"acid$|oate$|\bcarboxyl", re.I), "Organic acid"),
 )
 
-#: Stereodescriptors and locant prefixes that carry no class information but
-#: sit in front of the part that does: "(+)-Erysotrine", "(2R,3S)-...",
-#: "(1E)-1-Phenyltriaz-1-ene". Stripped before any name matching.
+#: Stereodescriptors and locant prefixes, stripped before matching:
+#: "(+)-Erysotrine", "(2R,3S)-...", "(1E)-1-Phenyltriaz-1-ene".
 _LEADING_DESCRIPTOR = re.compile(
     r"^\s*(\((?:[+\-±]|[0-9]*[a-z]?[RSEZ](?:,\s*[0-9]*[a-z]?[RSEZ])*|"
     r"[0-9]+[a-z]*(?:alpha|beta)?(?:,\s*[0-9]+[a-z]*(?:alpha|beta)?)*)\)|"
@@ -245,9 +243,8 @@ _SUFFIX = (
 
 
 def _classify_one(name: str) -> str:
-    # Peel off any number of leading stereodescriptors: "(+)-", "(2R,3S)-",
-    # "(17alpha,23S)-". They say nothing about chemical class and would
-    # otherwise block every match that anchors at the start of the name.
+    # peel off leading stereodescriptors; they anchor at the start and
+    # block every match
     cleaned = name.strip()
     for _ in range(4):
         stripped_once = _LEADING_DESCRIPTOR.sub("", cleaned, count=1)
@@ -649,8 +646,7 @@ def pathway_ora(
         )
 
     report = pd.DataFrame(rows)
-    # Correct within each direction: the three tests answer different questions
-    # and pooling them would penalise every pathway for the extra columns.
+    # correct within direction; pooling would penalise every pathway
     report["pval_adj"] = np.nan
     for label in report["direction"].unique():
         mask = report["direction"] == label

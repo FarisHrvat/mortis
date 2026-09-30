@@ -47,9 +47,7 @@ _SUPPORTED_EXTENSIONS = {
     ".rds",                               # needs pyreadr, see _read_rds
 }
 
-#: Delimiters worth trying when a text export does not say which it used.
-#: Semicolon first after comma because that is what a European locale writes
-#: when the decimal separator is a comma.
+#: Tried in order when the file does not say which it used.
 _DELIMITERS = (",", ";", "\t", "|")
 
 
@@ -111,8 +109,7 @@ def _sniff_delimiter(file_path: Path) -> str:
     return best
 
 
-#: A run of digits grouped in threes by ``sep``, as a thousands separator is
-#: written: 1.234.567 or 1,234,567.
+#: Digits grouped in threes: 1.234.567 or 1,234,567.
 def _grouped(sep: str) -> "re.Pattern":
     return re.compile(r"^-?\d{1,3}(?:" + re.escape(sep) + r"\d{3})+$")
 
@@ -378,8 +375,7 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
             df = _read_rds(file_path)
         else:
             try:
-                # python-calamine is a fast optional reader; fall back to
-                # openpyxl (a hard dependency) if it isn't installed.
+                # calamine is faster; openpyxl is the hard dependency
                 df = pd.read_excel(file_path, engine="calamine")
             except ImportError:
                 df = pd.read_excel(file_path, engine="openpyxl")
@@ -410,8 +406,7 @@ def _read_tabular(file_path: Path) -> ad.AnnData:
 
     obs_df = df[["x", "y"]].copy()
 
-    # Build pixel IDs as "x_y". A comprehension beats df.apply here by a wide
-    # margin on the 100k+ row exports these files usually are.
+    # "x_y" ids; a comprehension beats df.apply on 100k rows
     x_vals = obs_df["x"].astype(int).values
     y_vals = obs_df["y"].astype(int).values
     obs_df.index = [f"{x}_{y}" for x, y in zip(x_vals, y_vals)]
@@ -476,9 +471,7 @@ def _read_h5ad(file_path: Path) -> ad.AnnData:
                 "in adata.obs."
             )
 
-    # Files written by MORTIS <=0.5.0 can carry a '_perf_cache' in .uns holding
-    # gigabytes of stale dense copies of .X (see analysis._get_X). Drop it on
-    # read so it doesn't get dragged along into everything saved afterwards.
+    # <=0.5.0 files carry gigabytes of stale dense .X in .uns['_perf_cache']
     if adata.uns.pop("_perf_cache", None) is not None:
         print(
             f"[MORTIS] Dropped a stale '_perf_cache' from '{file_path.name}' "

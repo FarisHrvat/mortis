@@ -42,8 +42,7 @@ from .exceptions import FileFormatError, InvalidParameterError
 
 _VOCABULARY_FILE = "drug_names.db"
 
-# In the drug vocabulary because they are sold as products, but made by any
-# tissue. filter_drugs() names them before removing them.
+# Sold as drugs but made by any tissue. filter_drugs() names them first.
 _ALSO_ENDOGENOUS = frozenset({
     "alanine", "arginine", "asparagine", "aspartate", "betaine", "biotin",
     "carnitine", "choline", "cholesterol", "citrulline", "creatine", "cysteine",

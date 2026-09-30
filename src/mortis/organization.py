@@ -71,8 +71,8 @@ __all__ = [
     "compare_abundance_and_organization",
 ]
 
-#: Metrics computed per sample per metabolite. All are scale free, so a
-#: 30,000-pixel section and a 3,000-pixel one are comparable.
+#: Per sample per metabolite. All scale free, so section size does not
+#: drive them.
 ORGANIZATION_METRICS = ("morans_i", "entropy", "hotspot_fraction", "gini")
 
 
@@ -236,8 +236,7 @@ def spatial_organization(
             )
             section.obsm["spatial"] = adata.obsm["spatial"][mask]
 
-        # One section per call, so _build_spatial_weights sees a single block
-        # and neighbours cannot leak across sections.
+        # one section per call, so neighbours cannot leak across sections
         W, _ = _build_spatial_weights(section, n_neighbors, batch_key="__none__")
         row_sums = np.asarray(W.sum(axis=1)).ravel()
         S0 = float(W.sum())
@@ -361,8 +360,7 @@ def differential_spatial_organization(
         ``median_group2`` holding the metric rather than an intensity.
     """
     if metric not in org.layers:
-        # anndata >= 0.13 lists .X itself under a None key; showing that to a
-        # user looking for a metric name is just confusing.
+        # anndata >= 0.13 lists .X under a None key
         available = sorted(k for k in org.layers.keys() if k is not None)
         raise InvalidParameterError(
             f"Metric '{metric}' not found in org.layers. Available: {available}. "

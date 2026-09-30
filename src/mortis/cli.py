@@ -32,8 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 TEMPLATE = """\
-# MORTIS analysis config. Every key is a parameter you would otherwise pass
-# in Python. Keep it next to your results: it is what actually ran.
+# MORTIS analysis config. Keep it next to your results.
 
 input:
   # A folder of exports, or a single .h5ad / .csv / .xlsx file.
@@ -41,8 +40,7 @@ input:
   # The independent unit. Use the patient, not the section, when one patient
   # gave more than one section.
   sample_key: patient
-  # Column identifying the physical tissue section. Spatial organization is a
-  # property of a section, so this is what it gets summarised over.
+  # The physical section. Spatial organization is summarised over this.
   section_key: section
   # The comparison you care about, and the two groups being compared.
   group_key: response

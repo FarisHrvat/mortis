@@ -79,8 +79,7 @@ __all__ = [
 #: Bumped when the manifest layout changes in a way older readers cannot parse.
 MANIFEST_VERSION = 1
 
-#: Packages whose version can change a numeric result. Recorded so a mismatch
-#: points at the culprit instead of leaving you to guess.
+#: Packages whose version can change a result.
 _TRACKED = (
     "mortis-spatial", "numpy", "scipy", "pandas", "anndata", "scanpy",
     "scikit-learn", "statsmodels", "numba", "leidenalg", "igraph", "harmonypy",
@@ -157,8 +156,7 @@ def record_step(
         is safe to pass.
     """
     chain = list(adata.uns.get("mortis_provenance", []))
-    # JSON strings, not dicts: HDF5 has no nested mapping, so a list of dicts
-    # in .uns breaks write_h5ad(). provenance() reads them back.
+    # json strings, not dicts: a list of dicts in .uns breaks write_h5ad()
     chain.append(json.dumps({
         "step": str(step),
         "params": {str(k): str(v) for k, v in (params or {}).items()},

@@ -76,8 +76,7 @@ _SAVE_FORMATS = frozenset(_VECTOR_FORMATS + _RASTER_FORMATS)
 #: matplotlib spells a couple of these differently from the file extension.
 _EXTENSION = {"jpeg": "jpg", "tif": "tiff"}
 
-#: Distinguishable in greyscale and under colour-vision deficiency: these
-#: differ in lightness, not only hue.
+#: Distinguishable in greyscale and under colour-vision deficiency.
 PALETTE = {
     "up": "#B2182B",            # higher in group 1   (RdBu-11)
     "down": "#2166AC",          # higher in group 2   (RdBu-11)
@@ -96,8 +95,7 @@ _LATEX_PREAMBLE = r"""
 
 _ORIGINAL_RCPARAMS: Dict[str, Any] = {}
 
-#: Theme chosen by the last set_publication_style() call. Plot functions read it
-#: so a diverging colormap can centre on the actual page ground.
+#: Set by the last set_publication_style(). Read by the colormaps.
 _ACTIVE_THEME = "print"
 
 
@@ -215,8 +213,7 @@ def set_publication_style(
         raise InvalidParameterError(f"base_size must be > 0, got {base_size}.")
     generic = font_family in ("sans-serif", "serif", "monospace")
     if not generic:
-        # matplotlib warns once and silently substitutes DejaVu Sans for a
-        # missing font, so check it is installed.
+        # matplotlib silently substitutes DejaVu Sans for a missing font
         available = {f.name for f in font_manager.fontManager.ttflist}
         if font_family not in available:
             raise InvalidParameterError(
@@ -246,8 +243,7 @@ def set_publication_style(
 
     mpl.rcParams.update({
         # --- the two settings that make a PDF editable downstream ---
-        # Type 42 (TrueType) keeps text selectable and re-editable. Matplotlib's
-        # default Type 3 is not reliably editable in Illustrator or Inkscape.
+        # type 42 stays editable in illustrator; the default type 3 does not
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
         "svg.fonttype": "none",   # SVG text stays text, not paths
@@ -415,14 +411,11 @@ def save_figure(
             "figure, 600 for line art, 1200 where a journal asks for it."
         )
     if dpi is None and any(f in _RASTER_FORMATS for f in formats):
-        # rcParams["savefig.dpi"] is the string "figure" by default, meaning
-        # "whatever the figure itself is set to", so it cannot just be cast.
+        # savefig.dpi defaults to the string "figure", so it cannot be cast
         configured = mpl.rcParams.get("savefig.dpi")
         dpi = int(fig.dpi) if configured in (None, "figure") else int(configured)
 
-    # Only strip a trailing extension when it is one of ours. Path.with_suffix("")
-    # would take everything after the last dot, so "figure_v1.2" or
-    # "two_axis.dark" would silently lose part of the name.
+    # with_suffix("") would eat the ".dark" in "two_axis.dark"
     base = Path(path)
     if base.suffix.lower().lstrip(".") in _SAVE_FORMATS:
         base = base.with_suffix("")
@@ -442,15 +435,13 @@ def save_figure(
 
     written: Dict[str, Path] = {}
     for fmt in formats:
-        # Append rather than with_suffix(), which would replace a dotted
-        # part of the stem such as the "dark" in "two_axis.dark".
+        # append, since with_suffix() would replace the ".dark"
         out = base.parent / f"{base.name}.{_EXTENSION.get(fmt, fmt)}"
         options: Dict[str, Any] = {"format": fmt, "transparent": transparent}
         if fmt in _RASTER_FORMATS:
             options["dpi"] = dpi
         if fmt in {"jpg", "jpeg"}:
-            # JPEG has no alpha channel, so a transparent figure would come
-            # out on black. matplotlib only honours facecolor here.
+            # jpeg has no alpha; a transparent figure comes out black
             options["transparent"] = False
             options["pil_kwargs"] = {"quality": 95}
         if fmt == "tiff" or fmt == "tif":
@@ -567,8 +558,7 @@ def plot_effect_size(
     ax.set_yticklabels(_wrap(top["metabolite"].astype(str).tolist(), 30))
     ax.axvline(0.0, color=_ink(), linewidth=0.8)
     ax.set_xlim(-1.05, 1.05)
-    # Direction goes under the axis ends rather than into one long label,
-    # which ran off the figure at small widths.
+    # under the axis ends; one long label runs off at small widths
     ax.set_xlabel("Cliff's $\\delta$")
     ax.annotate(f"$\\leftarrow$ {group_labels[1]}", xy=(0.0, -0.115),
                 xycoords="axes fraction", ha="left", va="top",
@@ -582,8 +572,7 @@ def plot_effect_size(
     if n1 is not None and n2 is not None:
         ax.set_title(f"{group_labels[0]} (n={n1}) vs {group_labels[1]} (n={n2})", loc="left")
 
-    # Only show the fill/outline legend when both states occur. Placed below
-    # the axes, since inside the frame it overlaps data past ten bars.
+    # only when both states occur, and below the axes
     if bool(significant.any()) and bool((~significant).any()):
         handles = [
             mpl.patches.Patch(facecolor=PALETTE["up"], edgecolor=PALETTE["up"],
@@ -766,13 +755,10 @@ def plot_delta_volcano(
     return fig
 
 
-#: Nature's column widths in inches: single, one-and-a-half, double. Figures
-#: are drawn at the width they will be printed at, so the type comes out the
-#: size it was set at rather than whatever a later rescale makes it.
+#: Nature column widths in inches. Draw at print width so type is not rescaled.
 COLUMN_SINGLE, COLUMN_WIDE, COLUMN_DOUBLE = 3.50, 4.72, 7.20
 
-#: How the organisation metrics are named on an axis. The layer keys are
-#: identifiers; nobody wants "morans_i" printed on a figure.
+#: Axis labels for the organisation metrics.
 _METRIC_LABELS = {
     "morans_i": "Moran's $I$",
     "entropy": "normalised entropy",
@@ -815,8 +801,7 @@ def _note_stacking(ax, most: int, corner: str = "right") -> None:
     """
     if most <= 1:
         return
-    # Below the axes, not inside them. Points sit right up against the frame on
-    # a small cohort, and a note placed in a corner lands on top of them.
+    # below the axes; on a small cohort points sit against the frame
     x = 1.0 if corner == "right" else 0.0
     ax.annotate(
         f"marker area \u221d metabolites at that point (up to {most})",
@@ -868,9 +853,7 @@ def plot_abundance_vs_organization(
         "abundance only": PALETTE["abundance"],
         "neither": PALETTE["neutral"],
     }
-    # Cliff's delta is quantised: 3v3 gives only ten values, so many
-    # metabolites share a coordinate. Collapse duplicates and scale marker
-    # area by the count rather than jittering them apart.
+    # delta is quantised, so points overlap. scale marker area by the count.
     stacked = 0
     # Draw "neither" first so the findings sit on top of the cloud.
     for label in ("neither", "abundance only", "both", "organization only"):
@@ -887,8 +870,7 @@ def plot_abundance_vs_organization(
         ))
     _note_stacking(ax, stacked)
 
-    # Only the zero lines. Threshold guides would be four more full-width
-    # lines and read as a grid, so the threshold is a tick on the axis.
+    # zero lines only; threshold guides would read as a grid
     ax.axvline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
     ax.axhline(0.0, color=_ink(), linewidth=0.7, alpha=0.45)
     for value in (-delta_threshold, delta_threshold):
@@ -898,8 +880,7 @@ def plot_abundance_vs_organization(
                 alpha=0.55, clip_on=False, zorder=4)
 
     if label_top > 0:
-    # One label per coordinate, with a count when several metabolites share
-    # it: "Spermidine +3 more" rather than six leader lines to one dot.
+    # one label per coordinate: "Spermidine +3 more"
         organization_only = merged[merged["classification"] == "organization only"]
         points, labels = [], []
         for (x, y), group in organization_only.groupby(
@@ -1096,8 +1077,7 @@ def _draw_ion_panel(ax, xy: np.ndarray, values: np.ndarray, vmin, vmax, cmap):
         cols = (x_int - x_int.min()).astype(np.int64)
         rows = (y_int - y_int.min()).astype(np.int64)
         height, width = int(rows.max()) + 1, int(cols.max()) + 1
-        # Guard the same way the colocalization raster does: a wide coordinate
-        # span with few pixels would allocate an enormous empty grid.
+        # a wide span with few pixels would allocate a huge empty grid
         if height * width <= max(64 * len(x), 10_000):
             grid = np.full((height, width), np.nan, dtype=float)
             grid[rows, cols] = values
@@ -1314,9 +1294,7 @@ def plot_spatial_panels(
 
     placement, n_rows, n_cols = _panel_layout(samples, groups, n_cols)
     if legend == "auto":
-        # A text column is about 6.2 inches. Past that the figure is scaled to
-        # fit and everything in it shrinks, which is how a 10pt legend arrives
-        # on the page at 6pt.
+        # a text column is ~6.2in; past that the figure is scaled down
         legend = "below" if panel_size * n_cols + 1.6 > 6.2 else "right"
     if legend not in ("right", "below"):
         raise InvalidParameterError(
@@ -1523,8 +1501,7 @@ def plot_ion_images(
         n_cols = int(counts.max())
     n_cols = int(n_cols or min(len(order), 5))
 
-    # Each group starts a fresh row, so its name can sit once to the left of
-    # the block instead of under every panel title.
+    # fresh row per group, so its name sits once to the left
     placement, row = [], 0
     for group in dict.fromkeys(group_of[s] for s in order):
         members = [s for s in order if group_of[s] == group]
@@ -1533,8 +1510,7 @@ def plot_ion_images(
         row += int(np.ceil(len(members) / n_cols))
     n_rows = max(row, 1)
 
-    # Normalised intensities are ~1e-5, and matplotlib parks the exponent
-    # over the top panel. Scale to O(1) and put the decade in the label.
+    # matplotlib parks the exponent over the top panel; put it in the label
     decade = 0
     if shared_scale and np.isfinite(vmax) and vmax > 0:
         decade = int(np.floor(np.log10(vmax)))
@@ -1564,9 +1540,7 @@ def plot_ion_images(
             lo, hi = vmin * scale, vmax * scale
         handle = _draw_ion_panel(ax, xy, v, lo, hi, cmap or ion_cmap())
         ax.set_title(str(sample), fontsize=mpl.rcParams["font.size"] - 1, pad=3)
-        # Equal aspect shrinks the box to the tissue and centres it, which
-        # puts the titles of differently-shaped sections at different
-        # heights. Anchoring north pins the top edge.
+        # equal aspect centres the box, so titles sit at different heights
         ax.set_aspect("equal", anchor="N")
         ax.set_xticks([])
         ax.set_yticks([])
@@ -1588,9 +1562,7 @@ def plot_ion_images(
     else:
         fig.tight_layout()
 
-    # Re-apply the anchor last. Adding a colourbar with ax=[...] re-runs the
-    # layout over every panel it was given and resets the anchor set earlier,
-    # which puts the titles back at five different heights.
+    # a colourbar re-runs the layout and resets the anchor
     for ax in axes.ravel():
         if ax.get_visible():
             ax.set_anchor("N")
@@ -1687,18 +1659,13 @@ def plot_organization_heatmap(
         boundaries = np.where(ordered[1:] != ordered[:-1])[0]
         for b in boundaries:
             ax.axhline(b + 0.5, color=_ink(), linewidth=1.2)
-        # Offset in points, not data or axes coordinates, since neither knows
-        # how wide the tick text renders. Roughly 0.6 * fontsize per
-        # character plus the tick padding.
+        # offset in points; neither data nor axes coords know the text width
         longest = max(len(s) for s in org.obs_names.astype(str))
-        # font.size is always numeric; ytick.labelsize may be a keyword string
-        # such as 'medium' when no style has been applied, which would fail here.
+        # ytick.labelsize may be 'medium' when no style was applied
         tick_points = float(mpl.rcParams["font.size"]) - 1.0
         pad_points = -(10.0 + 0.62 * tick_points * longest)
 
-        # Horizontal, not rotated: a rotated label is as tall as it is long,
-        # so on a two-section band "Non Responder" overruns it and collides
-        # with the next group.
+        # horizontal; a rotated "Non Responder" overruns a two-section band
         start = 0
         for end in list(boundaries) + [len(ordered) - 1]:
             ax.annotate(
@@ -1766,8 +1733,7 @@ def plot_class_enrichment(
             color=color if sig else "none", edgecolor=color, linewidth=0.9,
         )
 
-    # Class size goes in the tick label: a zero-length bar would print its
-    # count on the axis, over the class name.
+    # in the tick label; a zero-length bar would print over the name
     ax.set_yticks(y)
     ax.set_yticklabels([
         f"{name}  ({int(size)})"
@@ -1841,8 +1807,7 @@ def plot_pathway_dotplot(
     }
     n_rows = max((len(sub) for sub in subsets.values()), default=1)
 
-    # Enrichment on x when the report carries it; odds ratios go infinite when
-    # a pathway's every measured member shifted, so cap for display.
+    # odds ratios go infinite when every member shifted, so cap
     has_odds = "odds_ratio" in report.columns
     if has_odds:
         finite = report.loc[np.isfinite(report["odds_ratio"]), "odds_ratio"]
@@ -1863,9 +1828,7 @@ def plot_pathway_dotplot(
         1, len(panels),
         figsize=figsize or (3.9 * len(panels) + 1.4, max(1.8, 0.34 * n_rows + 1.3)),
         squeeze=False, sharex=True,
-        # Pathway names are long and sit to the left of each panel, so the
-        # default gap lets a dot in one panel slide under its neighbour's
-        # labels.
+        # long pathway names; the default gap lets dots slide under them
         gridspec_kw={"wspace": 0.62},
     )
     scatter = None

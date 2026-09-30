@@ -41,8 +41,7 @@ from .exceptions import InsufficientSamplesError, InvalidParameterError
 
 __all__ = ["compare_signatures", "cross_cohort_profile", "track_flow"]
 
-#: |rho| below this counts as "no relationship" when labelling an outcome.
-#: 0.3 is the conventional weak/moderate boundary for a rank correlation.
+#: |rho| below this reads as no relationship. Conventional boundary.
 _RHO_WEAK = 0.3
 
 

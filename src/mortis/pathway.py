@@ -77,8 +77,7 @@ _KEGG_NAMES_URL = "https://rest.kegg.jp/list/pathway/map"
 #: KEGG's own classification of every pathway map, one call.
 _KEGG_BRITE_URL = "https://rest.kegg.jp/get/br:br08901"
 
-#: Names are sent in batches. Large enough to keep the number of round-trips
-#: down, small enough that one unlucky request does not lose much work.
+#: batch size: few round-trips, little lost when one fails
 _BATCH_SIZE = 200
 
 _CITATION = (
@@ -104,9 +103,8 @@ def _cached_read(directory: Optional[Path], name: str) -> Optional[str]:
     if directory is None:
         return None
     path = directory / name
-    # encoding is explicit everywhere text is touched: Windows defaults to
-    # cp1252, and these cached payloads are full of Greek letters from
-    # compound names (alpha-, beta-) that cp1252 cannot represent.
+    # explicit utf-8: windows defaults to cp1252, which cannot hold the
+    # greek letters in compound names
     return path.read_text(encoding="utf-8") if path.exists() else None
 
 
@@ -402,8 +400,7 @@ def annotate_pathways(
         adata.var_names, cache=cache, timeout=timeout, retries=retries
     )
 
-    # fillna before astype(str): pandas 3 keeps NA as NA rather than the
-    # string "nan", which hands a float to .upper() downstream.
+    # fillna first: pandas 3 keeps NA as NA, not the string "nan"
     def _as_text(column: str) -> pd.Series:
         return identifiers[column].fillna("NA").astype(str).replace("nan", "NA")
 
@@ -430,8 +427,7 @@ def annotate_pathways(
         resolved["kegg"].astype(str).tolist(), cache=cache, timeout=timeout, retries=retries
     )
 
-    # pathway_ora matches on compound name, so translate the KEGG sets back
-    # into the names used in `result`.
+    # pathway_ora matches on name, so map the KEGG sets back
     name_for_kegg: Dict[str, List[str]] = {}
     for query, kegg in zip(resolved["query"].astype(str), resolved["kegg"]):
         name_for_kegg.setdefault(str(kegg).upper(), []).append(str(query))

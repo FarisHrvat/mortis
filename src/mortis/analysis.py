@@ -121,8 +121,7 @@ def _check_spatial(adata: ad.AnnData) -> None:
 # Clustering
 # ---------------------------------------------------------------------------
 
-# scanpy is changing its default Leiden backend and the two give different
-# partitions, so name it rather than inherit it.
+# scanpy is changing its default backend and the two differ, so name it.
 _LEIDEN_BACKEND = {"flavor": "leidenalg"}
 
 
@@ -797,8 +796,7 @@ def _offset_coords_by_batch(adata: ad.AnnData, batch_key: str) -> np.ndarray:
     if len(batches) < 2:
         return coords
 
-    # One stride wider than the full x-extent guarantees no two batches can
-    # overlap, so a KDTree can never return a cross-batch neighbour.
+    # wider than the x-extent, so no KDTree neighbour crosses a batch
     x = coords[:, 0]
     span = float(np.ptp(x)) if x.size else 0.0
     stride = (span + 1.0) * 10.0
@@ -815,8 +813,7 @@ def _build_spatial_weights(
     n = len(coords)
 
     tree = cKDTree(coords)
-    # Query n_neighbors+1 since the point itself is always its own nearest
-    # neighbour (distance 0); drop it unless include_self is requested.
+    # +1 because the point is always its own nearest neighbour
     dists, idx = tree.query(coords, k=n_neighbors + 1, workers=_N_JOBS)
     if not include_self:
         idx = idx[:, 1:]
@@ -828,9 +825,7 @@ def _build_spatial_weights(
     W = csr_matrix((data, (rows, cols)), shape=(n, n), dtype=np.float32)
     return W, idx
 
-#: Bounds on the target size of one working array inside the streaming spatial
-#: kernels, in bytes. The actual target is chosen from free RAM at import time
-#: (see below) and clamped to this range.
+#: Size bounds for one working array in the streaming kernels, in bytes.
 _TILE_BYTES_MIN = 64 * 1024 * 1024
 _TILE_BYTES_MAX = 256 * 1024 * 1024
 
@@ -879,8 +874,7 @@ def _default_tile_bytes() -> int:
     return int(np.clip(target, _TILE_BYTES_MIN, _TILE_BYTES_MAX))
 
 
-#: Resolved once at import. Override for benchmarking by assigning to
-#: ``mortis.analysis._TILE_BYTES``.
+#: Resolved at import. Assign to _TILE_BYTES to override.
 _TILE_BYTES = _default_tile_bytes()
 
 
@@ -949,8 +943,7 @@ def _moran_geary_sums(adata, W, row_sums, col_sums, tile: Optional[int] = None):
         geary_num[start:stop] = np.einsum("i,ij,ij->j", row_plus_col, block, block)
         geary_num[start:stop] -= 2.0 * np.einsum("ij,ij->j", block, WX)
 
-        # Now centre in place. `block` becomes the deviations and `WX` becomes
-        # W @ deviations, so no third full-size array is ever allocated.
+        # centre in place, so no third full-size array
         block -= mean
         WX -= row_sums[:, None].astype(np.float32) * mean
 
@@ -1006,8 +999,7 @@ def spatial_autocorrelation(
     pvals = stats.norm.sf(z)
     _, pvals_adj, _, _ = multipletests(pvals, method="fdr_bh")
 
-    # Geary's C shares W, S0, S1 and S2 with Moran's I above; its numerator was
-    # accumulated in the same pass by _moran_geary_sums.
+    # shares W, S0, S1, S2 with Moran above; numerator from the same pass
     geary_c = (((n - 1) / (2 * S0)) * (geary_num / safe_denom)).astype(np.float32)
     geary_c[denom < 1e-12] = 1.0  # E[C] under no autocorrelation
 
@@ -1133,15 +1125,12 @@ def local_moran(adata: ad.AnnData, metabolite: str, n_neighbors: int = 6, batch_
     idx = adata.var_names.get_loc(metabolite)
     x = X[:, idx].astype(np.float64)
 
-    # Standardise, then take the spatial lag. Doing it this way avoids a
-    # per-pixel loop, which matters at 100k+ pixels.
+    # standardise then lag, to avoid a per-pixel loop
     z = (x - x.mean()) / (x.std() + 1e-12)
     Wz = np.asarray(W @ z).ravel()
     local_i = z * Wz
 
-    # p-values from the empirical spread of local_i rather than Anselin's
-    # conditional permutation. Cheap, but only approximate -- see the note in
-    # the docstring before quoting these.
+    # empirical spread, not Anselin's permutation. approximate, see docstring
     z_i = (local_i - local_i.mean()) / (local_i.std() + 1e-12)
     pvals = stats.norm.sf(np.abs(z_i)) * 2
 
@@ -1209,8 +1198,7 @@ def getis_ord_gi(
 
     x_bar = x.mean()
     s = np.sqrt(max((x**2).mean() - x_bar**2, 1e-12))
-    # W_star is uniform-weight (1/k per row), so both the row-sum (=1) and
-    # sum-of-squared-weights (=1/k) are identical across every pixel.
+    # uniform weights: row-sum is 1 and sum of squares 1/k for every pixel
     const_term = np.sqrt(max((n * (1.0 / k) - 1.0) / (n - 1), 1e-12))
 
     numerator = np.asarray(W_star @ x).ravel() - x_bar
@@ -1345,8 +1333,7 @@ def neighborhood_enrichment(
     if copy: adata = adata.copy()
 
     prior_n_threads = nb.get_num_threads()
-    # set_num_threads() raises above NUMBA_NUM_THREADS, which is fixed at
-    # import from the core count, so clamp rather than error.
+    # set_num_threads() raises above NUMBA_NUM_THREADS, so clamp
     requested = n_jobs if n_jobs is not None else _N_JOBS
     nb.set_num_threads(int(np.clip(requested, 1, nb.config.NUMBA_NUM_THREADS)))
 
@@ -1365,9 +1352,7 @@ def neighborhood_enrichment(
     np.add.at(observed, (a_obs, b_obs), 1)
     np.add.at(observed, (b_obs, a_obs), 1)
 
-    # One independent, well-separated seed per permutation, so the result is
-    # identical regardless of how many threads run the loop. See
-    # _numba_permute_and_count for why a single seed was not enough.
+    # one seed per permutation, so thread count cannot change the result
     perm_seeds = np.random.SeedSequence(random_state).generate_state(n_permutations)
 
     try:
