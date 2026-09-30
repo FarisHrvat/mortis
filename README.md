@@ -149,8 +149,10 @@ pip install -e ".[dev]"
 pytest && ruff check .
 ```
 
-572 tests, run against Python 3.10, 3.11 and 3.12 on Linux, macOS and
-Windows. See
+610 tests, run against Python 3.10 to 3.14 on Linux, Windows and Apple
+Silicon macOS. Intel macOS is not in CI because GitHub retired the last
+Intel runner; the dependencies all ship x86-64 wheels, so it should work
+there, but I have not tested it. See
 [CONTRIBUTING.md](https://github.com/FarisHrvat/mortis/blob/main/CONTRIBUTING.md).
 
 ## Citation
