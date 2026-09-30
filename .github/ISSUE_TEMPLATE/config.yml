@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://farishrvat.github.io/mortis/
+    about: Function reference, tutorials, and the guided tour.
+  - name: Security
+    url: https://github.com/FarisHrvat/mortis/security/policy
+    about: Report anything exploitable privately, not as an issue.

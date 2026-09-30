@@ -12,17 +12,17 @@ python -m venv .venv && source .venv/bin/activate   # or conda/micromamba
 pip install -e ".[dev]"
 ```
 
-Python 3.10 or newer. CI runs 3.10, 3.11 and 3.12 on Linux and macOS, so those
-are the versions that are actually promised.
+Python 3.10 or newer. CI runs 3.10 through 3.14 on Linux, Windows and Apple
+Silicon macOS, so those are the versions that are actually promised.
 
-Worth knowing: on 3.12 pip resolves **pandas 3 and anndata 0.13**, which behave
-differently from what 3.10 and 3.11 get. If a test passes locally and fails in
-CI, that is the first thing to check.
+Worth knowing: on 3.12 and newer, pip resolves **pandas 3 and anndata 0.13**,
+which behave differently from what 3.10 and 3.11 get. If a test passes locally
+and fails in CI, that is the first thing to check.
 
 ## Before you open a pull request
 
 ```bash
-pytest          # 520 tests, about 25 seconds
+pytest          # 610 tests, about 25 seconds
 ruff check .
 ```
 

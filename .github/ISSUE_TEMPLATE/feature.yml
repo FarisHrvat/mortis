@@ -1,0 +1,26 @@
+name: Feature request
+description: Something MORTIS should be able to do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The analysis, not the function you have in mind for it.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: How do you do it now?
+      description: >
+        Which other packages, how many steps. This is the best argument for
+        adding something.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Anything that makes it a bad fit?
+      description: >
+        MORTIS is downstream analysis. It does not do peak picking, compound
+        identification, or raw vendor formats, and it is built for cohorts
+        rather than single sections.

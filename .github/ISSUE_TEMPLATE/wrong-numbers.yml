@@ -1,0 +1,50 @@
+name: Wrong numbers
+description: A result that runs fine but looks incorrect
+labels: ["correctness"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the one that matters most. A crash is obvious; a plausible
+        wrong number ends up in a paper.
+  - type: textarea
+    id: what
+    attributes:
+      label: What did you get, and what did you expect?
+      description: Actual numbers, not a description of them.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code that produces it
+      description: >
+        Smallest version you can manage. Synthetic data is fine and often
+        better. Do not attach patient data.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Data shape
+      description: >
+        Pixels, compounds, sections, and samples per group. Small n changes
+        what several of these functions are allowed to report.
+      placeholder: "30,000 pixels x 250 compounds, 10 sections, 5 per arm"
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Output of `mortis info`
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: cross
+    attributes:
+      label: Checked against anything else?
+      description: >
+        If you computed the same quantity with scipy, esda, squidpy or by hand,
+        say what it gave. Not required, but it usually settles the question.

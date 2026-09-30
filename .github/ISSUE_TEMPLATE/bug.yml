@@ -1,0 +1,30 @@
+name: Bug
+description: Something raises, hangs, or will not install
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code that produces it
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Full traceback
+      description: All of it, not just the last line.
+      render: shell
+  - type: textarea
+    id: env
+    attributes:
+      label: Output of `mortis info`
+      render: shell
+    validations:
+      required: true
