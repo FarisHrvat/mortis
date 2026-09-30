@@ -1,8 +1,13 @@
 name: Publish to PyPI
 
+# Deliberately manual. A PyPI version can never be reused, so publishing is
+# a button you press, not something a tag does on your behalf.
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, e.g. v0.1.0"
+        required: true
 
 permissions:
   contents: read
@@ -12,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: actions/setup-python@v5
         with:
@@ -19,10 +26,11 @@ jobs:
 
       - name: Check the tag matches the version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${{ inputs.tag }}"
+          tag="${tag#v}"
           version=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           if [ "$tag" != "$version" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match version $version"
+            echo "::error::tag ${{ inputs.tag }} does not match version $version"
             exit 1
           fi
 
