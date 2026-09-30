@@ -157,9 +157,9 @@ there, but I have not tested it. See
 
 ## Citation
 
-MORTIS is **under review for publication**. A citation will appear here, and in
-[`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff), as soon as the paper is out. Until then, cite the
-repository and version.
+Cite the repository and the version you ran, from
+[`CITATION.cff`](https://github.com/FarisHrvat/mortis/blob/main/CITATION.cff).
+A Zenodo DOI will be added there shortly, and the article once it is out.
 
 `filter_drugs()` matches against a drug-name list built from Wikidata, which
 is CC0. `run_harmony()` implements Korsunsky et al. 2019, and

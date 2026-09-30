@@ -1,20 +1,17 @@
 cff-version: 1.2.0
 title: "MORTIS: cohort-scale analysis for spatial metabolomics"
 message: >-
-  MORTIS is currently under review for publication. Once the paper is out,
-  the preferred citation will be the article, and it will be added here.
-  Until then, please cite the software using the metadata below, including
-  the version you actually ran.
+  Please cite the software using the metadata below, including the version
+  you actually ran. A Zenodo DOI will be added here shortly, and once the
+  paper is out the preferred citation will be the article.
 version: 0.1.0
-date-released: "2026-07-24"
+date-released: "2026-09-30"
 license: MIT
 type: software
 authors:
   - given-names: Faris
     family-names: Hrvat
     email: farishrvatit@gmail.com
-    # Add your ORCID once you have one (https://orcid.org). It is what makes
-    # a software citation trackable in the academic indices.
     # orcid: "https://orcid.org/0000-0000-0000-0000"
 repository-code: "https://github.com/FarisHrvat/mortis"
 url: "https://farishrvat.github.io/mortis/"
@@ -35,4 +32,7 @@ keywords:
   - reproducibility
   - bioinformatics
   - anndata
-
+identifiers:
+  - type: url
+    value: "https://github.com/FarisHrvat/mortis"
+    description: The repository. A Zenodo DOI will replace this once minted.
